@@ -1,0 +1,451 @@
+{
+  "basis": "Same normal state per theme, greater observable area or learning image dimensions from two older products.",
+  "cells": [
+    {
+      "screen": "download",
+      "theme": "light",
+      "state": "normal",
+      "old_nicegui_ratio": 0.04071807861328125,
+      "flet": {
+        "source": "No verifiable isolated author-list bounds in this capture.",
+        "status": "missing",
+        "visible_rect": null
+      },
+      "baseline_ratio": 0.05494384765625,
+      "confirmed_old_nicegui_floor": 0.04071807861328125,
+      "floor_status": "partial"
+    },
+    {
+      "screen": "ranking",
+      "theme": "light",
+      "state": "normal",
+      "old_nicegui_ratio": 0.0451934814453125,
+      "flet": {
+        "source": "Full-width Flutter ranking scroll group.",
+        "status": "measured",
+        "visible_rect": [
+          20,
+          499,
+          984,
+          121
+        ],
+        "area_ratio": 0.18167724609375,
+        "complete_images": 0,
+        "complete_cards": 0
+      },
+      "baseline_ratio": 0.47911376953125,
+      "floor_ratio": 0.18167724609375,
+      "baseline_meets_floor": true
+    },
+    {
+      "screen": "personal",
+      "theme": "light",
+      "state": "normal",
+      "old_nicegui_ratio": 0.046773338317871095,
+      "flet": {
+        "source": "Full-width results scroll group below the narrower candidate controls.",
+        "status": "measured",
+        "visible_rect": [
+          20,
+          571,
+          984,
+          49
+        ],
+        "area_ratio": 0.07357177734375,
+        "complete_images": 0,
+        "complete_cards": 0
+      },
+      "baseline_ratio": 0.4322021484375,
+      "floor_ratio": 0.07357177734375,
+      "baseline_meets_floor": true
+    },
+    {
+      "screen": "library",
+      "theme": "light",
+      "state": "normal",
+      "old_nicegui_ratio": 0.3092928886413574,
+      "flet": {
+        "source": "Full-width author grid containing both author cards.",
+        "status": "measured",
+        "visible_rect": [
+          20,
+          419,
+          984,
+          201
+        ],
+        "area_ratio": 0.30179443359375,
+        "complete_images": 2,
+        "complete_cards": 2
+      },
+      "baseline_ratio": 0.5287651062011719,
+      "floor_ratio": 0.3092928886413574,
+      "baseline_meets_floor": true
+    },
+    {
+      "screen": "library-works",
+      "theme": "light",
+      "state": "normal",
+      "old_nicegui_ratio": 0.268096923828125,
+      "flet": {
+        "source": "Opened author detail, but there is no verifiable matching work grid in this capture.",
+        "status": "missing",
+        "visible_rect": null
+      },
+      "baseline_ratio": 0.4875732421875,
+      "confirmed_old_nicegui_floor": 0.268096923828125,
+      "floor_status": "partial"
+    },
+    {
+      "screen": "bookmarks",
+      "theme": "light",
+      "state": "normal",
+      "old_nicegui_ratio": 0.2878451347351074,
+      "flet": {
+        "source": "Flutter group labeled by synthetic work in the bookmarks subview.",
+        "status": "measured",
+        "visible_rect": [
+          20,
+          419,
+          984,
+          201
+        ],
+        "area_ratio": 0.30179443359375,
+        "complete_images": 1,
+        "complete_cards": null
+      },
+      "baseline_ratio": 0.570461654663086,
+      "floor_ratio": 0.30179443359375,
+      "baseline_meets_floor": true
+    },
+    {
+      "screen": "recommend",
+      "theme": "light",
+      "state": "normal",
+      "old_nicegui_ratio": 0.06575403213500977,
+      "flet": {
+        "source": "Start at shelf card grid, clipped to outer scroll group, as in NiceGUI.",
+        "status": "measured",
+        "visible_rect": [
+          20,
+          620,
+          984,
+          0
+        ],
+        "area_ratio": 0.0,
+        "complete_images": 0,
+        "complete_cards": 0
+      },
+      "baseline_ratio": 0.4990100860595703,
+      "floor_ratio": 0.06575403213500977,
+      "baseline_meets_floor": true
+    },
+    {
+      "screen": "dedup",
+      "theme": "light",
+      "state": "normal",
+      "old_nicegui_ratio": 0.247723388671875,
+      "flet": {
+        "source": "Full-width near-duplicate scroll group containing the two clipped images.",
+        "status": "measured",
+        "visible_rect": [
+          20,
+          511,
+          984,
+          48
+        ],
+        "area_ratio": 0.0720703125,
+        "complete_images": 0,
+        "complete_cards": 0
+      },
+      "baseline_ratio": 0.50811767578125,
+      "floor_ratio": 0.247723388671875,
+      "baseline_meets_floor": true
+    },
+    {
+      "screen": "view-history",
+      "theme": "light",
+      "state": "normal",
+      "old_nicegui_ratio": 0.21782684326171875,
+      "flet": {
+        "source": "Scrolling group containing the full 76px history row.",
+        "status": "measured",
+        "visible_rect": [
+          292,
+          90,
+          440,
+          360
+        ],
+        "area_ratio": 0.24169921875,
+        "complete_images": 1,
+        "complete_cards": 1
+      },
+      "baseline_ratio": 0.5279953002929687,
+      "floor_ratio": 0.24169921875,
+      "baseline_meets_floor": true
+    },
+    {
+      "screen": "learning",
+      "theme": "light",
+      "state": "normal",
+      "old_nicegui_ratio": 0.14393653919299446,
+      "flet": {
+        "source": "Artwork hit box aligned to the contain image and checked against fixture pixels.",
+        "status": "measured",
+        "visible_rect": [
+          130,
+          382,
+          300,
+          223
+        ],
+        "area_ratio": 0.102081298828125,
+        "artwork_hit_rect": [
+          130,
+          382,
+          300,
+          223
+        ],
+        "colour_extent": [
+          132,
+          382,
+          428,
+          605
+        ],
+        "four_choices_pointer_reachable": 4,
+        "complete_images": 1,
+        "complete_cards": null
+      },
+      "baseline_ratio": 0.3158034011721611,
+      "floor_css_px": [
+        354.64583333333337,
+        265.984375
+      ],
+      "required_reachable_choices": 4,
+      "baseline_meets_floor": true
+    },
+    {
+      "screen": "download",
+      "theme": "dark",
+      "state": "normal",
+      "old_nicegui_ratio": 0.04071807861328125,
+      "flet": {
+        "source": "No verifiable isolated author-list bounds in this capture.",
+        "status": "missing",
+        "visible_rect": null
+      },
+      "baseline_ratio": 0.05494384765625,
+      "confirmed_old_nicegui_floor": 0.04071807861328125,
+      "floor_status": "partial"
+    },
+    {
+      "screen": "ranking",
+      "theme": "dark",
+      "state": "normal",
+      "old_nicegui_ratio": 0.0451934814453125,
+      "flet": {
+        "source": "Full-width Flutter ranking scroll group.",
+        "status": "measured",
+        "visible_rect": [
+          20,
+          499,
+          984,
+          121
+        ],
+        "area_ratio": 0.18167724609375,
+        "complete_images": 0,
+        "complete_cards": 0
+      },
+      "baseline_ratio": 0.47911376953125,
+      "floor_ratio": 0.18167724609375,
+      "baseline_meets_floor": true
+    },
+    {
+      "screen": "personal",
+      "theme": "dark",
+      "state": "normal",
+      "old_nicegui_ratio": 0.046773338317871095,
+      "flet": {
+        "source": "Full-width results scroll group below the narrower candidate controls.",
+        "status": "measured",
+        "visible_rect": [
+          20,
+          571,
+          984,
+          49
+        ],
+        "area_ratio": 0.07357177734375,
+        "complete_images": 0,
+        "complete_cards": 0
+      },
+      "baseline_ratio": 0.4322021484375,
+      "floor_ratio": 0.07357177734375,
+      "baseline_meets_floor": true
+    },
+    {
+      "screen": "library",
+      "theme": "dark",
+      "state": "normal",
+      "old_nicegui_ratio": 0.3092928886413574,
+      "flet": {
+        "source": "Full-width author grid containing both author cards.",
+        "status": "measured",
+        "visible_rect": [
+          20,
+          419,
+          984,
+          201
+        ],
+        "area_ratio": 0.30179443359375,
+        "complete_images": 2,
+        "complete_cards": 2
+      },
+      "baseline_ratio": 0.5287651062011719,
+      "floor_ratio": 0.3092928886413574,
+      "baseline_meets_floor": true
+    },
+    {
+      "screen": "library-works",
+      "theme": "dark",
+      "state": "normal",
+      "old_nicegui_ratio": 0.268096923828125,
+      "flet": {
+        "source": "Opened author detail, but there is no verifiable matching work grid in this capture.",
+        "status": "missing",
+        "visible_rect": null
+      },
+      "baseline_ratio": 0.4875732421875,
+      "confirmed_old_nicegui_floor": 0.268096923828125,
+      "floor_status": "partial"
+    },
+    {
+      "screen": "bookmarks",
+      "theme": "dark",
+      "state": "normal",
+      "old_nicegui_ratio": 0.2878451347351074,
+      "flet": {
+        "source": "Flutter group labeled by synthetic work in the bookmarks subview.",
+        "status": "measured",
+        "visible_rect": [
+          20,
+          419,
+          984,
+          201
+        ],
+        "area_ratio": 0.30179443359375,
+        "complete_images": 1,
+        "complete_cards": null
+      },
+      "baseline_ratio": 0.570461654663086,
+      "floor_ratio": 0.30179443359375,
+      "baseline_meets_floor": true
+    },
+    {
+      "screen": "recommend",
+      "theme": "dark",
+      "state": "normal",
+      "old_nicegui_ratio": 0.06575403213500977,
+      "flet": {
+        "source": "Start at shelf card grid, clipped to outer scroll group, as in NiceGUI.",
+        "status": "measured",
+        "visible_rect": [
+          20,
+          620,
+          984,
+          0
+        ],
+        "area_ratio": 0.0,
+        "complete_images": 0,
+        "complete_cards": 0
+      },
+      "baseline_ratio": 0.4990100860595703,
+      "floor_ratio": 0.06575403213500977,
+      "baseline_meets_floor": true
+    },
+    {
+      "screen": "dedup",
+      "theme": "dark",
+      "state": "normal",
+      "old_nicegui_ratio": 0.247723388671875,
+      "flet": {
+        "source": "Full-width near-duplicate scroll group containing the two clipped images.",
+        "status": "measured",
+        "visible_rect": [
+          20,
+          511,
+          984,
+          48
+        ],
+        "area_ratio": 0.0720703125,
+        "complete_images": 0,
+        "complete_cards": 0
+      },
+      "baseline_ratio": 0.50811767578125,
+      "floor_ratio": 0.247723388671875,
+      "baseline_meets_floor": true
+    },
+    {
+      "screen": "view-history",
+      "theme": "dark",
+      "state": "normal",
+      "old_nicegui_ratio": 0.21782684326171875,
+      "flet": {
+        "source": "Scrolling group containing the full 76px history row.",
+        "status": "measured",
+        "visible_rect": [
+          292,
+          90,
+          440,
+          360
+        ],
+        "area_ratio": 0.24169921875,
+        "complete_images": 1,
+        "complete_cards": 1
+      },
+      "baseline_ratio": 0.5279953002929687,
+      "floor_ratio": 0.24169921875,
+      "baseline_meets_floor": true
+    },
+    {
+      "screen": "learning",
+      "theme": "dark",
+      "state": "normal",
+      "old_nicegui_ratio": 0.14393653919299446,
+      "flet": {
+        "source": "Artwork hit box aligned to the contain image and checked against fixture pixels.",
+        "status": "measured",
+        "visible_rect": [
+          130,
+          382,
+          300,
+          223
+        ],
+        "area_ratio": 0.102081298828125,
+        "artwork_hit_rect": [
+          130,
+          382,
+          300,
+          223
+        ],
+        "colour_extent": [
+          132,
+          382,
+          428,
+          605
+        ],
+        "four_choices_pointer_reachable": 4,
+        "complete_images": 1,
+        "complete_cards": null
+      },
+      "baseline_ratio": 0.3158034011721611,
+      "floor_css_px": [
+        354.64583333333337,
+        265.984375
+      ],
+      "required_reachable_choices": 4,
+      "baseline_meets_floor": true
+    }
+  ],
+  "stress": {
+    "floor_status": "missing",
+    "reason": "No product-equivalent simultaneous display of long DB warning, GET stop and two unresolved automation outcomes on either older revision."
+  }
+}

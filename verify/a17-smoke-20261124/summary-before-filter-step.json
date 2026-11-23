@@ -1,0 +1,1962 @@
+{
+  "verdict": "FAIL",
+  "port": 22742,
+  "sizes": [
+    [
+      1280,
+      800
+    ],
+    [
+      1920,
+      1080
+    ]
+  ],
+  "themes": [
+    "light",
+    "dark"
+  ],
+  "screens": [
+    "startup",
+    "download",
+    "queue",
+    "failed",
+    "history",
+    "dedup",
+    "learning",
+    "ranking",
+    "library",
+    "bookmarks",
+    "recommend",
+    "personal",
+    "scheduler",
+    "metadata",
+    "settings"
+  ],
+  "strict_network": false,
+  "cells": {
+    "startup|1280x800|light": {
+      "failures": [
+        "コンソールエラー: Notify: trying to update a grouped one which is forbidden {classes: pv-toast pv-toast-info, attrs: Proxy(Object), color: pv-toast-info, message: 定期チェックとメタデータ補完は「自動処理」に移りました, type: info}"
+      ],
+      "testids": 71,
+      "scroll": [
+        1280,
+        1280
+      ]
+    },
+    "download|1280x800|light": {
+      "failures": [],
+      "testids": 71,
+      "scroll": [
+        1280,
+        1280
+      ],
+      "operation": {
+        "cycle": [
+          "イラスト・漫画のみ",
+          "小説のみ",
+          "イラスト・漫画+小説（両方）"
+        ],
+        "press_color_changed_and_restored": true
+      }
+    },
+    "queue|1280x800|light": {
+      "failures": [],
+      "testids": 51,
+      "scroll": [
+        1280,
+        1280
+      ]
+    },
+    "failed|1280x800|light": {
+      "failures": [],
+      "testids": 56,
+      "scroll": [
+        1280,
+        1280
+      ]
+    },
+    "history|1280x800|light": {
+      "failures": [],
+      "testids": 41,
+      "scroll": [
+        1280,
+        1280
+      ]
+    },
+    "dedup|1280x800|light": {
+      "failures": [],
+      "testids": 51,
+      "scroll": [
+        1280,
+        1280
+      ]
+    },
+    "learning|1280x800|light": {
+      "failures": [],
+      "testids": 44,
+      "scroll": [
+        1280,
+        1280
+      ]
+    },
+    "ranking|1280x800|light": {
+      "failures": [],
+      "testids": 52,
+      "scroll": [
+        1280,
+        1280
+      ]
+    },
+    "library|1280x800|light": {
+      "failures": [],
+      "testids": 60,
+      "scroll": [
+        1280,
+        1280
+      ],
+      "operation": {
+        "scale": 1.9531,
+        "first_offset": [
+          0.0,
+          -26.0
+        ],
+        "final_offset": [
+          0.0,
+          46.0
+        ],
+        "focus_restored_after_rebuild": true
+      }
+    },
+    "bookmarks|1280x800|light": {
+      "failures": [],
+      "testids": 48,
+      "scroll": [
+        1280,
+        1280
+      ]
+    },
+    "recommend|1280x800|light": {
+      "failures": [],
+      "testids": 56,
+      "scroll": [
+        1280,
+        1280
+      ]
+    },
+    "personal|1280x800|light": {
+      "failures": [
+        "画面を開けない: TimeoutError: Locator.wait_for: Timeout 30000ms exceeded."
+      ],
+      "testids": 68,
+      "scroll": [
+        1280,
+        1280
+      ],
+      "operation": {
+        "draft_committed_on_enter": true,
+        "ime_enter_ignored": true,
+        "removal_confirmed": true
+      }
+    },
+    "scheduler|1280x800|light": {
+      "failures": [],
+      "testids": 89,
+      "scroll": [
+        1280,
+        1280
+      ]
+    },
+    "metadata|1280x800|light": {
+      "failures": [],
+      "testids": 82,
+      "scroll": [
+        1280,
+        1280
+      ]
+    },
+    "settings|1280x800|light": {
+      "failures": [],
+      "testids": 136,
+      "scroll": [
+        1280,
+        1280
+      ]
+    },
+    "startup|1280x800|dark": {
+      "failures": [],
+      "testids": 71,
+      "scroll": [
+        1280,
+        1280
+      ]
+    },
+    "download|1280x800|dark": {
+      "failures": [],
+      "testids": 71,
+      "scroll": [
+        1280,
+        1280
+      ],
+      "operation": {
+        "cycle": [
+          "イラスト・漫画のみ",
+          "小説のみ",
+          "イラスト・漫画+小説（両方）"
+        ],
+        "press_color_changed_and_restored": true
+      }
+    },
+    "queue|1280x800|dark": {
+      "failures": [],
+      "testids": 51,
+      "scroll": [
+        1280,
+        1280
+      ]
+    },
+    "failed|1280x800|dark": {
+      "failures": [],
+      "testids": 56,
+      "scroll": [
+        1280,
+        1280
+      ]
+    },
+    "history|1280x800|dark": {
+      "failures": [],
+      "testids": 41,
+      "scroll": [
+        1280,
+        1280
+      ]
+    },
+    "dedup|1280x800|dark": {
+      "failures": [],
+      "testids": 51,
+      "scroll": [
+        1280,
+        1280
+      ]
+    },
+    "learning|1280x800|dark": {
+      "failures": [],
+      "testids": 44,
+      "scroll": [
+        1280,
+        1280
+      ]
+    },
+    "ranking|1280x800|dark": {
+      "failures": [],
+      "testids": 52,
+      "scroll": [
+        1280,
+        1280
+      ]
+    },
+    "library|1280x800|dark": {
+      "failures": [],
+      "testids": 60,
+      "scroll": [
+        1280,
+        1280
+      ],
+      "operation": {
+        "scale": 1.9531,
+        "first_offset": [
+          0.0,
+          -26.0
+        ],
+        "final_offset": [
+          0.0,
+          46.0
+        ],
+        "focus_restored_after_rebuild": true
+      }
+    },
+    "bookmarks|1280x800|dark": {
+      "failures": [],
+      "testids": 48,
+      "scroll": [
+        1280,
+        1280
+      ]
+    },
+    "recommend|1280x800|dark": {
+      "failures": [],
+      "testids": 56,
+      "scroll": [
+        1280,
+        1280
+      ]
+    },
+    "personal|1280x800|dark": {
+      "failures": [
+        "画面を開けない: TimeoutError: Locator.wait_for: Timeout 30000ms exceeded."
+      ],
+      "testids": 68,
+      "scroll": [
+        1280,
+        1280
+      ],
+      "operation": {
+        "draft_committed_on_enter": true,
+        "ime_enter_ignored": true,
+        "removal_confirmed": true
+      }
+    },
+    "scheduler|1280x800|dark": {
+      "failures": [],
+      "testids": 89,
+      "scroll": [
+        1280,
+        1280
+      ]
+    },
+    "metadata|1280x800|dark": {
+      "failures": [],
+      "testids": 82,
+      "scroll": [
+        1280,
+        1280
+      ]
+    },
+    "settings|1280x800|dark": {
+      "failures": [],
+      "testids": 136,
+      "scroll": [
+        1280,
+        1280
+      ]
+    },
+    "startup|1920x1080|light": {
+      "failures": [],
+      "testids": 71,
+      "scroll": [
+        1920,
+        1920
+      ]
+    },
+    "download|1920x1080|light": {
+      "failures": [],
+      "testids": 71,
+      "scroll": [
+        1920,
+        1920
+      ],
+      "operation": {
+        "cycle": [
+          "イラスト・漫画のみ",
+          "小説のみ",
+          "イラスト・漫画+小説（両方）"
+        ],
+        "press_color_changed_and_restored": true
+      }
+    },
+    "queue|1920x1080|light": {
+      "failures": [],
+      "testids": 51,
+      "scroll": [
+        1920,
+        1920
+      ]
+    },
+    "failed|1920x1080|light": {
+      "failures": [],
+      "testids": 56,
+      "scroll": [
+        1920,
+        1920
+      ]
+    },
+    "history|1920x1080|light": {
+      "failures": [],
+      "testids": 41,
+      "scroll": [
+        1920,
+        1920
+      ]
+    },
+    "dedup|1920x1080|light": {
+      "failures": [],
+      "testids": 51,
+      "scroll": [
+        1920,
+        1920
+      ]
+    },
+    "learning|1920x1080|light": {
+      "failures": [],
+      "testids": 44,
+      "scroll": [
+        1920,
+        1920
+      ]
+    },
+    "ranking|1920x1080|light": {
+      "failures": [],
+      "testids": 52,
+      "scroll": [
+        1920,
+        1920
+      ]
+    },
+    "library|1920x1080|light": {
+      "failures": [],
+      "testids": 60,
+      "scroll": [
+        1920,
+        1920
+      ],
+      "operation": {
+        "scale": 1.9531,
+        "first_offset": [
+          0.0,
+          -26.0
+        ],
+        "final_offset": [
+          0.0,
+          46.0
+        ],
+        "focus_restored_after_rebuild": true
+      }
+    },
+    "bookmarks|1920x1080|light": {
+      "failures": [],
+      "testids": 48,
+      "scroll": [
+        1920,
+        1920
+      ]
+    },
+    "recommend|1920x1080|light": {
+      "failures": [],
+      "testids": 56,
+      "scroll": [
+        1920,
+        1920
+      ]
+    },
+    "personal|1920x1080|light": {
+      "failures": [
+        "画面を開けない: TimeoutError: Locator.wait_for: Timeout 30000ms exceeded."
+      ],
+      "testids": 68,
+      "scroll": [
+        1920,
+        1920
+      ],
+      "operation": {
+        "draft_committed_on_enter": true,
+        "ime_enter_ignored": true,
+        "removal_confirmed": true
+      }
+    },
+    "scheduler|1920x1080|light": {
+      "failures": [],
+      "testids": 89,
+      "scroll": [
+        1920,
+        1920
+      ]
+    },
+    "metadata|1920x1080|light": {
+      "failures": [],
+      "testids": 82,
+      "scroll": [
+        1920,
+        1920
+      ]
+    },
+    "settings|1920x1080|light": {
+      "failures": [],
+      "testids": 136,
+      "scroll": [
+        1920,
+        1920
+      ]
+    },
+    "startup|1920x1080|dark": {
+      "failures": [],
+      "testids": 71,
+      "scroll": [
+        1920,
+        1920
+      ]
+    },
+    "download|1920x1080|dark": {
+      "failures": [],
+      "testids": 71,
+      "scroll": [
+        1920,
+        1920
+      ],
+      "operation": {
+        "cycle": [
+          "イラスト・漫画のみ",
+          "小説のみ",
+          "イラスト・漫画+小説（両方）"
+        ],
+        "press_color_changed_and_restored": true
+      }
+    },
+    "queue|1920x1080|dark": {
+      "failures": [],
+      "testids": 51,
+      "scroll": [
+        1920,
+        1920
+      ]
+    },
+    "failed|1920x1080|dark": {
+      "failures": [],
+      "testids": 56,
+      "scroll": [
+        1920,
+        1920
+      ]
+    },
+    "history|1920x1080|dark": {
+      "failures": [],
+      "testids": 41,
+      "scroll": [
+        1920,
+        1920
+      ]
+    },
+    "dedup|1920x1080|dark": {
+      "failures": [],
+      "testids": 51,
+      "scroll": [
+        1920,
+        1920
+      ]
+    },
+    "learning|1920x1080|dark": {
+      "failures": [],
+      "testids": 44,
+      "scroll": [
+        1920,
+        1920
+      ]
+    },
+    "ranking|1920x1080|dark": {
+      "failures": [],
+      "testids": 52,
+      "scroll": [
+        1920,
+        1920
+      ]
+    },
+    "library|1920x1080|dark": {
+      "failures": [],
+      "testids": 60,
+      "scroll": [
+        1920,
+        1920
+      ],
+      "operation": {
+        "scale": 1.9531,
+        "first_offset": [
+          0.0,
+          -26.0
+        ],
+        "final_offset": [
+          0.0,
+          46.0
+        ],
+        "focus_restored_after_rebuild": true
+      }
+    },
+    "bookmarks|1920x1080|dark": {
+      "failures": [],
+      "testids": 48,
+      "scroll": [
+        1920,
+        1920
+      ]
+    },
+    "recommend|1920x1080|dark": {
+      "failures": [],
+      "testids": 56,
+      "scroll": [
+        1920,
+        1920
+      ]
+    },
+    "personal|1920x1080|dark": {
+      "failures": [
+        "画面を開けない: TimeoutError: Locator.wait_for: Timeout 30000ms exceeded."
+      ],
+      "testids": 68,
+      "scroll": [
+        1920,
+        1920
+      ],
+      "operation": {
+        "draft_committed_on_enter": true,
+        "ime_enter_ignored": true,
+        "removal_confirmed": true
+      }
+    },
+    "scheduler|1920x1080|dark": {
+      "failures": [],
+      "testids": 89,
+      "scroll": [
+        1920,
+        1920
+      ]
+    },
+    "metadata|1920x1080|dark": {
+      "failures": [],
+      "testids": 82,
+      "scroll": [
+        1920,
+        1920
+      ]
+    },
+    "settings|1920x1080|dark": {
+      "failures": [],
+      "testids": 136,
+      "scroll": [
+        1920,
+        1920
+      ]
+    }
+  },
+  "network": {
+    "calls": [],
+    "denied": 0,
+    "call_log": {
+      "startup": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "load|1280x800|light": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "download|1280x800|light": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "queue|1280x800|light": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "failed|1280x800|light": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "history|1280x800|light": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "dedup|1280x800|light": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "learning|1280x800|light": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "ranking|1280x800|light": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "library|1280x800|light": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "bookmarks|1280x800|light": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "recommend|1280x800|light": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "personal|1280x800|light": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "scheduler|1280x800|light": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "metadata|1280x800|light": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "settings|1280x800|light": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "load|1280x800|dark": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "download|1280x800|dark": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "queue|1280x800|dark": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "failed|1280x800|dark": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "history|1280x800|dark": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "dedup|1280x800|dark": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "learning|1280x800|dark": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "ranking|1280x800|dark": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "library|1280x800|dark": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "bookmarks|1280x800|dark": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "recommend|1280x800|dark": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "personal|1280x800|dark": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "scheduler|1280x800|dark": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "metadata|1280x800|dark": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "settings|1280x800|dark": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "load|1920x1080|light": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "download|1920x1080|light": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "queue|1920x1080|light": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "failed|1920x1080|light": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "history|1920x1080|light": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "dedup|1920x1080|light": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "learning|1920x1080|light": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "ranking|1920x1080|light": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "library|1920x1080|light": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "bookmarks|1920x1080|light": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "recommend|1920x1080|light": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "personal|1920x1080|light": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "scheduler|1920x1080|light": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "metadata|1920x1080|light": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "settings|1920x1080|light": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "load|1920x1080|dark": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "download|1920x1080|dark": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "queue|1920x1080|dark": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "failed|1920x1080|dark": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "history|1920x1080|dark": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "dedup|1920x1080|dark": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "learning|1920x1080|dark": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "ranking|1920x1080|dark": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "library|1920x1080|dark": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "bookmarks|1920x1080|dark": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "recommend|1920x1080|dark": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "personal|1920x1080|dark": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "scheduler|1920x1080|dark": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "metadata|1920x1080|dark": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      },
+      "settings|1920x1080|dark": {
+        "calls": [],
+        "sites": [],
+        "denied": 0
+      }
+    },
+    "fake_client_missing_attributes": [],
+    "foreign_browser_requests": [],
+    "failures": [],
+    "declared_on_open_calls_seen": {}
+  },
+  "harness_errors": [],
+  "testids": {
+    "startup": [
+      "db-status-banner",
+      "db-warning-details",
+      "auth-status",
+      "premium-permission-status",
+      "premium-borrow-toggle",
+      "premium-setup-shell",
+      "shared-get-recovery-open",
+      "shared-get-recovery-summary",
+      "request-retry-status",
+      "request-retry-progress-announcement",
+      "request-gate-confirm",
+      "request-retry-dismiss",
+      "tab-history",
+      "view-history-open",
+      "saved-folder-open",
+      "theme-toggle",
+      "pixiv-home-link",
+      "preferences-open",
+      "automation-open",
+      "cookie-banner",
+      "cookie-banner-open",
+      "cookie-banner-close",
+      "tab-download",
+      "tab-queue",
+      "tab-failed",
+      "tab-dedup",
+      "tab-learning",
+      "tab-ranking",
+      "tab-personal",
+      "tab-library",
+      "tab-bookmarks",
+      "tab-recommend",
+      "unified-download-view",
+      "unified-header",
+      "unified-details-open",
+      "unified-body",
+      "unified-left",
+      "unified-mode-followed",
+      "unified-mode-bookmark",
+      "unified-followed-pane",
+      "unified-search",
+      "unified-tools",
+      "unified-select-all",
+      "unified-deselect-all",
+      "unified-star-only",
+      "unified-sort",
+      "unified-sort-asc",
+      "unified-sort-desc",
+      "unified-count",
+      "unified-thead",
+      "unified-header-check",
+      "unified-author-list",
+      "unified-empty",
+      "unified-right",
+      "unified-target-card",
+      "unified-target-count",
+      "unified-targets",
+      "unified-targets-empty",
+      "unified-favorite-card",
+      "unified-favorite-count",
+      "unified-favorite-add",
+      "unified-runrow",
+      "unified-type",
+      "unified-run",
+      "unified-pause",
+      "unified-stop",
+      "unified-band",
+      "unified-band-status",
+      "unified-band-hint-row",
+      "unified-band-summary",
+      "unified-band-hint"
+    ],
+    "download": [
+      "db-status-banner",
+      "db-warning-details",
+      "auth-status",
+      "premium-permission-status",
+      "premium-borrow-toggle",
+      "premium-setup-shell",
+      "shared-get-recovery-open",
+      "shared-get-recovery-summary",
+      "request-retry-status",
+      "request-retry-progress-announcement",
+      "request-gate-confirm",
+      "request-retry-dismiss",
+      "tab-history",
+      "view-history-open",
+      "saved-folder-open",
+      "theme-toggle",
+      "pixiv-home-link",
+      "preferences-open",
+      "automation-open",
+      "cookie-banner",
+      "cookie-banner-open",
+      "cookie-banner-close",
+      "tab-download",
+      "tab-queue",
+      "tab-failed",
+      "tab-dedup",
+      "tab-learning",
+      "tab-ranking",
+      "tab-personal",
+      "tab-library",
+      "tab-bookmarks",
+      "tab-recommend",
+      "unified-download-view",
+      "unified-header",
+      "unified-details-open",
+      "unified-body",
+      "unified-left",
+      "unified-mode-followed",
+      "unified-mode-bookmark",
+      "unified-followed-pane",
+      "unified-search",
+      "unified-tools",
+      "unified-select-all",
+      "unified-deselect-all",
+      "unified-star-only",
+      "unified-sort",
+      "unified-sort-asc",
+      "unified-sort-desc",
+      "unified-count",
+      "unified-thead",
+      "unified-header-check",
+      "unified-author-list",
+      "unified-empty",
+      "unified-right",
+      "unified-target-card",
+      "unified-target-count",
+      "unified-targets",
+      "unified-targets-empty",
+      "unified-favorite-card",
+      "unified-favorite-count",
+      "unified-favorite-add",
+      "unified-runrow",
+      "unified-type",
+      "unified-run",
+      "unified-pause",
+      "unified-stop",
+      "unified-band",
+      "unified-band-status",
+      "unified-band-hint-row",
+      "unified-band-summary",
+      "unified-band-hint"
+    ],
+    "queue": [
+      "db-status-banner",
+      "db-warning-details",
+      "auth-status",
+      "premium-permission-status",
+      "premium-borrow-toggle",
+      "premium-setup-shell",
+      "shared-get-recovery-open",
+      "shared-get-recovery-summary",
+      "request-retry-status",
+      "request-retry-progress-announcement",
+      "request-gate-confirm",
+      "request-retry-dismiss",
+      "tab-history",
+      "view-history-open",
+      "saved-folder-open",
+      "theme-toggle",
+      "pixiv-home-link",
+      "preferences-open",
+      "automation-open",
+      "cookie-banner",
+      "cookie-banner-open",
+      "cookie-banner-close",
+      "tab-download",
+      "tab-queue",
+      "tab-failed",
+      "tab-dedup",
+      "tab-learning",
+      "tab-ranking",
+      "tab-personal",
+      "tab-library",
+      "tab-bookmarks",
+      "tab-recommend",
+      "queue-view",
+      "queue-heading",
+      "queue-search",
+      "queue-count",
+      "queue-filter-all",
+      "queue-filter-queued",
+      "queue-filter-running",
+      "queue-filter-paused",
+      "queue-filter-stopping",
+      "queue-filter-done",
+      "queue-filter-error",
+      "queue-filter-stopped",
+      "queue-select-mode",
+      "queue-list",
+      "queue-previous",
+      "queue-page",
+      "queue-next",
+      "queue-log-heading",
+      "queue-log"
+    ],
+    "failed": [
+      "db-status-banner",
+      "db-warning-details",
+      "auth-status",
+      "premium-permission-status",
+      "premium-borrow-toggle",
+      "premium-setup-shell",
+      "shared-get-recovery-open",
+      "shared-get-recovery-summary",
+      "request-retry-status",
+      "request-retry-progress-announcement",
+      "request-gate-confirm",
+      "request-retry-dismiss",
+      "tab-history",
+      "view-history-open",
+      "saved-folder-open",
+      "theme-toggle",
+      "pixiv-home-link",
+      "preferences-open",
+      "automation-open",
+      "cookie-banner",
+      "cookie-banner-open",
+      "cookie-banner-close",
+      "tab-download",
+      "tab-queue",
+      "tab-failed",
+      "tab-dedup",
+      "tab-learning",
+      "tab-ranking",
+      "tab-personal",
+      "tab-library",
+      "tab-bookmarks",
+      "tab-recommend",
+      "failed-records-view",
+      "failed-reload",
+      "failed-search",
+      "failed-category-all",
+      "failed-category-communication",
+      "failed-category-not_found",
+      "failed-category-permission_age",
+      "failed-category-save_dest",
+      "failed-category-format",
+      "failed-category-other",
+      "failed-retry-all",
+      "failed-menu",
+      "failed-count",
+      "failed-retry-exclusions",
+      "failed-rows",
+      "failed-record",
+      "failed-row-retry",
+      "failed-row-delete",
+      "failed-reason",
+      "failed-row-retry-exclusion",
+      "failed-row-retry-state",
+      "failed-page",
+      "failed-previous",
+      "failed-next"
+    ],
+    "history": [
+      "db-status-banner",
+      "db-warning-details",
+      "auth-status",
+      "premium-permission-status",
+      "premium-borrow-toggle",
+      "premium-setup-shell",
+      "shared-get-recovery-open",
+      "shared-get-recovery-summary",
+      "request-retry-status",
+      "request-retry-progress-announcement",
+      "request-gate-confirm",
+      "request-retry-dismiss",
+      "tab-history",
+      "view-history-open",
+      "saved-folder-open",
+      "theme-toggle",
+      "pixiv-home-link",
+      "preferences-open",
+      "automation-open",
+      "cookie-banner",
+      "cookie-banner-open",
+      "cookie-banner-close",
+      "tab-download",
+      "tab-queue",
+      "tab-failed",
+      "tab-dedup",
+      "tab-learning",
+      "tab-ranking",
+      "tab-personal",
+      "tab-library",
+      "tab-bookmarks",
+      "tab-recommend",
+      "backup-history",
+      "backup-size-large",
+      "backup-size-medium",
+      "backup-size-small",
+      "backup-refresh",
+      "backup-status",
+      "backup-grid",
+      "backup-author-<synthetic>",
+      "backup-open-<synthetic>"
+    ],
+    "dedup": [
+      "db-status-banner",
+      "db-warning-details",
+      "auth-status",
+      "premium-permission-status",
+      "premium-borrow-toggle",
+      "premium-setup-shell",
+      "shared-get-recovery-open",
+      "shared-get-recovery-summary",
+      "request-retry-status",
+      "request-retry-progress-announcement",
+      "request-gate-confirm",
+      "request-retry-dismiss",
+      "tab-history",
+      "view-history-open",
+      "saved-folder-open",
+      "theme-toggle",
+      "pixiv-home-link",
+      "preferences-open",
+      "automation-open",
+      "cookie-banner",
+      "cookie-banner-open",
+      "cookie-banner-close",
+      "tab-download",
+      "tab-queue",
+      "tab-failed",
+      "tab-dedup",
+      "tab-learning",
+      "tab-ranking",
+      "tab-personal",
+      "tab-library",
+      "tab-bookmarks",
+      "tab-recommend",
+      "duplicate-view",
+      "duplicate-mode-undecidable",
+      "duplicate-mode-near",
+      "duplicate-scan",
+      "duplicate-trash",
+      "toolbar-dedup",
+      "toolbar-toggle-dedup",
+      "toolbar-controls-dedup",
+      "duplicate-search",
+      "duplicate-size-small",
+      "duplicate-size-medium",
+      "duplicate-size-large",
+      "duplicate-bulk-low",
+      "duplicate-status",
+      "duplicate-undecidable-panel",
+      "duplicate-undecidable-status",
+      "duplicate-undecidable-refresh",
+      "duplicate-undecidable-rows",
+      "duplicate-undecidable-empty"
+    ],
+    "learning": [
+      "db-status-banner",
+      "db-warning-details",
+      "auth-status",
+      "premium-permission-status",
+      "premium-borrow-toggle",
+      "premium-setup-shell",
+      "shared-get-recovery-open",
+      "shared-get-recovery-summary",
+      "request-retry-status",
+      "request-retry-progress-announcement",
+      "request-gate-confirm",
+      "request-retry-dismiss",
+      "tab-history",
+      "view-history-open",
+      "saved-folder-open",
+      "theme-toggle",
+      "pixiv-home-link",
+      "preferences-open",
+      "automation-open",
+      "cookie-banner",
+      "cookie-banner-open",
+      "cookie-banner-close",
+      "tab-download",
+      "tab-queue",
+      "tab-failed",
+      "tab-dedup",
+      "tab-learning",
+      "tab-ranking",
+      "tab-personal",
+      "tab-library",
+      "tab-bookmarks",
+      "tab-recommend",
+      "learning-swipe-mode",
+      "learning-review-open",
+      "learning-candidate-status",
+      "learning-candidate-spinner",
+      "learning-candidate-retry",
+      "discovery-settings-open",
+      "discovery-trend",
+      "discovery-trend-panel",
+      "learning-reset",
+      "learning-reset-desc",
+      "learning-reset-open",
+      "learning-reset-status"
+    ],
+    "ranking": [
+      "db-status-banner",
+      "db-warning-details",
+      "auth-status",
+      "premium-permission-status",
+      "premium-borrow-toggle",
+      "premium-setup-shell",
+      "shared-get-recovery-open",
+      "shared-get-recovery-summary",
+      "request-retry-status",
+      "request-retry-progress-announcement",
+      "request-gate-confirm",
+      "request-retry-dismiss",
+      "tab-history",
+      "view-history-open",
+      "saved-folder-open",
+      "theme-toggle",
+      "pixiv-home-link",
+      "preferences-open",
+      "automation-open",
+      "cookie-banner",
+      "cookie-banner-open",
+      "cookie-banner-close",
+      "tab-download",
+      "tab-queue",
+      "tab-failed",
+      "tab-dedup",
+      "tab-learning",
+      "tab-ranking",
+      "tab-personal",
+      "tab-library",
+      "tab-bookmarks",
+      "tab-recommend",
+      "ranking-view",
+      "ranking-fetch",
+      "toolbar-ranking",
+      "toolbar-toggle-ranking",
+      "toolbar-controls-ranking",
+      "ranking-mode",
+      "ranking-content",
+      "ranking-date-calendar",
+      "ranking-date",
+      "ranking-r18",
+      "ranking-exclude-ai",
+      "ranking-tag",
+      "ranking-sort",
+      "ranking-hide-manage",
+      "gallery-search",
+      "gallery-size-large",
+      "gallery-size-medium",
+      "gallery-size-small",
+      "ranking-notice",
+      "gallery-scroll"
+    ],
+    "library": [
+      "db-status-banner",
+      "db-warning-details",
+      "auth-status",
+      "premium-permission-status",
+      "premium-borrow-toggle",
+      "premium-setup-shell",
+      "shared-get-recovery-open",
+      "shared-get-recovery-summary",
+      "request-retry-status",
+      "request-retry-progress-announcement",
+      "request-gate-confirm",
+      "request-retry-dismiss",
+      "tab-history",
+      "view-history-open",
+      "saved-folder-open",
+      "theme-toggle",
+      "pixiv-home-link",
+      "preferences-open",
+      "automation-open",
+      "cookie-banner",
+      "cookie-banner-open",
+      "cookie-banner-close",
+      "tab-download",
+      "tab-queue",
+      "tab-failed",
+      "tab-dedup",
+      "tab-learning",
+      "tab-ranking",
+      "tab-personal",
+      "tab-library",
+      "tab-bookmarks",
+      "tab-recommend",
+      "library-view",
+      "library-heading",
+      "library-premium-search",
+      "library-db-refresh",
+      "toolbar-library",
+      "toolbar-toggle-library",
+      "toolbar-controls-library",
+      "library-search",
+      "library-scope-local",
+      "library-scope-pixiv",
+      "library-scope-pending",
+      "library-filter-toggle",
+      "library-sort-view_count",
+      "library-sort-last_backup",
+      "library-sort-capacity",
+      "library-size-large",
+      "library-size-medium",
+      "library-size-small",
+      "library-recovery-status",
+      "library-capacity-measure",
+      "library-capacity-status",
+      "library-legacy-capacity-measure",
+      "library-legacy-capacity-status",
+      "library-legacy-capacity-auto-status",
+      "library-author-count",
+      "library-authors-scroll",
+      "library-author-open",
+      "library-author-profile"
+    ],
+    "bookmarks": [
+      "db-status-banner",
+      "db-warning-details",
+      "auth-status",
+      "premium-permission-status",
+      "premium-borrow-toggle",
+      "premium-setup-shell",
+      "shared-get-recovery-open",
+      "shared-get-recovery-summary",
+      "request-retry-status",
+      "request-retry-progress-announcement",
+      "request-gate-confirm",
+      "request-retry-dismiss",
+      "tab-history",
+      "view-history-open",
+      "saved-folder-open",
+      "theme-toggle",
+      "pixiv-home-link",
+      "preferences-open",
+      "automation-open",
+      "cookie-banner",
+      "cookie-banner-open",
+      "cookie-banner-close",
+      "tab-download",
+      "tab-queue",
+      "tab-failed",
+      "tab-dedup",
+      "tab-learning",
+      "tab-ranking",
+      "tab-personal",
+      "tab-library",
+      "tab-bookmarks",
+      "tab-recommend",
+      "bookmark-host",
+      "library-recovery-status",
+      "bookmark-view",
+      "bookmark-heading",
+      "bookmark-count",
+      "bookmark-selection",
+      "bookmark-download",
+      "bookmark-refresh",
+      "bookmark-freshness",
+      "toolbar-bookmarks",
+      "toolbar-toggle-bookmarks",
+      "toolbar-controls-bookmarks",
+      "bookmark-search",
+      "bookmark-filter-toggle",
+      "bookmark-status",
+      "bookmark-scroll"
+    ],
+    "recommend": [
+      "db-status-banner",
+      "db-warning-details",
+      "auth-status",
+      "premium-permission-status",
+      "premium-borrow-toggle",
+      "premium-setup-shell",
+      "shared-get-recovery-open",
+      "shared-get-recovery-summary",
+      "request-retry-status",
+      "request-retry-progress-announcement",
+      "request-gate-confirm",
+      "request-retry-dismiss",
+      "tab-history",
+      "view-history-open",
+      "saved-folder-open",
+      "theme-toggle",
+      "pixiv-home-link",
+      "preferences-open",
+      "automation-open",
+      "cookie-banner",
+      "cookie-banner-open",
+      "cookie-banner-close",
+      "tab-download",
+      "tab-queue",
+      "tab-failed",
+      "tab-dedup",
+      "tab-learning",
+      "tab-ranking",
+      "tab-personal",
+      "tab-library",
+      "tab-bookmarks",
+      "tab-recommend",
+      "recommend-view",
+      "recommend-notice",
+      "recommend-refresh",
+      "recommend-update",
+      "toolbar-recommend",
+      "toolbar-toggle-recommend",
+      "toolbar-controls-recommend",
+      "recommend-size-large",
+      "recommend-size-medium",
+      "recommend-size-small",
+      "recommend-order-reset",
+      "recommend-section-trend_added",
+      "recommend-section-trend",
+      "recommend-section-boosted",
+      "recommend-section-superlike",
+      "recommend-section-certain",
+      "recommend-work-certain-<synthetic>",
+      "recommend-open-certain-<synthetic>",
+      "recommend-action-certain-<synthetic>-bookmark",
+      "recommend-action-certain-<synthetic>-follow",
+      "recommend-work-certain-<synthetic>",
+      "recommend-open-certain-<synthetic>",
+      "recommend-action-certain-<synthetic>-bookmark",
+      "recommend-action-certain-<synthetic>-follow"
+    ],
+    "personal": [
+      "db-status-banner",
+      "db-warning-details",
+      "auth-status",
+      "premium-permission-status",
+      "premium-borrow-toggle",
+      "premium-setup-shell",
+      "shared-get-recovery-open",
+      "shared-get-recovery-summary",
+      "request-retry-status",
+      "request-retry-progress-announcement",
+      "request-gate-confirm",
+      "request-retry-dismiss",
+      "tab-history",
+      "view-history-open",
+      "saved-folder-open",
+      "theme-toggle",
+      "pixiv-home-link",
+      "preferences-open",
+      "automation-open",
+      "cookie-banner",
+      "cookie-banner-open",
+      "cookie-banner-close",
+      "tab-download",
+      "tab-queue",
+      "tab-failed",
+      "tab-dedup",
+      "tab-learning",
+      "tab-ranking",
+      "tab-personal",
+      "tab-library",
+      "tab-bookmarks",
+      "tab-recommend",
+      "personal-ranking-view",
+      "personal-fetch",
+      "toolbar-personal",
+      "personal-candidates-toggle",
+      "toolbar-controls-personal",
+      "personal-tags",
+      "personal-r18",
+      "personal-ai",
+      "personal-filter-toggle",
+      "ranking-hide-manage",
+      "personal-candidates-row",
+      "personal-candidates-label",
+      "personal-candidates-box",
+      "gallery-search",
+      "gallery-size-large",
+      "gallery-size-medium",
+      "gallery-size-small",
+      "personal-chips",
+      "personal-chips-clear",
+      "personal-notice",
+      "personal-filter-panel",
+      "personal-bookmarks",
+      "personal-sort",
+      "personal-start-date",
+      "personal-end-date",
+      "personal-date-preset",
+      "personal-tags-include",
+      "personal-tags-exclude",
+      "personal-author-max",
+      "personal-exclude-downloaded",
+      "personal-exclude-hidden-authors",
+      "personal-exclude-hidden-works",
+      "personal-exclude-hated",
+      "personal-save-filters",
+      "personal-clear-filters",
+      "gallery-scroll"
+    ],
+    "scheduler": [
+      "db-status-banner",
+      "db-warning-details",
+      "auth-status",
+      "premium-permission-status",
+      "premium-borrow-toggle",
+      "premium-setup-shell",
+      "shared-get-recovery-open",
+      "shared-get-recovery-summary",
+      "request-retry-status",
+      "request-retry-progress-announcement",
+      "request-gate-confirm",
+      "request-retry-dismiss",
+      "tab-history",
+      "view-history-open",
+      "saved-folder-open",
+      "theme-toggle",
+      "pixiv-home-link",
+      "preferences-open",
+      "automation-open",
+      "cookie-banner",
+      "cookie-banner-open",
+      "cookie-banner-close",
+      "tab-download",
+      "tab-queue",
+      "tab-failed",
+      "tab-dedup",
+      "tab-learning",
+      "tab-ranking",
+      "tab-personal",
+      "tab-library",
+      "tab-bookmarks",
+      "tab-recommend",
+      "personal-ranking-view",
+      "personal-fetch",
+      "toolbar-personal",
+      "personal-candidates-toggle",
+      "toolbar-controls-personal",
+      "personal-tags",
+      "personal-r18",
+      "personal-ai",
+      "personal-filter-toggle",
+      "ranking-hide-manage",
+      "personal-candidates-row",
+      "personal-candidates-label",
+      "personal-candidates-box",
+      "gallery-search",
+      "gallery-size-large",
+      "gallery-size-medium",
+      "gallery-size-small",
+      "personal-chips",
+      "personal-chips-clear",
+      "personal-notice",
+      "personal-filter-panel",
+      "personal-bookmarks",
+      "personal-sort",
+      "personal-start-date",
+      "personal-end-date",
+      "personal-date-preset",
+      "personal-tags-include",
+      "personal-tags-exclude",
+      "personal-author-max",
+      "personal-exclude-downloaded",
+      "personal-exclude-hidden-authors",
+      "personal-exclude-hidden-works",
+      "personal-exclude-hated",
+      "personal-save-filters",
+      "personal-clear-filters",
+      "gallery-scroll",
+      "automation-dialog",
+      "automation-close",
+      "automation-recover-metadata",
+      "automation-scheduler",
+      "automation-metadata",
+      "scheduler-run",
+      "scheduler-save",
+      "scheduler-discard",
+      "scheduler-ack",
+      "scheduler-stop",
+      "scheduler-refresh",
+      "scheduler-interval",
+      "scheduler-startup",
+      "scheduler-status",
+      "scheduler-account",
+      "scheduler-automation-status",
+      "scheduler-star-import",
+      "scheduler-action-notice",
+      "shared-log-host",
+      "shared-log-toggle",
+      "shared-log"
+    ],
+    "metadata": [
+      "db-status-banner",
+      "db-warning-details",
+      "auth-status",
+      "premium-permission-status",
+      "premium-borrow-toggle",
+      "premium-setup-shell",
+      "shared-get-recovery-open",
+      "shared-get-recovery-summary",
+      "request-retry-status",
+      "request-retry-progress-announcement",
+      "request-gate-confirm",
+      "request-retry-dismiss",
+      "tab-history",
+      "view-history-open",
+      "saved-folder-open",
+      "theme-toggle",
+      "pixiv-home-link",
+      "preferences-open",
+      "automation-open",
+      "cookie-banner",
+      "cookie-banner-open",
+      "cookie-banner-close",
+      "tab-download",
+      "tab-queue",
+      "tab-failed",
+      "tab-dedup",
+      "tab-learning",
+      "tab-ranking",
+      "tab-personal",
+      "tab-library",
+      "tab-bookmarks",
+      "tab-recommend",
+      "personal-ranking-view",
+      "personal-fetch",
+      "toolbar-personal",
+      "personal-candidates-toggle",
+      "toolbar-controls-personal",
+      "personal-tags",
+      "personal-r18",
+      "personal-ai",
+      "personal-filter-toggle",
+      "ranking-hide-manage",
+      "personal-candidates-row",
+      "personal-candidates-label",
+      "personal-candidates-box",
+      "gallery-search",
+      "gallery-size-large",
+      "gallery-size-medium",
+      "gallery-size-small",
+      "personal-chips",
+      "personal-chips-clear",
+      "personal-notice",
+      "personal-filter-panel",
+      "personal-bookmarks",
+      "personal-sort",
+      "personal-start-date",
+      "personal-end-date",
+      "personal-date-preset",
+      "personal-tags-include",
+      "personal-tags-exclude",
+      "personal-author-max",
+      "personal-exclude-downloaded",
+      "personal-exclude-hidden-authors",
+      "personal-exclude-hidden-works",
+      "personal-exclude-hated",
+      "personal-save-filters",
+      "personal-clear-filters",
+      "gallery-scroll",
+      "automation-dialog",
+      "automation-close",
+      "automation-recover-metadata",
+      "automation-scheduler",
+      "automation-metadata",
+      "metadata-view",
+      "metadata-run-all",
+      "metadata-stop",
+      "metadata-status-line",
+      "metadata-run-status",
+      "metadata-action-notice",
+      "shared-log-host",
+      "shared-log-toggle",
+      "shared-log"
+    ],
+    "settings": [
+      "db-status-banner",
+      "db-warning-details",
+      "auth-status",
+      "premium-permission-status",
+      "premium-borrow-toggle",
+      "premium-setup-shell",
+      "shared-get-recovery-open",
+      "shared-get-recovery-summary",
+      "request-retry-status",
+      "request-retry-progress-announcement",
+      "request-gate-confirm",
+      "request-retry-dismiss",
+      "tab-history",
+      "view-history-open",
+      "saved-folder-open",
+      "theme-toggle",
+      "pixiv-home-link",
+      "preferences-open",
+      "automation-open",
+      "cookie-banner",
+      "cookie-banner-open",
+      "cookie-banner-close",
+      "tab-download",
+      "tab-queue",
+      "tab-failed",
+      "tab-dedup",
+      "tab-learning",
+      "tab-ranking",
+      "tab-personal",
+      "tab-library",
+      "tab-bookmarks",
+      "tab-recommend",
+      "personal-ranking-view",
+      "personal-fetch",
+      "toolbar-personal",
+      "personal-candidates-toggle",
+      "toolbar-controls-personal",
+      "personal-tags",
+      "personal-r18",
+      "personal-ai",
+      "personal-filter-toggle",
+      "ranking-hide-manage",
+      "personal-candidates-row",
+      "personal-candidates-label",
+      "personal-candidates-box",
+      "gallery-search",
+      "gallery-size-large",
+      "gallery-size-medium",
+      "gallery-size-small",
+      "personal-chips",
+      "personal-chips-clear",
+      "personal-notice",
+      "personal-filter-panel",
+      "personal-bookmarks",
+      "personal-sort",
+      "personal-start-date",
+      "personal-end-date",
+      "personal-date-preset",
+      "personal-tags-include",
+      "personal-tags-exclude",
+      "personal-author-max",
+      "personal-exclude-downloaded",
+      "personal-exclude-hidden-authors",
+      "personal-exclude-hidden-works",
+      "personal-exclude-hated",
+      "personal-save-filters",
+      "personal-clear-filters",
+      "gallery-scroll",
+      "preferences-dialog",
+      "native-profile-cookie-value",
+      "native-profile-pick-cookie",
+      "native-profile-clear-cookie",
+      "native-profile-folder-value",
+      "native-profile-pick-folder",
+      "native-profile-clear-folder",
+      "native-profile-library-section",
+      "native-gpu-section",
+      "native-profile-auth-check",
+      "native-profile-cancel",
+      "native-profile-save",
+      "native-profile-migration",
+      "preference-use_work_folder",
+      "preference-unavailable-use_work_folder",
+      "preference-nana7mi_shaft_refresh_interval_hours",
+      "preference-novel_save_format",
+      "preference-unavailable-novel_save_format",
+      "preference-ugoira_save_format",
+      "preference-unavailable-ugoira_save_format",
+      "preference-zip_all_after_download",
+      "preference-unavailable-zip_all_after_download",
+      "preference-bookmark_download_mode",
+      "preference-unavailable-bookmark_download_mode",
+      "preference-enable_notifications",
+      "preference-unavailable-enable_notifications",
+      "preference-meta_backfill_enabled",
+      "preference-description-meta_backfill_enabled",
+      "preference-embed_auto_on_download",
+      "preference-description-embed_auto_on_download",
+      "preference-unavailable-embed_auto_on_download",
+      "preference-visual_preference_enabled",
+      "preference-visual_preference_mode",
+      "preference-visual_preference_thumb_prefetch",
+      "preferences-visual-status",
+      "preferences-visual-start",
+      "preferences-visual-pause",
+      "preferences-visual-clear",
+      "preferences-automation-heading",
+      "preferences-automation-scheduler",
+      "preferences-automation-metadata",
+      "preferences-export-heading",
+      "preferences-export-metadata",
+      "preferences-export-db",
+      "preference-bookmark_auto_refresh",
+      "preference-legacy_novel_thumbnail_auto",
+      "preference-pixiv_actions_enabled",
+      "preference-pixiv-actions-mode",
+      "preference-extension_bridge_enabled",
+      "preference-extension-bridge-note",
+      "preference-download_interval",
+      "preference-api_retry_count",
+      "preference-api_retry_wait",
+      "preference-minimize_to_tray",
+      "preference-unavailable-minimize_to_tray",
+      "preference-discovery_cache_limit_mode",
+      "preference-discovery_cache_size_mb",
+      "preference-pixiv_shared_image_cache_size_mb",
+      "preference-pixiv_disk_thumbnail_cache_size_gb",
+      "preferences-clear-cache",
+      "tagger-path",
+      "tagger-enabled",
+      "tagger-effective",
+      "tagger-status",
+      "preferences-version",
+      "preferences-reload",
+      "preferences-close-top",
+      "preferences-save"
+    ]
+  },
+  "run": {
+    "returncode": 1,
+    "seconds": 346.97,
+    "port_closed": true,
+    "owned_remaining": 0,
+    "cleaned": {
+      "files": 164,
+      "bytes": 11625895
+    }
+  }
+}

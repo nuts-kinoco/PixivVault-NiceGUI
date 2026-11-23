@@ -1,0 +1,5147 @@
+{
+  "revision": "3ac3aa0d47a64785251593bcb09bb2d5f6df374b",
+  "cells": [
+    {
+      "size": [
+        1024,
+        640
+      ],
+      "theme": "light",
+      "variant": "normal",
+      "screens": {
+        "download": {
+          "initial": {
+            "viewport": [
+              1024,
+              640
+            ],
+            "area_ratio": null,
+            "visible_rect": null,
+            "image_rect": null,
+            "first_image_y": null,
+            "complete_images": null,
+            "complete_cards": null,
+            "scroll_semantics": [
+              {
+                "role": null,
+                "rect": [
+                  18,
+                  18,
+                  709,
+                  21
+                ],
+                "scroll_height": 30,
+                "client_height": 21
+              },
+              {
+                "role": null,
+                "rect": [
+                  10,
+                  57,
+                  142,
+                  46
+                ],
+                "scroll_height": 49,
+                "client_height": 46
+              },
+              {
+                "role": null,
+                "rect": [
+                  10,
+                  113,
+                  519,
+                  19
+                ],
+                "scroll_height": 27,
+                "client_height": 19
+              },
+              {
+                "role": null,
+                "rect": [
+                  26,
+                  153,
+                  80,
+                  18
+                ],
+                "scroll_height": 25,
+                "client_height": 18
+              },
+              {
+                "role": null,
+                "rect": [
+                  178,
+                  154,
+                  88,
+                  16
+                ],
+                "scroll_height": 22,
+                "client_height": 16
+              },
+              {
+                "role": null,
+                "rect": [
+                  368,
+                  154,
+                  63,
+                  16
+                ],
+                "scroll_height": 24,
+                "client_height": 16
+              },
+              {
+                "role": null,
+                "rect": [
+                  55,
+                  203,
+                  116,
+                  21
+                ],
+                "scroll_height": 30,
+                "client_height": 21
+              },
+              {
+                "role": null,
+                "rect": [
+                  55,
+                  226,
+                  389,
+                  38
+                ],
+                "scroll_height": 54,
+                "client_height": 38
+              },
+              {
+                "role": null,
+                "rect": [
+                  14,
+                  347,
+                  116,
+                  27
+                ],
+                "scroll_height": 38,
+                "client_height": 27
+              },
+              {
+                "role": null,
+                "rect": [
+                  142,
+                  352,
+                  190,
+                  16
+                ],
+                "scroll_height": 24,
+                "client_height": 16
+              },
+              {
+                "role": null,
+                "rect": [
+                  813,
+                  408,
+                  80,
+                  6
+                ],
+                "scroll_height": 24,
+                "client_height": 6
+              },
+              {
+                "role": null,
+                "rect": [
+                  829,
+                  441,
+                  47,
+                  16
+                ],
+                "scroll_height": 24,
+                "client_height": 16
+              },
+              {
+                "role": null,
+                "rect": [
+                  901,
+                  409,
+                  22,
+                  6
+                ],
+                "scroll_height": 24,
+                "client_height": 6
+              },
+              {
+                "role": null,
+                "rect": [
+                  882,
+                  440,
+                  24,
+                  19
+                ],
+                "scroll_height": 27,
+                "client_height": 19
+              },
+              {
+                "role": null,
+                "rect": [
+                  27,
+                  460,
+                  300,
+                  42
+                ],
+                "scroll_height": 48,
+                "client_height": 42
+              },
+              {
+                "role": "button",
+                "rect": [
+                  27,
+                  510,
+                  167,
+                  18
+                ],
+                "scroll_height": 24,
+                "client_height": 18
+              },
+              {
+                "role": "button",
+                "rect": [
+                  198,
+                  510,
+                  153,
+                  18
+                ],
+                "scroll_height": 24,
+                "client_height": 18
+              },
+              {
+                "role": "button",
+                "rect": [
+                  359,
+                  510,
+                  96,
+                  18
+                ],
+                "scroll_height": 24,
+                "client_height": 18
+              },
+              {
+                "role": "button",
+                "rect": [
+                  601,
+                  517,
+                  104,
+                  11
+                ],
+                "scroll_height": 48,
+                "client_height": 11
+              },
+              {
+                "role": null,
+                "rect": [
+                  20,
+                  546,
+                  40,
+                  19
+                ],
+                "scroll_height": 27,
+                "client_height": 19
+              },
+              {
+                "role": "button",
+                "rect": [
+                  20,
+                  571,
+                  984,
+                  16
+                ],
+                "scroll_height": 24,
+                "client_height": 16
+              }
+            ],
+            "artwork_semantics": [],
+            "fixture_route_ready": true
+          }
+        },
+        "ranking": {
+          "initial": {
+            "viewport": [
+              1024,
+              640
+            ],
+            "area_ratio": null,
+            "visible_rect": null,
+            "image_rect": [
+              35,
+              525,
+              157,
+              20
+            ],
+            "first_image_y": 525,
+            "complete_images": null,
+            "complete_cards": null,
+            "fixture_colour_rectangles": [
+              [
+                35,
+                525,
+                157,
+                20
+              ],
+              [
+                234,
+                525,
+                157,
+                16
+              ],
+              [
+                434,
+                525,
+                156,
+                19
+              ],
+              [
+                633,
+                525,
+                157,
+                18
+              ],
+              [
+                832,
+                525,
+                157,
+                15
+              ],
+              [
+                35,
+                537,
+                157,
+                14
+              ],
+              [
+                434,
+                537,
+                156,
+                13
+              ],
+              [
+                35,
+                547,
+                157,
+                20
+              ],
+              [
+                434,
+                549,
+                156,
+                13
+              ],
+              [
+                35,
+                557,
+                157,
+                14
+              ],
+              [
+                35,
+                566,
+                157,
+                15
+              ],
+              [
+                234,
+                570,
+                157,
+                17
+              ],
+              [
+                434,
+                573,
+                156,
+                18
+              ],
+              [
+                633,
+                575,
+                157,
+                20
+              ],
+              [
+                234,
+                576,
+                157,
+                19
+              ],
+              [
+                35,
+                578,
+                157,
+                24
+              ],
+              [
+                832,
+                581,
+                157,
+                20
+              ],
+              [
+                633,
+                585,
+                157,
+                15
+              ],
+              [
+                434,
+                587,
+                156,
+                17
+              ],
+              [
+                633,
+                599,
+                157,
+                18
+              ],
+              [
+                234,
+                602,
+                157,
+                18
+              ],
+              [
+                832,
+                606,
+                157,
+                14
+              ]
+            ],
+            "scroll_semantics": [
+              {
+                "role": null,
+                "rect": [
+                  18,
+                  18,
+                  709,
+                  21
+                ],
+                "scroll_height": 30,
+                "client_height": 21
+              },
+              {
+                "role": null,
+                "rect": [
+                  10,
+                  57,
+                  142,
+                  46
+                ],
+                "scroll_height": 49,
+                "client_height": 46
+              },
+              {
+                "role": null,
+                "rect": [
+                  10,
+                  113,
+                  519,
+                  19
+                ],
+                "scroll_height": 27,
+                "client_height": 19
+              },
+              {
+                "role": null,
+                "rect": [
+                  26,
+                  153,
+                  80,
+                  18
+                ],
+                "scroll_height": 25,
+                "client_height": 18
+              },
+              {
+                "role": null,
+                "rect": [
+                  178,
+                  154,
+                  88,
+                  16
+                ],
+                "scroll_height": 22,
+                "client_height": 16
+              },
+              {
+                "role": null,
+                "rect": [
+                  368,
+                  154,
+                  63,
+                  16
+                ],
+                "scroll_height": 24,
+                "client_height": 16
+              },
+              {
+                "role": null,
+                "rect": [
+                  55,
+                  203,
+                  116,
+                  21
+                ],
+                "scroll_height": 30,
+                "client_height": 21
+              },
+              {
+                "role": null,
+                "rect": [
+                  55,
+                  226,
+                  389,
+                  38
+                ],
+                "scroll_height": 54,
+                "client_height": 38
+              },
+              {
+                "role": null,
+                "rect": [
+                  20,
+                  389,
+                  122,
+                  21
+                ],
+                "scroll_height": 30,
+                "client_height": 21
+              },
+              {
+                "role": null,
+                "rect": [
+                  544,
+                  434,
+                  23,
+                  16
+                ],
+                "scroll_height": 18,
+                "client_height": 16
+              },
+              {
+                "role": null,
+                "rect": [
+                  649,
+                  434,
+                  33,
+                  16
+                ],
+                "scroll_height": 24,
+                "client_height": 16
+              },
+              {
+                "role": null,
+                "rect": [
+                  693,
+                  426,
+                  160,
+                  32
+                ],
+                "scroll_height": 38,
+                "client_height": 32
+              },
+              {
+                "role": null,
+                "rect": [
+                  20,
+                  474,
+                  120,
+                  17
+                ],
+                "scroll_height": 24,
+                "client_height": 17
+              },
+              {
+                "role": "group",
+                "rect": [
+                  20,
+                  499,
+                  984,
+                  121
+                ],
+                "scroll_height": 1382,
+                "client_height": 121
+              }
+            ],
+            "artwork_semantics": [],
+            "fixture_route_ready": true
+          }
+        },
+        "personal": {
+          "initial": {
+            "viewport": [
+              1024,
+              640
+            ],
+            "area_ratio": null,
+            "visible_rect": null,
+            "image_rect": [
+              35,
+              596,
+              158,
+              13
+            ],
+            "first_image_y": 596,
+            "complete_images": null,
+            "complete_cards": null,
+            "fixture_colour_rectangles": [
+              [
+                35,
+                596,
+                158,
+                13
+              ],
+              [
+                234,
+                596,
+                158,
+                14
+              ],
+              [
+                433,
+                596,
+                158,
+                15
+              ],
+              [
+                632,
+                596,
+                158,
+                20
+              ],
+              [
+                831,
+                596,
+                158,
+                24
+              ]
+            ],
+            "scroll_semantics": [
+              {
+                "role": null,
+                "rect": [
+                  18,
+                  18,
+                  709,
+                  21
+                ],
+                "scroll_height": 30,
+                "client_height": 21
+              },
+              {
+                "role": null,
+                "rect": [
+                  10,
+                  57,
+                  142,
+                  46
+                ],
+                "scroll_height": 49,
+                "client_height": 46
+              },
+              {
+                "role": null,
+                "rect": [
+                  10,
+                  113,
+                  519,
+                  19
+                ],
+                "scroll_height": 27,
+                "client_height": 19
+              },
+              {
+                "role": null,
+                "rect": [
+                  26,
+                  153,
+                  80,
+                  18
+                ],
+                "scroll_height": 25,
+                "client_height": 18
+              },
+              {
+                "role": null,
+                "rect": [
+                  178,
+                  154,
+                  88,
+                  16
+                ],
+                "scroll_height": 22,
+                "client_height": 16
+              },
+              {
+                "role": null,
+                "rect": [
+                  368,
+                  154,
+                  63,
+                  16
+                ],
+                "scroll_height": 24,
+                "client_height": 16
+              },
+              {
+                "role": null,
+                "rect": [
+                  55,
+                  203,
+                  116,
+                  21
+                ],
+                "scroll_height": 30,
+                "client_height": 21
+              },
+              {
+                "role": null,
+                "rect": [
+                  55,
+                  226,
+                  389,
+                  38
+                ],
+                "scroll_height": 54,
+                "client_height": 38
+              },
+              {
+                "role": null,
+                "rect": [
+                  20,
+                  389,
+                  122,
+                  21
+                ],
+                "scroll_height": 30,
+                "client_height": 21
+              },
+              {
+                "role": "group",
+                "rect": [
+                  31,
+                  419,
+                  642,
+                  38
+                ],
+                "scroll_height": 41,
+                "client_height": 38
+              },
+              {
+                "role": null,
+                "rect": [
+                  40,
+                  430,
+                  45,
+                  16
+                ],
+                "scroll_height": 24,
+                "client_height": 16
+              },
+              {
+                "role": null,
+                "rect": [
+                  118,
+                  422,
+                  555,
+                  32
+                ],
+                "scroll_height": 38,
+                "client_height": 32
+              },
+              {
+                "role": null,
+                "rect": [
+                  756,
+                  430,
+                  23,
+                  16
+                ],
+                "scroll_height": 18,
+                "client_height": 16
+              },
+              {
+                "role": null,
+                "rect": [
+                  851,
+                  430,
+                  33,
+                  16
+                ],
+                "scroll_height": 24,
+                "client_height": 16
+              },
+              {
+                "role": null,
+                "rect": [
+                  20,
+                  474,
+                  67,
+                  16
+                ],
+                "scroll_height": 24,
+                "client_height": 16
+              },
+              {
+                "role": "button",
+                "rect": [
+                  20,
+                  510,
+                  132,
+                  24
+                ],
+                "scroll_height": 48,
+                "client_height": 24
+              },
+              {
+                "role": null,
+                "rect": [
+                  20,
+                  546,
+                  261,
+                  17
+                ],
+                "scroll_height": 24,
+                "client_height": 17
+              },
+              {
+                "role": "group",
+                "rect": [
+                  20,
+                  571,
+                  984,
+                  49
+                ],
+                "scroll_height": 1382,
+                "client_height": 49
+              },
+              {
+                "role": "button",
+                "rect": [
+                  20,
+                  571,
+                  187,
+                  49
+                ],
+                "scroll_height": 66,
+                "client_height": 49
+              },
+              {
+                "role": "button",
+                "rect": [
+                  219,
+                  571,
+                  187,
+                  49
+                ],
+                "scroll_height": 66,
+                "client_height": 49
+              },
+              {
+                "role": "button",
+                "rect": [
+                  418,
+                  571,
+                  187,
+                  49
+                ],
+                "scroll_height": 66,
+                "client_height": 49
+              },
+              {
+                "role": "button",
+                "rect": [
+                  618,
+                  571,
+                  187,
+                  49
+                ],
+                "scroll_height": 66,
+                "client_height": 49
+              },
+              {
+                "role": "button",
+                "rect": [
+                  817,
+                  571,
+                  187,
+                  49
+                ],
+                "scroll_height": 66,
+                "client_height": 49
+              }
+            ],
+            "artwork_semantics": [],
+            "fixture_route_ready": true
+          }
+        },
+        "library": {
+          "initial": {
+            "viewport": [
+              1024,
+              640
+            ],
+            "area_ratio": null,
+            "visible_rect": null,
+            "image_rect": [
+              27,
+              430,
+              173,
+              24
+            ],
+            "first_image_y": 430,
+            "complete_images": null,
+            "complete_cards": null,
+            "fixture_colour_rectangles": [
+              [
+                27,
+                430,
+                173,
+                24
+              ],
+              [
+                227,
+                430,
+                153,
+                16
+              ],
+              [
+                27,
+                451,
+                173,
+                19
+              ],
+              [
+                227,
+                467,
+                172,
+                13
+              ],
+              [
+                27,
+                469,
+                173,
+                15
+              ],
+              [
+                27,
+                478,
+                173,
+                22
+              ],
+              [
+                227,
+                478,
+                172,
+                17
+              ],
+              [
+                27,
+                488,
+                173,
+                24
+              ],
+              [
+                227,
+                493,
+                172,
+                29
+              ],
+              [
+                227,
+                507,
+                172,
+                22
+              ],
+              [
+                27,
+                509,
+                173,
+                19
+              ],
+              [
+                27,
+                532,
+                173,
+                27
+              ],
+              [
+                227,
+                533,
+                172,
+                26
+              ]
+            ],
+            "scroll_semantics": [
+              {
+                "role": null,
+                "rect": [
+                  18,
+                  18,
+                  709,
+                  21
+                ],
+                "scroll_height": 30,
+                "client_height": 21
+              },
+              {
+                "role": null,
+                "rect": [
+                  10,
+                  57,
+                  142,
+                  46
+                ],
+                "scroll_height": 49,
+                "client_height": 46
+              },
+              {
+                "role": null,
+                "rect": [
+                  10,
+                  113,
+                  519,
+                  19
+                ],
+                "scroll_height": 27,
+                "client_height": 19
+              },
+              {
+                "role": null,
+                "rect": [
+                  26,
+                  153,
+                  80,
+                  18
+                ],
+                "scroll_height": 25,
+                "client_height": 18
+              },
+              {
+                "role": null,
+                "rect": [
+                  178,
+                  154,
+                  88,
+                  16
+                ],
+                "scroll_height": 22,
+                "client_height": 16
+              },
+              {
+                "role": null,
+                "rect": [
+                  368,
+                  154,
+                  63,
+                  16
+                ],
+                "scroll_height": 24,
+                "client_height": 16
+              },
+              {
+                "role": null,
+                "rect": [
+                  55,
+                  203,
+                  116,
+                  21
+                ],
+                "scroll_height": 30,
+                "client_height": 21
+              },
+              {
+                "role": null,
+                "rect": [
+                  55,
+                  226,
+                  389,
+                  38
+                ],
+                "scroll_height": 54,
+                "client_height": 38
+              },
+              {
+                "role": null,
+                "rect": [
+                  20,
+                  344,
+                  76,
+                  21
+                ],
+                "scroll_height": 30,
+                "client_height": 21
+              },
+              {
+                "role": "button",
+                "rect": [
+                  388,
+                  338,
+                  215,
+                  32
+                ],
+                "scroll_height": 72,
+                "client_height": 32
+              },
+              {
+                "role": null,
+                "rect": [
+                  900,
+                  389,
+                  104,
+                  17
+                ],
+                "scroll_height": 24,
+                "client_height": 17
+              },
+              {
+                "role": "group",
+                "rect": [
+                  20,
+                  419,
+                  984,
+                  201
+                ],
+                "scroll_height": 365,
+                "client_height": 201
+              },
+              {
+                "role": "group",
+                "rect": [
+                  20,
+                  419,
+                  187,
+                  187
+                ],
+                "scroll_height": 365,
+                "client_height": 187
+              },
+              {
+                "role": "button",
+                "rect": [
+                  175,
+                  430,
+                  21,
+                  21
+                ],
+                "scroll_height": 354,
+                "client_height": 21
+              },
+              {
+                "role": "group",
+                "rect": [
+                  219,
+                  419,
+                  187,
+                  187
+                ],
+                "scroll_height": 365,
+                "client_height": 187
+              },
+              {
+                "role": "button",
+                "rect": [
+                  374,
+                  430,
+                  21,
+                  21
+                ],
+                "scroll_height": 354,
+                "client_height": 21
+              }
+            ],
+            "artwork_semantics": [],
+            "fixture_route_ready": true
+          }
+        },
+        "library-works": {
+          "initial": {
+            "viewport": [
+              1024,
+              640
+            ],
+            "area_ratio": null,
+            "visible_rect": null,
+            "image_rect": null,
+            "first_image_y": null,
+            "complete_images": null,
+            "complete_cards": null,
+            "scroll_semantics": [
+              {
+                "role": null,
+                "rect": [
+                  18,
+                  18,
+                  709,
+                  21
+                ],
+                "scroll_height": 30,
+                "client_height": 21
+              },
+              {
+                "role": null,
+                "rect": [
+                  10,
+                  57,
+                  142,
+                  46
+                ],
+                "scroll_height": 49,
+                "client_height": 46
+              },
+              {
+                "role": null,
+                "rect": [
+                  10,
+                  113,
+                  519,
+                  19
+                ],
+                "scroll_height": 27,
+                "client_height": 19
+              },
+              {
+                "role": null,
+                "rect": [
+                  26,
+                  153,
+                  80,
+                  18
+                ],
+                "scroll_height": 25,
+                "client_height": 18
+              },
+              {
+                "role": null,
+                "rect": [
+                  178,
+                  154,
+                  88,
+                  16
+                ],
+                "scroll_height": 22,
+                "client_height": 16
+              },
+              {
+                "role": null,
+                "rect": [
+                  368,
+                  154,
+                  63,
+                  16
+                ],
+                "scroll_height": 24,
+                "client_height": 16
+              },
+              {
+                "role": null,
+                "rect": [
+                  55,
+                  203,
+                  116,
+                  21
+                ],
+                "scroll_height": 30,
+                "client_height": 21
+              },
+              {
+                "role": null,
+                "rect": [
+                  55,
+                  226,
+                  389,
+                  38
+                ],
+                "scroll_height": 54,
+                "client_height": 38
+              },
+              {
+                "role": null,
+                "rect": [
+                  20,
+                  344,
+                  76,
+                  21
+                ],
+                "scroll_height": 30,
+                "client_height": 21
+              },
+              {
+                "role": "button",
+                "rect": [
+                  388,
+                  338,
+                  215,
+                  32
+                ],
+                "scroll_height": 72,
+                "client_height": 32
+              },
+              {
+                "role": null,
+                "rect": [
+                  154,
+                  392,
+                  804,
+                  19
+                ],
+                "scroll_height": 27,
+                "client_height": 19
+              },
+              {
+                "role": null,
+                "rect": [
+                  18,
+                  523,
+                  244,
+                  18
+                ],
+                "scroll_height": 25,
+                "client_height": 18
+              }
+            ],
+            "artwork_semantics": [],
+            "fixture_route_ready": true
+          }
+        },
+        "bookmarks": {
+          "initial": {
+            "viewport": [
+              1024,
+              640
+            ],
+            "area_ratio": null,
+            "visible_rect": null,
+            "image_rect": [
+              28,
+              430,
+              131,
+              16
+            ],
+            "first_image_y": 430,
+            "complete_images": null,
+            "complete_cards": null,
+            "fixture_colour_rectangles": [
+              [
+                28,
+                430,
+                131,
+                16
+              ],
+              [
+                27,
+                451,
+                173,
+                19
+              ],
+              [
+                27,
+                469,
+                173,
+                15
+              ],
+              [
+                27,
+                478,
+                173,
+                22
+              ],
+              [
+                27,
+                488,
+                173,
+                24
+              ],
+              [
+                27,
+                509,
+                173,
+                19
+              ],
+              [
+                27,
+                532,
+                173,
+                27
+              ]
+            ],
+            "scroll_semantics": [
+              {
+                "role": null,
+                "rect": [
+                  18,
+                  18,
+                  709,
+                  21
+                ],
+                "scroll_height": 30,
+                "client_height": 21
+              },
+              {
+                "role": null,
+                "rect": [
+                  10,
+                  57,
+                  142,
+                  46
+                ],
+                "scroll_height": 49,
+                "client_height": 46
+              },
+              {
+                "role": null,
+                "rect": [
+                  10,
+                  113,
+                  519,
+                  19
+                ],
+                "scroll_height": 27,
+                "client_height": 19
+              },
+              {
+                "role": null,
+                "rect": [
+                  26,
+                  153,
+                  80,
+                  18
+                ],
+                "scroll_height": 25,
+                "client_height": 18
+              },
+              {
+                "role": null,
+                "rect": [
+                  178,
+                  154,
+                  88,
+                  16
+                ],
+                "scroll_height": 22,
+                "client_height": 16
+              },
+              {
+                "role": null,
+                "rect": [
+                  368,
+                  154,
+                  63,
+                  16
+                ],
+                "scroll_height": 24,
+                "client_height": 16
+              },
+              {
+                "role": null,
+                "rect": [
+                  55,
+                  203,
+                  116,
+                  21
+                ],
+                "scroll_height": 30,
+                "client_height": 21
+              },
+              {
+                "role": null,
+                "rect": [
+                  55,
+                  226,
+                  389,
+                  38
+                ],
+                "scroll_height": 54,
+                "client_height": 38
+              },
+              {
+                "role": null,
+                "rect": [
+                  20,
+                  344,
+                  76,
+                  21
+                ],
+                "scroll_height": 30,
+                "client_height": 21
+              },
+              {
+                "role": null,
+                "rect": [
+                  378,
+                  337,
+                  105,
+                  34
+                ],
+                "scroll_height": 40,
+                "client_height": 34
+              },
+              {
+                "role": "button",
+                "rect": [
+                  493,
+                  338,
+                  215,
+                  32
+                ],
+                "scroll_height": 72,
+                "client_height": 32
+              },
+              {
+                "role": null,
+                "rect": [
+                  172,
+                  390,
+                  236,
+                  15
+                ],
+                "scroll_height": 24,
+                "client_height": 15
+              },
+              {
+                "role": null,
+                "rect": [
+                  865,
+                  389,
+                  60,
+                  17
+                ],
+                "scroll_height": 24,
+                "client_height": 17
+              },
+              {
+                "role": null,
+                "rect": [
+                  935,
+                  389,
+                  69,
+                  17
+                ],
+                "scroll_height": 24,
+                "client_height": 17
+              }
+            ],
+            "artwork_semantics": [
+              {
+                "role": null,
+                "rect": [
+                  20,
+                  419,
+                  984,
+                  201
+                ]
+              },
+              {
+                "role": "group",
+                "rect": [
+                  20,
+                  419,
+                  984,
+                  201
+                ]
+              },
+              {
+                "role": "button",
+                "rect": [
+                  27,
+                  426,
+                  173,
+                  137
+                ]
+              }
+            ],
+            "fixture_route_ready": true
+          }
+        },
+        "recommend": {
+          "initial": {
+            "viewport": [
+              1024,
+              640
+            ],
+            "area_ratio": null,
+            "visible_rect": null,
+            "image_rect": null,
+            "first_image_y": null,
+            "complete_images": null,
+            "complete_cards": null,
+            "scroll_semantics": [
+              {
+                "role": null,
+                "rect": [
+                  18,
+                  18,
+                  709,
+                  21
+                ],
+                "scroll_height": 30,
+                "client_height": 21
+              },
+              {
+                "role": null,
+                "rect": [
+                  10,
+                  57,
+                  142,
+                  46
+                ],
+                "scroll_height": 49,
+                "client_height": 46
+              },
+              {
+                "role": null,
+                "rect": [
+                  10,
+                  113,
+                  519,
+                  19
+                ],
+                "scroll_height": 27,
+                "client_height": 19
+              },
+              {
+                "role": null,
+                "rect": [
+                  26,
+                  153,
+                  80,
+                  18
+                ],
+                "scroll_height": 25,
+                "client_height": 18
+              },
+              {
+                "role": null,
+                "rect": [
+                  178,
+                  154,
+                  88,
+                  16
+                ],
+                "scroll_height": 22,
+                "client_height": 16
+              },
+              {
+                "role": null,
+                "rect": [
+                  368,
+                  154,
+                  63,
+                  16
+                ],
+                "scroll_height": 24,
+                "client_height": 16
+              },
+              {
+                "role": null,
+                "rect": [
+                  55,
+                  203,
+                  116,
+                  21
+                ],
+                "scroll_height": 30,
+                "client_height": 21
+              },
+              {
+                "role": null,
+                "rect": [
+                  55,
+                  226,
+                  389,
+                  38
+                ],
+                "scroll_height": 54,
+                "client_height": 38
+              },
+              {
+                "role": null,
+                "rect": [
+                  20,
+                  349,
+                  61,
+                  21
+                ],
+                "scroll_height": 30,
+                "client_height": 21
+              },
+              {
+                "role": "group",
+                "rect": [
+                  20,
+                  391,
+                  984,
+                  229
+                ],
+                "scroll_height": 531,
+                "client_height": 229
+              },
+              {
+                "role": null,
+                "rect": [
+                  66,
+                  428,
+                  27,
+                  19
+                ],
+                "scroll_height": 27,
+                "client_height": 19
+              },
+              {
+                "role": null,
+                "rect": [
+                  20,
+                  467,
+                  82,
+                  16
+                ],
+                "scroll_height": 24,
+                "client_height": 16
+              },
+              {
+                "role": null,
+                "rect": [
+                  66,
+                  530,
+                  93,
+                  19
+                ],
+                "scroll_height": 27,
+                "client_height": 19
+              },
+              {
+                "role": null,
+                "rect": [
+                  66,
+                  580,
+                  53,
+                  19
+                ],
+                "scroll_height": 27,
+                "client_height": 19
+              },
+              {
+                "role": null,
+                "rect": [
+                  20,
+                  615,
+                  214,
+                  5
+                ],
+                "scroll_height": 24,
+                "client_height": 5
+              },
+              {
+                "role": "group",
+                "rect": [
+                  20,
+                  636,
+                  984,
+                  170
+                ],
+                "scroll_height": 187,
+                "client_height": 170
+              },
+              {
+                "role": null,
+                "rect": [
+                  66,
+                  859,
+                  165,
+                  19
+                ],
+                "scroll_height": 27,
+                "client_height": 19
+              },
+              {
+                "role": null,
+                "rect": [
+                  20,
+                  898,
+                  82,
+                  16
+                ],
+                "scroll_height": 24,
+                "client_height": 16
+              }
+            ],
+            "artwork_semantics": [],
+            "fixture_route_ready": true
+          }
+        },
+        "dedup": {
+          "initial": {
+            "viewport": [
+              1024,
+              640
+            ],
+            "area_ratio": null,
+            "visible_rect": null,
+            "image_rect": null,
+            "first_image_y": null,
+            "complete_images": null,
+            "complete_cards": null,
+            "scroll_semantics": [
+              {
+                "role": null,
+                "rect": [
+                  18,
+                  18,
+                  709,
+                  21
+                ],
+                "scroll_height": 30,
+                "client_height": 21
+              },
+              {
+                "role": null,
+                "rect": [
+                  10,
+                  57,
+                  142,
+                  46
+                ],
+                "scroll_height": 49,
+                "client_height": 46
+              },
+              {
+                "role": null,
+                "rect": [
+                  10,
+                  113,
+                  519,
+                  19
+                ],
+                "scroll_height": 27,
+                "client_height": 19
+              },
+              {
+                "role": null,
+                "rect": [
+                  26,
+                  153,
+                  80,
+                  18
+                ],
+                "scroll_height": 25,
+                "client_height": 18
+              },
+              {
+                "role": null,
+                "rect": [
+                  178,
+                  154,
+                  88,
+                  16
+                ],
+                "scroll_height": 22,
+                "client_height": 16
+              },
+              {
+                "role": null,
+                "rect": [
+                  368,
+                  154,
+                  63,
+                  16
+                ],
+                "scroll_height": 24,
+                "client_height": 16
+              },
+              {
+                "role": null,
+                "rect": [
+                  55,
+                  203,
+                  116,
+                  21
+                ],
+                "scroll_height": 30,
+                "client_height": 21
+              },
+              {
+                "role": null,
+                "rect": [
+                  55,
+                  226,
+                  389,
+                  38
+                ],
+                "scroll_height": 54,
+                "client_height": 38
+              },
+              {
+                "role": null,
+                "rect": [
+                  20,
+                  349,
+                  61,
+                  21
+                ],
+                "scroll_height": 30,
+                "client_height": 21
+              },
+              {
+                "role": null,
+                "rect": [
+                  20,
+                  389,
+                  360,
+                  34
+                ],
+                "scroll_height": 40,
+                "client_height": 34
+              },
+              {
+                "role": null,
+                "rect": [
+                  20,
+                  439,
+                  346,
+                  16
+                ],
+                "scroll_height": 24,
+                "client_height": 16
+              },
+              {
+                "role": null,
+                "rect": [
+                  20,
+                  479,
+                  275,
+                  17
+                ],
+                "scroll_height": 24,
+                "client_height": 17
+              },
+              {
+                "role": "group",
+                "rect": [
+                  20,
+                  511,
+                  984,
+                  48
+                ],
+                "scroll_height": 207,
+                "client_height": 48
+              },
+              {
+                "role": null,
+                "rect": [
+                  34,
+                  549,
+                  58,
+                  10
+                ],
+                "scroll_height": 24,
+                "client_height": 10
+              },
+              {
+                "role": null,
+                "rect": [
+                  34,
+                  525,
+                  150,
+                  19
+                ],
+                "scroll_height": 27,
+                "client_height": 19
+              },
+              {
+                "role": "button",
+                "rect": [
+                  840,
+                  564,
+                  150,
+                  40
+                ],
+                "scroll_height": 48,
+                "client_height": 40
+              },
+              {
+                "role": null,
+                "rect": [
+                  213,
+                  673,
+                  56,
+                  13
+                ],
+                "scroll_height": 24,
+                "client_height": 13
+              },
+              {
+                "role": null,
+                "rect": [
+                  367,
+                  673,
+                  28,
+                  13
+                ],
+                "scroll_height": 24,
+                "client_height": 13
+              },
+              {
+                "role": null,
+                "rect": [
+                  208,
+                  690,
+                  144,
+                  13
+                ],
+                "scroll_height": 18,
+                "client_height": 13
+              },
+              {
+                "role": null,
+                "rect": [
+                  362,
+                  690,
+                  144,
+                  13
+                ],
+                "scroll_height": 18,
+                "client_height": 13
+              },
+              {
+                "role": null,
+                "rect": [
+                  36,
+                  585,
+                  56,
+                  18
+                ],
+                "scroll_height": 25,
+                "client_height": 18
+              },
+              {
+                "role": null,
+                "rect": [
+                  108,
+                  586,
+                  157,
+                  16
+                ],
+                "scroll_height": 24,
+                "client_height": 16
+              }
+            ],
+            "artwork_semantics": [
+              {
+                "role": "img",
+                "rect": [
+                  208,
+                  525,
+                  144,
+                  34
+                ]
+              },
+              {
+                "role": "img",
+                "rect": [
+                  362,
+                  525,
+                  144,
+                  34
+                ]
+              }
+            ],
+            "fixture_route_ready": true
+          }
+        },
+        "view-history": {
+          "initial": {
+            "viewport": [
+              1024,
+              640
+            ],
+            "area_ratio": null,
+            "visible_rect": null,
+            "image_rect": [
+              300,
+              96,
+              64,
+              43
+            ],
+            "first_image_y": 96,
+            "complete_images": null,
+            "complete_cards": null,
+            "fixture_colour_rectangles": [
+              [
+                300,
+                96,
+                64,
+                43
+              ],
+              [
+                300,
+                137,
+                64,
+                23
+              ]
+            ],
+            "scroll_semantics": [
+              {
+                "role": null,
+                "rect": [
+                  292,
+                  48,
+                  440,
+                  22
+                ],
+                "scroll_height": 31,
+                "client_height": 22
+              },
+              {
+                "role": null,
+                "rect": [
+                  292,
+                  90,
+                  440,
+                  446
+                ],
+                "scroll_height": 477,
+                "client_height": 446
+              },
+              {
+                "role": "group",
+                "rect": [
+                  292,
+                  90,
+                  440,
+                  360
+                ],
+                "scroll_height": 362,
+                "client_height": 360
+              },
+              {
+                "role": "group",
+                "rect": [
+                  292,
+                  90,
+                  440,
+                  76
+                ],
+                "scroll_height": 362,
+                "client_height": 76
+              },
+              {
+                "role": "button",
+                "rect": [
+                  345,
+                  98,
+                  17,
+                  17
+                ],
+                "scroll_height": 354,
+                "client_height": 17
+              },
+              {
+                "role": null,
+                "rect": [
+                  372,
+                  111,
+                  84,
+                  17
+                ],
+                "scroll_height": 23,
+                "client_height": 17
+              },
+              {
+                "role": null,
+                "rect": [
+                  292,
+                  486,
+                  403,
+                  17
+                ],
+                "scroll_height": 24,
+                "client_height": 17
+              },
+              {
+                "role": null,
+                "rect": [
+                  292,
+                  513,
+                  140,
+                  48
+                ],
+                "scroll_height": 54,
+                "client_height": 48
+              }
+            ],
+            "artwork_semantics": [
+              {
+                "role": "img",
+                "rect": [
+                  300,
+                  96,
+                  64,
+                  64
+                ]
+              }
+            ],
+            "history_alert_dialog": [
+              0,
+              0,
+              1024,
+              640
+            ],
+            "fixture_route_ready": true
+          }
+        },
+        "learning": {
+          "initial": {
+            "viewport": [
+              1024,
+              640
+            ],
+            "area_ratio": null,
+            "visible_rect": null,
+            "image_rect": [
+              132,
+              563,
+              296,
+              42
+            ],
+            "first_image_y": 563,
+            "complete_images": null,
+            "complete_cards": null,
+            "fixture_colour_rectangles": [
+              [
+                132,
+                382,
+                292,
+                25
+              ],
+              [
+                132,
+                409,
+                296,
+                15
+              ],
+              [
+                132,
+                429,
+                296,
+                15
+              ],
+              [
+                132,
+                461,
+                296,
+                27
+              ],
+              [
+                132,
+                478,
+                296,
+                17
+              ],
+              [
+                132,
+                490,
+                296,
+                21
+              ],
+              [
+                132,
+                499,
+                281,
+                15
+              ],
+              [
+                181,
+                503,
+                247,
+                22
+              ],
+              [
+                132,
+                508,
+                296,
+                19
+              ],
+              [
+                132,
+                547,
+                296,
+                14
+              ],
+              [
+                132,
+                563,
+                296,
+                42
+              ]
+            ],
+            "scroll_semantics": [
+              {
+                "role": null,
+                "rect": [
+                  0,
+                  0,
+                  1024,
+                  640
+                ],
+                "scroll_height": 740,
+                "client_height": 640
+              },
+              {
+                "role": null,
+                "rect": [
+                  0,
+                  0,
+                  1024,
+                  640
+                ],
+                "scroll_height": 740,
+                "client_height": 640
+              },
+              {
+                "role": null,
+                "rect": [
+                  0,
+                  0,
+                  1024,
+                  640
+                ],
+                "scroll_height": 740,
+                "client_height": 640
+              },
+              {
+                "role": null,
+                "rect": [
+                  18,
+                  18,
+                  709,
+                  21
+                ],
+                "scroll_height": 30,
+                "client_height": 21
+              },
+              {
+                "role": null,
+                "rect": [
+                  10,
+                  57,
+                  142,
+                  46
+                ],
+                "scroll_height": 49,
+                "client_height": 46
+              },
+              {
+                "role": null,
+                "rect": [
+                  10,
+                  113,
+                  519,
+                  19
+                ],
+                "scroll_height": 27,
+                "client_height": 19
+              },
+              {
+                "role": null,
+                "rect": [
+                  26,
+                  153,
+                  80,
+                  18
+                ],
+                "scroll_height": 25,
+                "client_height": 18
+              },
+              {
+                "role": null,
+                "rect": [
+                  178,
+                  154,
+                  88,
+                  16
+                ],
+                "scroll_height": 22,
+                "client_height": 16
+              },
+              {
+                "role": null,
+                "rect": [
+                  368,
+                  154,
+                  63,
+                  16
+                ],
+                "scroll_height": 24,
+                "client_height": 16
+              },
+              {
+                "role": null,
+                "rect": [
+                  55,
+                  203,
+                  116,
+                  21
+                ],
+                "scroll_height": 30,
+                "client_height": 21
+              },
+              {
+                "role": null,
+                "rect": [
+                  55,
+                  226,
+                  389,
+                  38
+                ],
+                "scroll_height": 54,
+                "client_height": 38
+              },
+              {
+                "role": "button",
+                "rect": [
+                  405,
+                  386,
+                  21,
+                  21
+                ],
+                "scroll_height": 354,
+                "client_height": 21
+              },
+              {
+                "role": null,
+                "rect": [
+                  550,
+                  381,
+                  33,
+                  23
+                ],
+                "scroll_height": 32,
+                "client_height": 23
+              },
+              {
+                "role": null,
+                "rect": [
+                  550,
+                  412,
+                  289,
+                  15
+                ],
+                "scroll_height": 24,
+                "client_height": 15
+              },
+              {
+                "role": "button",
+                "rect": [
+                  863,
+                  444,
+                  51,
+                  28
+                ],
+                "scroll_height": 97,
+                "client_height": 28
+              },
+              {
+                "role": null,
+                "rect": [
+                  550,
+                  448,
+                  305,
+                  20
+                ],
+                "scroll_height": 28,
+                "client_height": 20
+              },
+              {
+                "role": null,
+                "rect": [
+                  550,
+                  474,
+                  70,
+                  16
+                ],
+                "scroll_height": 24,
+                "client_height": 16
+              },
+              {
+                "role": null,
+                "rect": [
+                  550,
+                  492,
+                  6,
+                  15
+                ],
+                "scroll_height": 18,
+                "client_height": 15
+              },
+              {
+                "role": null,
+                "rect": [
+                  550,
+                  524,
+                  61,
+                  20
+                ],
+                "scroll_height": 28,
+                "client_height": 20
+              },
+              {
+                "role": "button",
+                "rect": [
+                  550,
+                  536,
+                  104,
+                  44
+                ],
+                "scroll_height": 72,
+                "client_height": 44
+              },
+              {
+                "role": "button",
+                "rect": [
+                  662,
+                  536,
+                  104,
+                  44
+                ],
+                "scroll_height": 72,
+                "client_height": 44
+              },
+              {
+                "role": "button",
+                "rect": [
+                  774,
+                  536,
+                  104,
+                  44
+                ],
+                "scroll_height": 72,
+                "client_height": 44
+              },
+              {
+                "role": "button",
+                "rect": [
+                  922,
+                  446,
+                  68,
+                  24
+                ],
+                "scroll_height": 162,
+                "client_height": 24
+              },
+              {
+                "role": "button",
+                "rect": [
+                  886,
+                  536,
+                  104,
+                  44
+                ],
+                "scroll_height": 90,
+                "client_height": 44
+              }
+            ],
+            "artwork_semantics": [
+              {
+                "role": "button",
+                "rect": [
+                  130,
+                  382,
+                  300,
+                  223
+                ]
+              }
+            ],
+            "judgments": [
+              {
+                "enabled": true,
+                "pointer_reachable": true
+              },
+              {
+                "enabled": true,
+                "pointer_reachable": true
+              },
+              {
+                "enabled": true,
+                "pointer_reachable": true
+              },
+              {
+                "enabled": true,
+                "pointer_reachable": true
+              }
+            ],
+            "fixture_route_ready": true
+          }
+        }
+      },
+      "viewport": {
+        "width": 1024,
+        "height": 640,
+        "dpr": 1,
+        "zoom": 1,
+        "font": "\"Times New Roman\""
+      }
+    },
+    {
+      "size": [
+        1024,
+        640
+      ],
+      "theme": "dark",
+      "variant": "normal",
+      "screens": {
+        "download": {
+          "initial": {
+            "viewport": [
+              1024,
+              640
+            ],
+            "area_ratio": null,
+            "visible_rect": null,
+            "image_rect": null,
+            "first_image_y": null,
+            "complete_images": null,
+            "complete_cards": null,
+            "scroll_semantics": [
+              {
+                "role": null,
+                "rect": [
+                  18,
+                  18,
+                  709,
+                  21
+                ],
+                "scroll_height": 30,
+                "client_height": 21
+              },
+              {
+                "role": null,
+                "rect": [
+                  10,
+                  57,
+                  142,
+                  46
+                ],
+                "scroll_height": 49,
+                "client_height": 46
+              },
+              {
+                "role": null,
+                "rect": [
+                  10,
+                  113,
+                  519,
+                  19
+                ],
+                "scroll_height": 27,
+                "client_height": 19
+              },
+              {
+                "role": null,
+                "rect": [
+                  26,
+                  153,
+                  80,
+                  18
+                ],
+                "scroll_height": 25,
+                "client_height": 18
+              },
+              {
+                "role": null,
+                "rect": [
+                  178,
+                  154,
+                  88,
+                  16
+                ],
+                "scroll_height": 22,
+                "client_height": 16
+              },
+              {
+                "role": null,
+                "rect": [
+                  368,
+                  154,
+                  63,
+                  16
+                ],
+                "scroll_height": 24,
+                "client_height": 16
+              },
+              {
+                "role": null,
+                "rect": [
+                  55,
+                  203,
+                  116,
+                  21
+                ],
+                "scroll_height": 30,
+                "client_height": 21
+              },
+              {
+                "role": null,
+                "rect": [
+                  55,
+                  226,
+                  389,
+                  38
+                ],
+                "scroll_height": 54,
+                "client_height": 38
+              },
+              {
+                "role": null,
+                "rect": [
+                  14,
+                  347,
+                  116,
+                  27
+                ],
+                "scroll_height": 38,
+                "client_height": 27
+              },
+              {
+                "role": null,
+                "rect": [
+                  142,
+                  352,
+                  190,
+                  16
+                ],
+                "scroll_height": 24,
+                "client_height": 16
+              },
+              {
+                "role": null,
+                "rect": [
+                  813,
+                  408,
+                  80,
+                  6
+                ],
+                "scroll_height": 24,
+                "client_height": 6
+              },
+              {
+                "role": null,
+                "rect": [
+                  829,
+                  441,
+                  47,
+                  16
+                ],
+                "scroll_height": 24,
+                "client_height": 16
+              },
+              {
+                "role": null,
+                "rect": [
+                  901,
+                  409,
+                  22,
+                  6
+                ],
+                "scroll_height": 24,
+                "client_height": 6
+              },
+              {
+                "role": null,
+                "rect": [
+                  882,
+                  440,
+                  24,
+                  19
+                ],
+                "scroll_height": 27,
+                "client_height": 19
+              },
+              {
+                "role": null,
+                "rect": [
+                  27,
+                  460,
+                  300,
+                  42
+                ],
+                "scroll_height": 48,
+                "client_height": 42
+              },
+              {
+                "role": "button",
+                "rect": [
+                  27,
+                  510,
+                  167,
+                  18
+                ],
+                "scroll_height": 24,
+                "client_height": 18
+              },
+              {
+                "role": "button",
+                "rect": [
+                  198,
+                  510,
+                  153,
+                  18
+                ],
+                "scroll_height": 24,
+                "client_height": 18
+              },
+              {
+                "role": "button",
+                "rect": [
+                  359,
+                  510,
+                  96,
+                  18
+                ],
+                "scroll_height": 24,
+                "client_height": 18
+              },
+              {
+                "role": "button",
+                "rect": [
+                  601,
+                  517,
+                  104,
+                  11
+                ],
+                "scroll_height": 48,
+                "client_height": 11
+              },
+              {
+                "role": null,
+                "rect": [
+                  20,
+                  546,
+                  40,
+                  19
+                ],
+                "scroll_height": 27,
+                "client_height": 19
+              },
+              {
+                "role": "button",
+                "rect": [
+                  20,
+                  571,
+                  984,
+                  16
+                ],
+                "scroll_height": 24,
+                "client_height": 16
+              }
+            ],
+            "artwork_semantics": [],
+            "fixture_route_ready": true
+          }
+        },
+        "ranking": {
+          "initial": {
+            "viewport": [
+              1024,
+              640
+            ],
+            "area_ratio": null,
+            "visible_rect": null,
+            "image_rect": [
+              35,
+              525,
+              157,
+              20
+            ],
+            "first_image_y": 525,
+            "complete_images": null,
+            "complete_cards": null,
+            "fixture_colour_rectangles": [
+              [
+                35,
+                525,
+                157,
+                20
+              ],
+              [
+                234,
+                525,
+                157,
+                16
+              ],
+              [
+                434,
+                525,
+                156,
+                19
+              ],
+              [
+                633,
+                525,
+                157,
+                18
+              ],
+              [
+                832,
+                525,
+                157,
+                15
+              ],
+              [
+                35,
+                537,
+                157,
+                14
+              ],
+              [
+                434,
+                537,
+                156,
+                13
+              ],
+              [
+                35,
+                547,
+                157,
+                20
+              ],
+              [
+                434,
+                549,
+                156,
+                13
+              ],
+              [
+                35,
+                557,
+                157,
+                14
+              ],
+              [
+                35,
+                566,
+                157,
+                15
+              ],
+              [
+                234,
+                570,
+                157,
+                17
+              ],
+              [
+                434,
+                573,
+                156,
+                18
+              ],
+              [
+                633,
+                575,
+                157,
+                20
+              ],
+              [
+                234,
+                576,
+                157,
+                19
+              ],
+              [
+                35,
+                578,
+                157,
+                24
+              ],
+              [
+                832,
+                581,
+                157,
+                20
+              ],
+              [
+                633,
+                585,
+                157,
+                15
+              ],
+              [
+                434,
+                587,
+                156,
+                17
+              ],
+              [
+                633,
+                599,
+                157,
+                18
+              ],
+              [
+                234,
+                602,
+                157,
+                18
+              ],
+              [
+                832,
+                606,
+                157,
+                14
+              ]
+            ],
+            "scroll_semantics": [
+              {
+                "role": null,
+                "rect": [
+                  18,
+                  18,
+                  709,
+                  21
+                ],
+                "scroll_height": 30,
+                "client_height": 21
+              },
+              {
+                "role": null,
+                "rect": [
+                  10,
+                  57,
+                  142,
+                  46
+                ],
+                "scroll_height": 49,
+                "client_height": 46
+              },
+              {
+                "role": null,
+                "rect": [
+                  10,
+                  113,
+                  519,
+                  19
+                ],
+                "scroll_height": 27,
+                "client_height": 19
+              },
+              {
+                "role": null,
+                "rect": [
+                  26,
+                  153,
+                  80,
+                  18
+                ],
+                "scroll_height": 25,
+                "client_height": 18
+              },
+              {
+                "role": null,
+                "rect": [
+                  178,
+                  154,
+                  88,
+                  16
+                ],
+                "scroll_height": 22,
+                "client_height": 16
+              },
+              {
+                "role": null,
+                "rect": [
+                  368,
+                  154,
+                  63,
+                  16
+                ],
+                "scroll_height": 24,
+                "client_height": 16
+              },
+              {
+                "role": null,
+                "rect": [
+                  55,
+                  203,
+                  116,
+                  21
+                ],
+                "scroll_height": 30,
+                "client_height": 21
+              },
+              {
+                "role": null,
+                "rect": [
+                  55,
+                  226,
+                  389,
+                  38
+                ],
+                "scroll_height": 54,
+                "client_height": 38
+              },
+              {
+                "role": null,
+                "rect": [
+                  20,
+                  389,
+                  122,
+                  21
+                ],
+                "scroll_height": 30,
+                "client_height": 21
+              },
+              {
+                "role": null,
+                "rect": [
+                  544,
+                  434,
+                  23,
+                  16
+                ],
+                "scroll_height": 18,
+                "client_height": 16
+              },
+              {
+                "role": null,
+                "rect": [
+                  649,
+                  434,
+                  33,
+                  16
+                ],
+                "scroll_height": 24,
+                "client_height": 16
+              },
+              {
+                "role": null,
+                "rect": [
+                  693,
+                  426,
+                  160,
+                  32
+                ],
+                "scroll_height": 38,
+                "client_height": 32
+              },
+              {
+                "role": null,
+                "rect": [
+                  20,
+                  474,
+                  120,
+                  17
+                ],
+                "scroll_height": 24,
+                "client_height": 17
+              },
+              {
+                "role": "group",
+                "rect": [
+                  20,
+                  499,
+                  984,
+                  121
+                ],
+                "scroll_height": 1382,
+                "client_height": 121
+              }
+            ],
+            "artwork_semantics": [],
+            "fixture_route_ready": true
+          }
+        },
+        "personal": {
+          "initial": {
+            "viewport": [
+              1024,
+              640
+            ],
+            "area_ratio": null,
+            "visible_rect": null,
+            "image_rect": null,
+            "first_image_y": null,
+            "complete_images": null,
+            "complete_cards": null,
+            "scroll_semantics": [
+              {
+                "role": null,
+                "rect": [
+                  18,
+                  18,
+                  709,
+                  21
+                ],
+                "scroll_height": 30,
+                "client_height": 21
+              },
+              {
+                "role": null,
+                "rect": [
+                  10,
+                  57,
+                  142,
+                  46
+                ],
+                "scroll_height": 49,
+                "client_height": 46
+              },
+              {
+                "role": null,
+                "rect": [
+                  10,
+                  113,
+                  519,
+                  19
+                ],
+                "scroll_height": 27,
+                "client_height": 19
+              },
+              {
+                "role": null,
+                "rect": [
+                  26,
+                  153,
+                  80,
+                  18
+                ],
+                "scroll_height": 25,
+                "client_height": 18
+              },
+              {
+                "role": null,
+                "rect": [
+                  178,
+                  154,
+                  88,
+                  16
+                ],
+                "scroll_height": 22,
+                "client_height": 16
+              },
+              {
+                "role": null,
+                "rect": [
+                  368,
+                  154,
+                  63,
+                  16
+                ],
+                "scroll_height": 24,
+                "client_height": 16
+              },
+              {
+                "role": null,
+                "rect": [
+                  55,
+                  203,
+                  116,
+                  21
+                ],
+                "scroll_height": 30,
+                "client_height": 21
+              },
+              {
+                "role": null,
+                "rect": [
+                  55,
+                  226,
+                  389,
+                  38
+                ],
+                "scroll_height": 54,
+                "client_height": 38
+              },
+              {
+                "role": null,
+                "rect": [
+                  20,
+                  389,
+                  122,
+                  21
+                ],
+                "scroll_height": 30,
+                "client_height": 21
+              },
+              {
+                "role": "group",
+                "rect": [
+                  31,
+                  419,
+                  642,
+                  38
+                ],
+                "scroll_height": 41,
+                "client_height": 38
+              },
+              {
+                "role": null,
+                "rect": [
+                  40,
+                  430,
+                  45,
+                  16
+                ],
+                "scroll_height": 24,
+                "client_height": 16
+              },
+              {
+                "role": null,
+                "rect": [
+                  118,
+                  422,
+                  555,
+                  32
+                ],
+                "scroll_height": 38,
+                "client_height": 32
+              },
+              {
+                "role": null,
+                "rect": [
+                  756,
+                  430,
+                  23,
+                  16
+                ],
+                "scroll_height": 18,
+                "client_height": 16
+              },
+              {
+                "role": null,
+                "rect": [
+                  851,
+                  430,
+                  33,
+                  16
+                ],
+                "scroll_height": 24,
+                "client_height": 16
+              },
+              {
+                "role": null,
+                "rect": [
+                  20,
+                  474,
+                  67,
+                  16
+                ],
+                "scroll_height": 24,
+                "client_height": 16
+              },
+              {
+                "role": "button",
+                "rect": [
+                  20,
+                  510,
+                  121,
+                  24
+                ],
+                "scroll_height": 48,
+                "client_height": 24
+              },
+              {
+                "role": null,
+                "rect": [
+                  20,
+                  546,
+                  261,
+                  17
+                ],
+                "scroll_height": 24,
+                "client_height": 17
+              },
+              {
+                "role": "group",
+                "rect": [
+                  20,
+                  571,
+                  984,
+                  49
+                ],
+                "scroll_height": 1382,
+                "client_height": 49
+              },
+              {
+                "role": "button",
+                "rect": [
+                  20,
+                  571,
+                  187,
+                  49
+                ],
+                "scroll_height": 66,
+                "client_height": 49
+              },
+              {
+                "role": "button",
+                "rect": [
+                  219,
+                  571,
+                  187,
+                  49
+                ],
+                "scroll_height": 66,
+                "client_height": 49
+              },
+              {
+                "role": "button",
+                "rect": [
+                  418,
+                  571,
+                  187,
+                  49
+                ],
+                "scroll_height": 66,
+                "client_height": 49
+              },
+              {
+                "role": "button",
+                "rect": [
+                  618,
+                  571,
+                  187,
+                  49
+                ],
+                "scroll_height": 66,
+                "client_height": 49
+              },
+              {
+                "role": "button",
+                "rect": [
+                  817,
+                  571,
+                  187,
+                  49
+                ],
+                "scroll_height": 66,
+                "client_height": 49
+              }
+            ],
+            "artwork_semantics": [],
+            "fixture_route_ready": true
+          }
+        },
+        "library": {
+          "initial": {
+            "viewport": [
+              1024,
+              640
+            ],
+            "area_ratio": null,
+            "visible_rect": null,
+            "image_rect": [
+              27,
+              430,
+              173,
+              24
+            ],
+            "first_image_y": 430,
+            "complete_images": null,
+            "complete_cards": null,
+            "fixture_colour_rectangles": [
+              [
+                27,
+                430,
+                173,
+                24
+              ],
+              [
+                227,
+                430,
+                153,
+                16
+              ],
+              [
+                27,
+                451,
+                173,
+                19
+              ],
+              [
+                227,
+                467,
+                172,
+                13
+              ],
+              [
+                27,
+                469,
+                173,
+                15
+              ],
+              [
+                27,
+                478,
+                173,
+                22
+              ],
+              [
+                227,
+                478,
+                172,
+                17
+              ],
+              [
+                27,
+                488,
+                173,
+                24
+              ],
+              [
+                227,
+                493,
+                172,
+                29
+              ],
+              [
+                227,
+                507,
+                172,
+                22
+              ],
+              [
+                27,
+                509,
+                173,
+                19
+              ],
+              [
+                27,
+                532,
+                173,
+                27
+              ],
+              [
+                227,
+                533,
+                172,
+                26
+              ]
+            ],
+            "scroll_semantics": [
+              {
+                "role": null,
+                "rect": [
+                  18,
+                  18,
+                  709,
+                  21
+                ],
+                "scroll_height": 30,
+                "client_height": 21
+              },
+              {
+                "role": null,
+                "rect": [
+                  10,
+                  57,
+                  142,
+                  46
+                ],
+                "scroll_height": 49,
+                "client_height": 46
+              },
+              {
+                "role": null,
+                "rect": [
+                  10,
+                  113,
+                  519,
+                  19
+                ],
+                "scroll_height": 27,
+                "client_height": 19
+              },
+              {
+                "role": null,
+                "rect": [
+                  26,
+                  153,
+                  80,
+                  18
+                ],
+                "scroll_height": 25,
+                "client_height": 18
+              },
+              {
+                "role": null,
+                "rect": [
+                  178,
+                  154,
+                  88,
+                  16
+                ],
+                "scroll_height": 22,
+                "client_height": 16
+              },
+              {
+                "role": null,
+                "rect": [
+                  368,
+                  154,
+                  63,
+                  16
+                ],
+                "scroll_height": 24,
+                "client_height": 16
+              },
+              {
+                "role": null,
+                "rect": [
+                  55,
+                  203,
+                  116,
+                  21
+                ],
+                "scroll_height": 30,
+                "client_height": 21
+              },
+              {
+                "role": null,
+                "rect": [
+                  55,
+                  226,
+                  389,
+                  38
+                ],
+                "scroll_height": 54,
+                "client_height": 38
+              },
+              {
+                "role": null,
+                "rect": [
+                  20,
+                  344,
+                  76,
+                  21
+                ],
+                "scroll_height": 30,
+                "client_height": 21
+              },
+              {
+                "role": "button",
+                "rect": [
+                  388,
+                  338,
+                  215,
+                  32
+                ],
+                "scroll_height": 72,
+                "client_height": 32
+              },
+              {
+                "role": null,
+                "rect": [
+                  900,
+                  389,
+                  104,
+                  17
+                ],
+                "scroll_height": 24,
+                "client_height": 17
+              },
+              {
+                "role": "group",
+                "rect": [
+                  20,
+                  419,
+                  984,
+                  201
+                ],
+                "scroll_height": 365,
+                "client_height": 201
+              },
+              {
+                "role": "group",
+                "rect": [
+                  20,
+                  419,
+                  187,
+                  187
+                ],
+                "scroll_height": 365,
+                "client_height": 187
+              },
+              {
+                "role": "button",
+                "rect": [
+                  175,
+                  430,
+                  21,
+                  21
+                ],
+                "scroll_height": 354,
+                "client_height": 21
+              },
+              {
+                "role": "group",
+                "rect": [
+                  219,
+                  419,
+                  187,
+                  187
+                ],
+                "scroll_height": 365,
+                "client_height": 187
+              },
+              {
+                "role": "button",
+                "rect": [
+                  374,
+                  430,
+                  21,
+                  21
+                ],
+                "scroll_height": 354,
+                "client_height": 21
+              }
+            ],
+            "artwork_semantics": [],
+            "fixture_route_ready": true
+          }
+        },
+        "library-works": {
+          "initial": {
+            "viewport": [
+              1024,
+              640
+            ],
+            "area_ratio": null,
+            "visible_rect": null,
+            "image_rect": null,
+            "first_image_y": null,
+            "complete_images": null,
+            "complete_cards": null,
+            "scroll_semantics": [
+              {
+                "role": null,
+                "rect": [
+                  18,
+                  18,
+                  709,
+                  21
+                ],
+                "scroll_height": 30,
+                "client_height": 21
+              },
+              {
+                "role": null,
+                "rect": [
+                  10,
+                  57,
+                  142,
+                  46
+                ],
+                "scroll_height": 49,
+                "client_height": 46
+              },
+              {
+                "role": null,
+                "rect": [
+                  10,
+                  113,
+                  519,
+                  19
+                ],
+                "scroll_height": 27,
+                "client_height": 19
+              },
+              {
+                "role": null,
+                "rect": [
+                  26,
+                  153,
+                  80,
+                  18
+                ],
+                "scroll_height": 25,
+                "client_height": 18
+              },
+              {
+                "role": null,
+                "rect": [
+                  178,
+                  154,
+                  88,
+                  16
+                ],
+                "scroll_height": 22,
+                "client_height": 16
+              },
+              {
+                "role": null,
+                "rect": [
+                  368,
+                  154,
+                  63,
+                  16
+                ],
+                "scroll_height": 24,
+                "client_height": 16
+              },
+              {
+                "role": null,
+                "rect": [
+                  55,
+                  203,
+                  116,
+                  21
+                ],
+                "scroll_height": 30,
+                "client_height": 21
+              },
+              {
+                "role": null,
+                "rect": [
+                  55,
+                  226,
+                  389,
+                  38
+                ],
+                "scroll_height": 54,
+                "client_height": 38
+              },
+              {
+                "role": null,
+                "rect": [
+                  20,
+                  344,
+                  76,
+                  21
+                ],
+                "scroll_height": 30,
+                "client_height": 21
+              },
+              {
+                "role": "button",
+                "rect": [
+                  388,
+                  338,
+                  215,
+                  32
+                ],
+                "scroll_height": 72,
+                "client_height": 32
+              },
+              {
+                "role": null,
+                "rect": [
+                  154,
+                  392,
+                  804,
+                  19
+                ],
+                "scroll_height": 27,
+                "client_height": 19
+              },
+              {
+                "role": null,
+                "rect": [
+                  18,
+                  523,
+                  244,
+                  18
+                ],
+                "scroll_height": 25,
+                "client_height": 18
+              }
+            ],
+            "artwork_semantics": [],
+            "fixture_route_ready": true
+          }
+        },
+        "bookmarks": {
+          "initial": {
+            "viewport": [
+              1024,
+              640
+            ],
+            "area_ratio": null,
+            "visible_rect": null,
+            "image_rect": [
+              28,
+              430,
+              131,
+              16
+            ],
+            "first_image_y": 430,
+            "complete_images": null,
+            "complete_cards": null,
+            "fixture_colour_rectangles": [
+              [
+                28,
+                430,
+                131,
+                16
+              ],
+              [
+                27,
+                451,
+                173,
+                19
+              ],
+              [
+                27,
+                469,
+                173,
+                15
+              ],
+              [
+                27,
+                478,
+                173,
+                22
+              ],
+              [
+                27,
+                488,
+                173,
+                24
+              ],
+              [
+                27,
+                509,
+                173,
+                19
+              ],
+              [
+                27,
+                532,
+                173,
+                27
+              ]
+            ],
+            "scroll_semantics": [
+              {
+                "role": null,
+                "rect": [
+                  18,
+                  18,
+                  709,
+                  21
+                ],
+                "scroll_height": 30,
+                "client_height": 21
+              },
+              {
+                "role": null,
+                "rect": [
+                  10,
+                  57,
+                  142,
+                  46
+                ],
+                "scroll_height": 49,
+                "client_height": 46
+              },
+              {
+                "role": null,
+                "rect": [
+                  10,
+                  113,
+                  519,
+                  19
+                ],
+                "scroll_height": 27,
+                "client_height": 19
+              },
+              {
+                "role": null,
+                "rect": [
+                  26,
+                  153,
+                  80,
+                  18
+                ],
+                "scroll_height": 25,
+                "client_height": 18
+              },
+              {
+                "role": null,
+                "rect": [
+                  178,
+                  154,
+                  88,
+                  16
+                ],
+                "scroll_height": 22,
+                "client_height": 16
+              },
+              {
+                "role": null,
+                "rect": [
+                  368,
+                  154,
+                  63,
+                  16
+                ],
+                "scroll_height": 24,
+                "client_height": 16
+              },
+              {
+                "role": null,
+                "rect": [
+                  55,
+                  203,
+                  116,
+                  21
+                ],
+                "scroll_height": 30,
+                "client_height": 21
+              },
+              {
+                "role": null,
+                "rect": [
+                  55,
+                  226,
+                  389,
+                  38
+                ],
+                "scroll_height": 54,
+                "client_height": 38
+              },
+              {
+                "role": null,
+                "rect": [
+                  20,
+                  344,
+                  76,
+                  21
+                ],
+                "scroll_height": 30,
+                "client_height": 21
+              },
+              {
+                "role": null,
+                "rect": [
+                  378,
+                  337,
+                  105,
+                  34
+                ],
+                "scroll_height": 40,
+                "client_height": 34
+              },
+              {
+                "role": "button",
+                "rect": [
+                  493,
+                  338,
+                  215,
+                  32
+                ],
+                "scroll_height": 72,
+                "client_height": 32
+              },
+              {
+                "role": null,
+                "rect": [
+                  172,
+                  390,
+                  236,
+                  15
+                ],
+                "scroll_height": 24,
+                "client_height": 15
+              },
+              {
+                "role": null,
+                "rect": [
+                  865,
+                  389,
+                  60,
+                  17
+                ],
+                "scroll_height": 24,
+                "client_height": 17
+              },
+              {
+                "role": null,
+                "rect": [
+                  935,
+                  389,
+                  69,
+                  17
+                ],
+                "scroll_height": 24,
+                "client_height": 17
+              }
+            ],
+            "artwork_semantics": [
+              {
+                "role": null,
+                "rect": [
+                  20,
+                  419,
+                  984,
+                  201
+                ]
+              },
+              {
+                "role": "group",
+                "rect": [
+                  20,
+                  419,
+                  984,
+                  201
+                ]
+              },
+              {
+                "role": "button",
+                "rect": [
+                  27,
+                  426,
+                  173,
+                  137
+                ]
+              }
+            ],
+            "fixture_route_ready": true
+          }
+        },
+        "recommend": {
+          "initial": {
+            "viewport": [
+              1024,
+              640
+            ],
+            "area_ratio": null,
+            "visible_rect": null,
+            "image_rect": null,
+            "first_image_y": null,
+            "complete_images": null,
+            "complete_cards": null,
+            "scroll_semantics": [
+              {
+                "role": null,
+                "rect": [
+                  18,
+                  18,
+                  709,
+                  21
+                ],
+                "scroll_height": 30,
+                "client_height": 21
+              },
+              {
+                "role": null,
+                "rect": [
+                  10,
+                  57,
+                  142,
+                  46
+                ],
+                "scroll_height": 49,
+                "client_height": 46
+              },
+              {
+                "role": null,
+                "rect": [
+                  10,
+                  113,
+                  519,
+                  19
+                ],
+                "scroll_height": 27,
+                "client_height": 19
+              },
+              {
+                "role": null,
+                "rect": [
+                  26,
+                  153,
+                  80,
+                  18
+                ],
+                "scroll_height": 25,
+                "client_height": 18
+              },
+              {
+                "role": null,
+                "rect": [
+                  178,
+                  154,
+                  88,
+                  16
+                ],
+                "scroll_height": 22,
+                "client_height": 16
+              },
+              {
+                "role": null,
+                "rect": [
+                  368,
+                  154,
+                  63,
+                  16
+                ],
+                "scroll_height": 24,
+                "client_height": 16
+              },
+              {
+                "role": null,
+                "rect": [
+                  55,
+                  203,
+                  116,
+                  21
+                ],
+                "scroll_height": 30,
+                "client_height": 21
+              },
+              {
+                "role": null,
+                "rect": [
+                  55,
+                  226,
+                  389,
+                  38
+                ],
+                "scroll_height": 54,
+                "client_height": 38
+              },
+              {
+                "role": null,
+                "rect": [
+                  20,
+                  349,
+                  61,
+                  21
+                ],
+                "scroll_height": 30,
+                "client_height": 21
+              },
+              {
+                "role": "group",
+                "rect": [
+                  20,
+                  391,
+                  984,
+                  229
+                ],
+                "scroll_height": 531,
+                "client_height": 229
+              },
+              {
+                "role": null,
+                "rect": [
+                  66,
+                  428,
+                  27,
+                  19
+                ],
+                "scroll_height": 27,
+                "client_height": 19
+              },
+              {
+                "role": null,
+                "rect": [
+                  20,
+                  467,
+                  82,
+                  16
+                ],
+                "scroll_height": 24,
+                "client_height": 16
+              },
+              {
+                "role": null,
+                "rect": [
+                  66,
+                  530,
+                  93,
+                  19
+                ],
+                "scroll_height": 27,
+                "client_height": 19
+              },
+              {
+                "role": null,
+                "rect": [
+                  66,
+                  580,
+                  53,
+                  19
+                ],
+                "scroll_height": 27,
+                "client_height": 19
+              },
+              {
+                "role": null,
+                "rect": [
+                  20,
+                  615,
+                  214,
+                  5
+                ],
+                "scroll_height": 24,
+                "client_height": 5
+              },
+              {
+                "role": "group",
+                "rect": [
+                  20,
+                  636,
+                  984,
+                  170
+                ],
+                "scroll_height": 187,
+                "client_height": 170
+              },
+              {
+                "role": null,
+                "rect": [
+                  66,
+                  859,
+                  165,
+                  19
+                ],
+                "scroll_height": 27,
+                "client_height": 19
+              },
+              {
+                "role": null,
+                "rect": [
+                  20,
+                  898,
+                  82,
+                  16
+                ],
+                "scroll_height": 24,
+                "client_height": 16
+              }
+            ],
+            "artwork_semantics": [],
+            "fixture_route_ready": true
+          }
+        },
+        "dedup": {
+          "initial": {
+            "viewport": [
+              1024,
+              640
+            ],
+            "area_ratio": null,
+            "visible_rect": null,
+            "image_rect": null,
+            "first_image_y": null,
+            "complete_images": null,
+            "complete_cards": null,
+            "scroll_semantics": [
+              {
+                "role": null,
+                "rect": [
+                  18,
+                  18,
+                  709,
+                  21
+                ],
+                "scroll_height": 30,
+                "client_height": 21
+              },
+              {
+                "role": null,
+                "rect": [
+                  10,
+                  57,
+                  142,
+                  46
+                ],
+                "scroll_height": 49,
+                "client_height": 46
+              },
+              {
+                "role": null,
+                "rect": [
+                  10,
+                  113,
+                  519,
+                  19
+                ],
+                "scroll_height": 27,
+                "client_height": 19
+              },
+              {
+                "role": null,
+                "rect": [
+                  26,
+                  153,
+                  80,
+                  18
+                ],
+                "scroll_height": 25,
+                "client_height": 18
+              },
+              {
+                "role": null,
+                "rect": [
+                  178,
+                  154,
+                  88,
+                  16
+                ],
+                "scroll_height": 22,
+                "client_height": 16
+              },
+              {
+                "role": null,
+                "rect": [
+                  368,
+                  154,
+                  63,
+                  16
+                ],
+                "scroll_height": 24,
+                "client_height": 16
+              },
+              {
+                "role": null,
+                "rect": [
+                  55,
+                  203,
+                  116,
+                  21
+                ],
+                "scroll_height": 30,
+                "client_height": 21
+              },
+              {
+                "role": null,
+                "rect": [
+                  55,
+                  226,
+                  389,
+                  38
+                ],
+                "scroll_height": 54,
+                "client_height": 38
+              },
+              {
+                "role": null,
+                "rect": [
+                  20,
+                  349,
+                  61,
+                  21
+                ],
+                "scroll_height": 30,
+                "client_height": 21
+              },
+              {
+                "role": null,
+                "rect": [
+                  20,
+                  389,
+                  360,
+                  34
+                ],
+                "scroll_height": 40,
+                "client_height": 34
+              },
+              {
+                "role": null,
+                "rect": [
+                  20,
+                  439,
+                  346,
+                  16
+                ],
+                "scroll_height": 24,
+                "client_height": 16
+              },
+              {
+                "role": null,
+                "rect": [
+                  20,
+                  479,
+                  275,
+                  17
+                ],
+                "scroll_height": 24,
+                "client_height": 17
+              },
+              {
+                "role": "group",
+                "rect": [
+                  20,
+                  511,
+                  984,
+                  48
+                ],
+                "scroll_height": 207,
+                "client_height": 48
+              },
+              {
+                "role": null,
+                "rect": [
+                  34,
+                  549,
+                  58,
+                  10
+                ],
+                "scroll_height": 24,
+                "client_height": 10
+              },
+              {
+                "role": null,
+                "rect": [
+                  34,
+                  525,
+                  150,
+                  19
+                ],
+                "scroll_height": 27,
+                "client_height": 19
+              },
+              {
+                "role": "button",
+                "rect": [
+                  840,
+                  564,
+                  150,
+                  40
+                ],
+                "scroll_height": 48,
+                "client_height": 40
+              },
+              {
+                "role": null,
+                "rect": [
+                  213,
+                  673,
+                  56,
+                  13
+                ],
+                "scroll_height": 24,
+                "client_height": 13
+              },
+              {
+                "role": null,
+                "rect": [
+                  367,
+                  673,
+                  28,
+                  13
+                ],
+                "scroll_height": 24,
+                "client_height": 13
+              },
+              {
+                "role": null,
+                "rect": [
+                  208,
+                  690,
+                  144,
+                  13
+                ],
+                "scroll_height": 18,
+                "client_height": 13
+              },
+              {
+                "role": null,
+                "rect": [
+                  362,
+                  690,
+                  144,
+                  13
+                ],
+                "scroll_height": 18,
+                "client_height": 13
+              },
+              {
+                "role": null,
+                "rect": [
+                  36,
+                  585,
+                  56,
+                  18
+                ],
+                "scroll_height": 25,
+                "client_height": 18
+              },
+              {
+                "role": null,
+                "rect": [
+                  108,
+                  586,
+                  157,
+                  16
+                ],
+                "scroll_height": 24,
+                "client_height": 16
+              }
+            ],
+            "artwork_semantics": [
+              {
+                "role": "img",
+                "rect": [
+                  208,
+                  525,
+                  144,
+                  34
+                ]
+              },
+              {
+                "role": "img",
+                "rect": [
+                  362,
+                  525,
+                  144,
+                  34
+                ]
+              }
+            ],
+            "fixture_route_ready": true
+          }
+        },
+        "view-history": {
+          "initial": {
+            "viewport": [
+              1024,
+              640
+            ],
+            "area_ratio": null,
+            "visible_rect": null,
+            "image_rect": [
+              300,
+              96,
+              64,
+              43
+            ],
+            "first_image_y": 96,
+            "complete_images": null,
+            "complete_cards": null,
+            "fixture_colour_rectangles": [
+              [
+                300,
+                96,
+                64,
+                43
+              ],
+              [
+                300,
+                137,
+                64,
+                23
+              ]
+            ],
+            "scroll_semantics": [
+              {
+                "role": null,
+                "rect": [
+                  292,
+                  48,
+                  440,
+                  22
+                ],
+                "scroll_height": 31,
+                "client_height": 22
+              },
+              {
+                "role": null,
+                "rect": [
+                  292,
+                  90,
+                  440,
+                  446
+                ],
+                "scroll_height": 477,
+                "client_height": 446
+              },
+              {
+                "role": "group",
+                "rect": [
+                  292,
+                  90,
+                  440,
+                  360
+                ],
+                "scroll_height": 362,
+                "client_height": 360
+              },
+              {
+                "role": "group",
+                "rect": [
+                  292,
+                  90,
+                  440,
+                  76
+                ],
+                "scroll_height": 362,
+                "client_height": 76
+              },
+              {
+                "role": "button",
+                "rect": [
+                  345,
+                  98,
+                  17,
+                  17
+                ],
+                "scroll_height": 354,
+                "client_height": 17
+              },
+              {
+                "role": null,
+                "rect": [
+                  372,
+                  111,
+                  84,
+                  17
+                ],
+                "scroll_height": 23,
+                "client_height": 17
+              },
+              {
+                "role": null,
+                "rect": [
+                  292,
+                  486,
+                  403,
+                  17
+                ],
+                "scroll_height": 24,
+                "client_height": 17
+              },
+              {
+                "role": null,
+                "rect": [
+                  292,
+                  513,
+                  140,
+                  48
+                ],
+                "scroll_height": 54,
+                "client_height": 48
+              }
+            ],
+            "artwork_semantics": [
+              {
+                "role": "img",
+                "rect": [
+                  300,
+                  96,
+                  64,
+                  64
+                ]
+              }
+            ],
+            "history_alert_dialog": [
+              0,
+              0,
+              1024,
+              640
+            ],
+            "fixture_route_ready": true
+          }
+        },
+        "learning": {
+          "initial": {
+            "viewport": [
+              1024,
+              640
+            ],
+            "area_ratio": null,
+            "visible_rect": null,
+            "image_rect": [
+              132,
+              563,
+              296,
+              42
+            ],
+            "first_image_y": 563,
+            "complete_images": null,
+            "complete_cards": null,
+            "fixture_colour_rectangles": [
+              [
+                132,
+                382,
+                292,
+                25
+              ],
+              [
+                132,
+                409,
+                296,
+                15
+              ],
+              [
+                132,
+                429,
+                296,
+                15
+              ],
+              [
+                132,
+                461,
+                296,
+                27
+              ],
+              [
+                132,
+                478,
+                296,
+                17
+              ],
+              [
+                132,
+                490,
+                296,
+                21
+              ],
+              [
+                132,
+                499,
+                281,
+                15
+              ],
+              [
+                181,
+                503,
+                247,
+                22
+              ],
+              [
+                132,
+                508,
+                296,
+                19
+              ],
+              [
+                132,
+                547,
+                296,
+                14
+              ],
+              [
+                132,
+                563,
+                296,
+                42
+              ]
+            ],
+            "scroll_semantics": [
+              {
+                "role": null,
+                "rect": [
+                  0,
+                  0,
+                  1024,
+                  640
+                ],
+                "scroll_height": 740,
+                "client_height": 640
+              },
+              {
+                "role": null,
+                "rect": [
+                  0,
+                  0,
+                  1024,
+                  640
+                ],
+                "scroll_height": 740,
+                "client_height": 640
+              },
+              {
+                "role": null,
+                "rect": [
+                  0,
+                  0,
+                  1024,
+                  640
+                ],
+                "scroll_height": 740,
+                "client_height": 640
+              },
+              {
+                "role": null,
+                "rect": [
+                  18,
+                  18,
+                  709,
+                  21
+                ],
+                "scroll_height": 30,
+                "client_height": 21
+              },
+              {
+                "role": null,
+                "rect": [
+                  10,
+                  57,
+                  142,
+                  46
+                ],
+                "scroll_height": 49,
+                "client_height": 46
+              },
+              {
+                "role": null,
+                "rect": [
+                  10,
+                  113,
+                  519,
+                  19
+                ],
+                "scroll_height": 27,
+                "client_height": 19
+              },
+              {
+                "role": null,
+                "rect": [
+                  26,
+                  153,
+                  80,
+                  18
+                ],
+                "scroll_height": 25,
+                "client_height": 18
+              },
+              {
+                "role": null,
+                "rect": [
+                  178,
+                  154,
+                  88,
+                  16
+                ],
+                "scroll_height": 22,
+                "client_height": 16
+              },
+              {
+                "role": null,
+                "rect": [
+                  368,
+                  154,
+                  63,
+                  16
+                ],
+                "scroll_height": 24,
+                "client_height": 16
+              },
+              {
+                "role": null,
+                "rect": [
+                  55,
+                  203,
+                  116,
+                  21
+                ],
+                "scroll_height": 30,
+                "client_height": 21
+              },
+              {
+                "role": null,
+                "rect": [
+                  55,
+                  226,
+                  389,
+                  38
+                ],
+                "scroll_height": 54,
+                "client_height": 38
+              },
+              {
+                "role": "button",
+                "rect": [
+                  405,
+                  386,
+                  21,
+                  21
+                ],
+                "scroll_height": 354,
+                "client_height": 21
+              },
+              {
+                "role": null,
+                "rect": [
+                  550,
+                  381,
+                  33,
+                  23
+                ],
+                "scroll_height": 32,
+                "client_height": 23
+              },
+              {
+                "role": null,
+                "rect": [
+                  550,
+                  412,
+                  289,
+                  15
+                ],
+                "scroll_height": 24,
+                "client_height": 15
+              },
+              {
+                "role": "button",
+                "rect": [
+                  863,
+                  444,
+                  51,
+                  28
+                ],
+                "scroll_height": 97,
+                "client_height": 28
+              },
+              {
+                "role": null,
+                "rect": [
+                  550,
+                  448,
+                  305,
+                  20
+                ],
+                "scroll_height": 28,
+                "client_height": 20
+              },
+              {
+                "role": null,
+                "rect": [
+                  550,
+                  474,
+                  70,
+                  16
+                ],
+                "scroll_height": 24,
+                "client_height": 16
+              },
+              {
+                "role": null,
+                "rect": [
+                  550,
+                  492,
+                  6,
+                  15
+                ],
+                "scroll_height": 18,
+                "client_height": 15
+              },
+              {
+                "role": null,
+                "rect": [
+                  550,
+                  524,
+                  61,
+                  20
+                ],
+                "scroll_height": 28,
+                "client_height": 20
+              },
+              {
+                "role": "button",
+                "rect": [
+                  550,
+                  536,
+                  104,
+                  44
+                ],
+                "scroll_height": 72,
+                "client_height": 44
+              },
+              {
+                "role": "button",
+                "rect": [
+                  662,
+                  536,
+                  104,
+                  44
+                ],
+                "scroll_height": 72,
+                "client_height": 44
+              },
+              {
+                "role": "button",
+                "rect": [
+                  774,
+                  536,
+                  104,
+                  44
+                ],
+                "scroll_height": 72,
+                "client_height": 44
+              },
+              {
+                "role": "button",
+                "rect": [
+                  922,
+                  446,
+                  68,
+                  24
+                ],
+                "scroll_height": 162,
+                "client_height": 24
+              },
+              {
+                "role": "button",
+                "rect": [
+                  886,
+                  536,
+                  104,
+                  44
+                ],
+                "scroll_height": 90,
+                "client_height": 44
+              }
+            ],
+            "artwork_semantics": [
+              {
+                "role": "button",
+                "rect": [
+                  130,
+                  382,
+                  300,
+                  223
+                ]
+              }
+            ],
+            "judgments": [
+              {
+                "enabled": true,
+                "pointer_reachable": true
+              },
+              {
+                "enabled": true,
+                "pointer_reachable": true
+              },
+              {
+                "enabled": true,
+                "pointer_reachable": true
+              },
+              {
+                "enabled": true,
+                "pointer_reachable": true
+              }
+            ],
+            "fixture_route_ready": true
+          }
+        }
+      },
+      "viewport": {
+        "width": 1024,
+        "height": 640,
+        "dpr": 1,
+        "zoom": 1,
+        "font": "\"Times New Roman\""
+      }
+    }
+  ],
+  "browser_errors": 0,
+  "emulation": "1024×640 CSS viewport at 100% browser zoom, DPR 1 for CSS layout equivalence",
+  "host": "Windows-11-10.0.26300-SP0",
+  "flet_local_font_sha256": "5113756f8a3b5d01b2211025e267c50121e3b36f465b7bbaf3cdaf4c3430bfd0",
+  "edge_version": "157.0.4341.60",
+  "server_network_denied": 2,
+  "foreign_browser_destinations_blocked": 1,
+  "owned_remaining": 0,
+  "owned_ports_closed": true,
+  "scratch_cleaned": {
+    "files": 306,
+    "bytes": 7957794
+  },
+  "scratch_remaining": 0,
+  "seconds": 110.46
+}

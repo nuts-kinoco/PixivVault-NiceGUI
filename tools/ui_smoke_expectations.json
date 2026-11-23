@@ -102,7 +102,7 @@
       "texts": ["おすすめを更新", "順序を既定に戻す", "好みの傾向"]
     },
     "personal": {
-      "label": "カスタムランキング", "steps": ["personal-candidates-toggle", "personal-filter-toggle"],
+      "label": "カスタムランキング", "steps": ["personal-candidates-toggle"],
       "testids": ["personal-ranking-view", "personal-fetch", "personal-tags", "personal-filter-toggle",
                   "personal-filter-panel", "personal-sort", "personal-bookmarks",
                   "personal-ai", "personal-r18", "personal-chips", "personal-candidates-toggle"],
@@ -111,14 +111,18 @@
     },
     "scheduler": {
       "label": "定期チェック", "open": "automation-open", "steps": ["automation-scheduler"],
-      "testids": ["scheduler-interval", "scheduler-save", "scheduler-run",
+      "testids": ["scheduler-interval", "automation-dialog", "automation-close",
+                  "automation-scheduler", "automation-metadata", "scheduler-save", "scheduler-run",
                   "scheduler-startup", "scheduler-status", "scheduler-account", "shared-log-host"],
-      "texts": ["お気に入り作者の定期チェック", "今すぐチェック", "☆を付けた作者全員をチェックします"]
+      "texts": ["自動処理", "お気に入り作者の定期チェック", "今すぐチェック", "☆を付けた作者全員をチェックします"],
+      "absent_testids": ["tab-scheduler", "tab-metadata"]
     },
     "metadata": {
       "label": "メタデータ補完", "open": "automation-open", "steps": ["automation-metadata"],
-      "testids": ["metadata-view", "metadata-run-all", "metadata-stop", "metadata-status-line"],
-      "texts": ["メタデータ後埋め", "いま埋める"]
+      "testids": ["metadata-view", "automation-dialog", "automation-close",
+                  "automation-scheduler", "automation-metadata", "metadata-run-all", "metadata-stop", "metadata-status-line"],
+      "texts": ["自動処理", "メタデータ後埋め", "取得を実行", "取得の停止を要求"],
+      "absent_testids": ["tab-scheduler", "tab-metadata"]
     },
     "settings": {
       "label": "設定", "open": "preferences-open",

@@ -1,0 +1,3700 @@
+{
+  "revision": "fedf4ad5cf6d1701d8064e12e9e5e5d6e5541634",
+  "cells": [
+    {
+      "size": [
+        1024,
+        640
+      ],
+      "theme": "light",
+      "variant": "normal",
+      "screens": {
+        "download": {
+          "initial": {
+            "viewport": [
+              1024,
+              640
+            ],
+            "visible_rect": [
+              27,
+              584.984375,
+              593,
+              45
+            ],
+            "area_ratio": 0.04071807861328125,
+            "first_image_y": null,
+            "image_rect": null,
+            "image_ratio": null,
+            "first_image_complete": false,
+            "complete_images": 0,
+            "rendered_images": 0,
+            "visible_images": 0,
+            "first_item_y": 584.984375,
+            "items": 4,
+            "scroll_top": 0,
+            "chrome": {
+              "banner": {
+                "height": 37,
+                "elements": [
+                  {
+                    "selector": "[data-testid=db-status-banner]",
+                    "y": 10,
+                    "height": 37
+                  }
+                ]
+              },
+              "header": {
+                "height": 81.484375,
+                "elements": [
+                  {
+                    "selector": ".pv-header .pv-title",
+                    "y": 57,
+                    "height": 46
+                  },
+                  {
+                    "selector": "[data-testid=auth-status]",
+                    "y": 113,
+                    "height": 15.59375
+                  },
+                  {
+                    "selector": ".pv-header-actions",
+                    "y": 98.484375,
+                    "height": 40
+                  }
+                ]
+              },
+              "api": {
+                "height": 32,
+                "elements": [
+                  {
+                    "selector": ".pv-conn-row",
+                    "y": 147.984375,
+                    "height": 32
+                  }
+                ]
+              },
+              "tabs": {
+                "height": 108,
+                "elements": [
+                  {
+                    "selector": ".pv-nav",
+                    "y": 189.984375,
+                    "height": 108
+                  }
+                ]
+              },
+              "heading": {
+                "height": 27,
+                "elements": [
+                  {
+                    "selector": ".pv-ud-title",
+                    "y": 317.484375,
+                    "height": 27
+                  }
+                ]
+              },
+              "toolbar": {
+                "height": 122,
+                "elements": [
+                  {
+                    "selector": ".pv-ud-moderow",
+                    "y": 378.984375,
+                    "height": 42
+                  },
+                  {
+                    "selector": ".pv-ud-tools",
+                    "y": 480.984375,
+                    "height": 32
+                  },
+                  {
+                    "selector": ".pv-ud-note",
+                    "y": 520.984375,
+                    "height": 17
+                  },
+                  {
+                    "selector": ".pv-ud-thead",
+                    "y": 545.984375,
+                    "height": 31
+                  }
+                ]
+              },
+              "candidates": {
+                "height": 0,
+                "elements": []
+              },
+              "status": {
+                "height": 0,
+                "elements": []
+              },
+              "search": {
+                "height": 42,
+                "elements": [
+                  {
+                    "selector": "[data-testid=unified-search]",
+                    "y": 430.984375,
+                    "height": 42
+                  }
+                ]
+              }
+            },
+            "chrome_boundary": 584.984375,
+            "chrome_union_height": 449.484375,
+            "chrome_unassigned_height": 135.5,
+            "complete_cards": 1
+          }
+        },
+        "ranking": {
+          "initial": {
+            "viewport": [
+              1024,
+              640
+            ],
+            "visible_rect": [
+              10,
+              600.484375,
+              1004,
+              29.5
+            ],
+            "area_ratio": 0.0451934814453125,
+            "first_image_y": 623.671875,
+            "image_rect": [
+              19.052083333333343,
+              623.671875,
+              173.08333333333331,
+              6.3125
+            ],
+            "image_ratio": 0.0016671578089396157,
+            "first_image_complete": false,
+            "complete_images": 0,
+            "rendered_images": 30,
+            "visible_images": 5,
+            "first_item_y": 600.484375,
+            "items": 30,
+            "scroll_top": 0,
+            "chrome": {
+              "banner": {
+                "height": 37,
+                "elements": [
+                  {
+                    "selector": "[data-testid=db-status-banner]",
+                    "y": 10,
+                    "height": 37
+                  }
+                ]
+              },
+              "header": {
+                "height": 81.484375,
+                "elements": [
+                  {
+                    "selector": ".pv-header .pv-title",
+                    "y": 57,
+                    "height": 46
+                  },
+                  {
+                    "selector": "[data-testid=auth-status]",
+                    "y": 113,
+                    "height": 15.59375
+                  },
+                  {
+                    "selector": ".pv-header-actions",
+                    "y": 98.484375,
+                    "height": 40
+                  }
+                ]
+              },
+              "api": {
+                "height": 32,
+                "elements": [
+                  {
+                    "selector": ".pv-conn-row",
+                    "y": 147.984375,
+                    "height": 32
+                  }
+                ]
+              },
+              "tabs": {
+                "height": 108,
+                "elements": [
+                  {
+                    "selector": ".pv-nav",
+                    "y": 189.984375,
+                    "height": 108
+                  }
+                ]
+              },
+              "heading": {
+                "height": 0,
+                "elements": []
+              },
+              "toolbar": {
+                "height": 116,
+                "elements": [
+                  {
+                    "selector": ".pv-content .pv-toolbar:not(:has([data-testid=gallery-search]))",
+                    "y": 307.984375,
+                    "height": 116
+                  }
+                ]
+              },
+              "candidates": {
+                "height": 0,
+                "elements": []
+              },
+              "status": {
+                "height": 40.5,
+                "elements": [
+                  {
+                    "selector": ".pv-content [role=status]",
+                    "y": 439.984375,
+                    "height": 21
+                  },
+                  {
+                    "selector": ".pv-content .pv-counter",
+                    "y": 568.984375,
+                    "height": 19.5
+                  }
+                ]
+              },
+              "search": {
+                "height": 64,
+                "elements": [
+                  {
+                    "selector": ".pv-toolbar:has([data-testid=gallery-search])",
+                    "y": 492.984375,
+                    "height": 64
+                  }
+                ]
+              }
+            },
+            "chrome_boundary": 600.484375,
+            "chrome_union_height": 478.984375,
+            "chrome_unassigned_height": 121.5,
+            "complete_cards": 0
+          }
+        },
+        "personal": {
+          "initial": {
+            "viewport": [
+              1024,
+              640
+            ],
+            "visible_rect": [
+              10,
+              599.453125,
+              1004,
+              30.53125
+            ],
+            "area_ratio": 0.046773338317871095,
+            "first_image_y": 622.640625,
+            "image_rect": [
+              19.052083333333343,
+              622.640625,
+              173.08333333333331,
+              7.34375
+            ],
+            "image_ratio": 0.0019395152727762857,
+            "first_image_complete": false,
+            "complete_images": 0,
+            "rendered_images": 30,
+            "visible_images": 5,
+            "first_item_y": 599.453125,
+            "items": 30,
+            "scroll_top": 0,
+            "chrome": {
+              "banner": {
+                "height": 37,
+                "elements": [
+                  {
+                    "selector": "[data-testid=db-status-banner]",
+                    "y": 10,
+                    "height": 37
+                  }
+                ]
+              },
+              "header": {
+                "height": 81.484375,
+                "elements": [
+                  {
+                    "selector": ".pv-header .pv-title",
+                    "y": 57,
+                    "height": 46
+                  },
+                  {
+                    "selector": "[data-testid=auth-status]",
+                    "y": 113,
+                    "height": 15.59375
+                  },
+                  {
+                    "selector": ".pv-header-actions",
+                    "y": 98.484375,
+                    "height": 40
+                  }
+                ]
+              },
+              "api": {
+                "height": 32,
+                "elements": [
+                  {
+                    "selector": ".pv-conn-row",
+                    "y": 147.984375,
+                    "height": 32
+                  }
+                ]
+              },
+              "tabs": {
+                "height": 108,
+                "elements": [
+                  {
+                    "selector": ".pv-nav",
+                    "y": 189.984375,
+                    "height": 108
+                  }
+                ]
+              },
+              "heading": {
+                "height": 22.5,
+                "elements": [
+                  {
+                    "selector": ".pv-content .pv-library-heading",
+                    "y": 307.984375,
+                    "height": 22.5
+                  }
+                ]
+              },
+              "toolbar": {
+                "height": 56,
+                "elements": [
+                  {
+                    "selector": ".pv-content .pv-toolbar:not(:has([data-testid=gallery-search]))",
+                    "y": 336.484375,
+                    "height": 56
+                  }
+                ]
+              },
+              "candidates": {
+                "height": 63.96875,
+                "elements": [
+                  {
+                    "selector": "[data-testid=personal-candidates-row]",
+                    "y": 398.484375,
+                    "height": 31.984375
+                  },
+                  {
+                    "selector": "[data-testid=personal-chips]",
+                    "y": 436.46875,
+                    "height": 31.984375
+                  }
+                ]
+              },
+              "status": {
+                "height": 39,
+                "elements": [
+                  {
+                    "selector": ".pv-content [role=status]",
+                    "y": 474.453125,
+                    "height": 19.5
+                  },
+                  {
+                    "selector": ".pv-content .pv-counter",
+                    "y": 567.953125,
+                    "height": 19.5
+                  },
+                  {
+                    "selector": ".pv-personal-status",
+                    "y": 474.453125,
+                    "height": 19.5
+                  }
+                ]
+              },
+              "search": {
+                "height": 56,
+                "elements": [
+                  {
+                    "selector": ".pv-toolbar:has([data-testid=gallery-search])",
+                    "y": 499.953125,
+                    "height": 56
+                  }
+                ]
+              }
+            },
+            "chrome_boundary": 599.453125,
+            "chrome_union_height": 495.953125,
+            "chrome_unassigned_height": 103.5,
+            "complete_cards": 0
+          }
+        },
+        "library": {
+          "initial": {
+            "viewport": [
+              1024,
+              640
+            ],
+            "visible_rect": [
+              10,
+              427.890625,
+              1004,
+              201.890625
+            ],
+            "area_ratio": 0.3092928886413574,
+            "first_image_y": 434.890625,
+            "image_rect": [
+              17,
+              434.890625,
+              177,
+              146.609375
+            ],
+            "image_ratio": 0.03959634304046631,
+            "first_image_complete": true,
+            "complete_images": 2,
+            "rendered_images": 2,
+            "visible_images": 2,
+            "first_item_y": 427.890625,
+            "items": 2,
+            "scroll_top": 0,
+            "chrome": {
+              "banner": {
+                "height": 37,
+                "elements": [
+                  {
+                    "selector": "[data-testid=db-status-banner]",
+                    "y": 10,
+                    "height": 37
+                  }
+                ]
+              },
+              "header": {
+                "height": 81.484375,
+                "elements": [
+                  {
+                    "selector": ".pv-header .pv-title",
+                    "y": 57,
+                    "height": 46
+                  },
+                  {
+                    "selector": "[data-testid=auth-status]",
+                    "y": 113,
+                    "height": 15.59375
+                  },
+                  {
+                    "selector": ".pv-header-actions",
+                    "y": 98.484375,
+                    "height": 40
+                  }
+                ]
+              },
+              "api": {
+                "height": 32,
+                "elements": [
+                  {
+                    "selector": ".pv-conn-row",
+                    "y": 147.984375,
+                    "height": 32
+                  }
+                ]
+              },
+              "tabs": {
+                "height": 108,
+                "elements": [
+                  {
+                    "selector": ".pv-nav",
+                    "y": 189.984375,
+                    "height": 108
+                  }
+                ]
+              },
+              "heading": {
+                "height": 22.5,
+                "elements": [
+                  {
+                    "selector": ".pv-content .pv-library-heading",
+                    "y": 313.734375,
+                    "height": 22.5
+                  }
+                ]
+              },
+              "toolbar": {
+                "height": 50.21875,
+                "elements": [
+                  {
+                    "selector": ".pv-library-summary",
+                    "y": 396.78125,
+                    "height": 25.109375
+                  },
+                  {
+                    "selector": ".pv-library-subviews",
+                    "y": 312.421875,
+                    "height": 25.109375
+                  }
+                ]
+              },
+              "candidates": {
+                "height": 0,
+                "elements": []
+              },
+              "status": {
+                "height": 19.5,
+                "elements": [
+                  {
+                    "selector": ".pv-content .pv-counter",
+                    "y": 399.578125,
+                    "height": 19.5
+                  }
+                ]
+              },
+              "search": {
+                "height": 34,
+                "elements": [
+                  {
+                    "selector": "[data-testid=library-search]",
+                    "y": 307.984375,
+                    "height": 34
+                  }
+                ]
+              }
+            },
+            "chrome_boundary": 427.890625,
+            "chrome_union_height": 317.59375,
+            "chrome_unassigned_height": 110.296875,
+            "complete_cards": 2
+          }
+        },
+        "library-works": {
+          "initial": {
+            "viewport": [
+              1024,
+              640
+            ],
+            "visible_rect": [
+              10,
+              454.671875,
+              1004,
+              175
+            ],
+            "area_ratio": 0.268096923828125,
+            "first_image_y": 461.671875,
+            "image_rect": [
+              17,
+              461.671875,
+              177,
+              90
+            ],
+            "image_ratio": 0.0243072509765625,
+            "first_image_complete": true,
+            "complete_images": 1,
+            "rendered_images": 1,
+            "visible_images": 1,
+            "first_item_y": 454.671875,
+            "items": 1,
+            "scroll_top": 0,
+            "chrome": {
+              "banner": {
+                "height": 37,
+                "elements": [
+                  {
+                    "selector": "[data-testid=db-status-banner]",
+                    "y": 10,
+                    "height": 37
+                  }
+                ]
+              },
+              "header": {
+                "height": 81.484375,
+                "elements": [
+                  {
+                    "selector": ".pv-header .pv-title",
+                    "y": 57,
+                    "height": 46
+                  },
+                  {
+                    "selector": "[data-testid=auth-status]",
+                    "y": 113,
+                    "height": 15.59375
+                  },
+                  {
+                    "selector": ".pv-header-actions",
+                    "y": 98.484375,
+                    "height": 40
+                  }
+                ]
+              },
+              "api": {
+                "height": 32,
+                "elements": [
+                  {
+                    "selector": ".pv-conn-row",
+                    "y": 147.984375,
+                    "height": 32
+                  }
+                ]
+              },
+              "tabs": {
+                "height": 108,
+                "elements": [
+                  {
+                    "selector": ".pv-nav",
+                    "y": 189.984375,
+                    "height": 108
+                  }
+                ]
+              },
+              "heading": {
+                "height": 48.890625,
+                "elements": [
+                  {
+                    "selector": ".pv-content .pv-library-heading",
+                    "y": 313.734375,
+                    "height": 22.5
+                  },
+                  {
+                    "selector": ".pv-library-detail-header",
+                    "y": 396.78125,
+                    "height": 26.390625
+                  }
+                ]
+              },
+              "toolbar": {
+                "height": 25.109375,
+                "elements": [
+                  {
+                    "selector": ".pv-library-subviews",
+                    "y": 312.421875,
+                    "height": 25.109375
+                  }
+                ]
+              },
+              "candidates": {
+                "height": 0,
+                "elements": []
+              },
+              "status": {
+                "height": 19.5,
+                "elements": [
+                  {
+                    "selector": ".pv-content .pv-counter",
+                    "y": 429.171875,
+                    "height": 19.5
+                  }
+                ]
+              },
+              "search": {
+                "height": 34,
+                "elements": [
+                  {
+                    "selector": "[data-testid=library-search]",
+                    "y": 307.984375,
+                    "height": 34
+                  }
+                ]
+              }
+            },
+            "chrome_boundary": 454.671875,
+            "chrome_union_height": 338.375,
+            "chrome_unassigned_height": 116.296875,
+            "complete_cards": 0
+          }
+        },
+        "bookmarks": {
+          "initial": {
+            "viewport": [
+              1024,
+              640
+            ],
+            "visible_rect": [
+              10,
+              441.890625,
+              1004,
+              187.890625
+            ],
+            "area_ratio": 0.2878451347351074,
+            "first_image_y": 448.890625,
+            "image_rect": [
+              17,
+              448.890625,
+              177,
+              146
+            ],
+            "image_ratio": 0.0394317626953125,
+            "first_image_complete": true,
+            "complete_images": 1,
+            "rendered_images": 1,
+            "visible_images": 1,
+            "first_item_y": 441.890625,
+            "items": 1,
+            "scroll_top": 0,
+            "chrome": {
+              "banner": {
+                "height": 37,
+                "elements": [
+                  {
+                    "selector": "[data-testid=db-status-banner]",
+                    "y": 10,
+                    "height": 37
+                  }
+                ]
+              },
+              "header": {
+                "height": 81.484375,
+                "elements": [
+                  {
+                    "selector": ".pv-header .pv-title",
+                    "y": 57,
+                    "height": 46
+                  },
+                  {
+                    "selector": "[data-testid=auth-status]",
+                    "y": 113,
+                    "height": 15.59375
+                  },
+                  {
+                    "selector": ".pv-header-actions",
+                    "y": 98.484375,
+                    "height": 40
+                  }
+                ]
+              },
+              "api": {
+                "height": 32,
+                "elements": [
+                  {
+                    "selector": ".pv-conn-row",
+                    "y": 147.984375,
+                    "height": 32
+                  }
+                ]
+              },
+              "tabs": {
+                "height": 108,
+                "elements": [
+                  {
+                    "selector": ".pv-nav",
+                    "y": 189.984375,
+                    "height": 108
+                  }
+                ]
+              },
+              "heading": {
+                "height": 45,
+                "elements": [
+                  {
+                    "selector": ".pv-content .pv-library-heading",
+                    "y": 313.125,
+                    "height": 22.5
+                  },
+                  {
+                    "selector": ".pv-content .pv-library-heading",
+                    "y": 354.078125,
+                    "height": 22.5
+                  }
+                ]
+              },
+              "toolbar": {
+                "height": 50.21875,
+                "elements": [
+                  {
+                    "selector": ".pv-library-summary",
+                    "y": 352.78125,
+                    "height": 25.109375
+                  },
+                  {
+                    "selector": ".pv-library-subviews",
+                    "y": 311.828125,
+                    "height": 25.109375
+                  }
+                ]
+              },
+              "candidates": {
+                "height": 0,
+                "elements": []
+              },
+              "status": {
+                "height": 19.5,
+                "elements": [
+                  {
+                    "selector": ".pv-content .pv-counter",
+                    "y": 355.578125,
+                    "height": 19.5
+                  },
+                  {
+                    "selector": ".pv-content .pv-counter",
+                    "y": 355.578125,
+                    "height": 19.5
+                  },
+                  {
+                    "selector": ".pv-content .pv-counter",
+                    "y": 355.578125,
+                    "height": 19.5
+                  }
+                ]
+              },
+              "search": {
+                "height": 40,
+                "elements": [
+                  {
+                    "selector": "[data-testid=bookmark-search]",
+                    "y": 383.890625,
+                    "height": 40
+                  }
+                ]
+              }
+            },
+            "chrome_boundary": 441.890625,
+            "chrome_union_height": 348.703125,
+            "chrome_unassigned_height": 93.1875,
+            "complete_cards": 0
+          }
+        },
+        "recommend": {
+          "initial": {
+            "viewport": [
+              1024,
+              640
+            ],
+            "visible_rect": [
+              10,
+              586.71875,
+              996,
+              43.265625
+            ],
+            "area_ratio": 0.06575403213500977,
+            "first_image_y": 600.37890625,
+            "image_rect": [
+              17,
+              600.37890625,
+              175.59375,
+              29.60546875
+            ],
+            "image_ratio": 0.007932335324585437,
+            "first_image_complete": false,
+            "complete_images": 0,
+            "rendered_images": 2,
+            "visible_images": 2,
+            "first_item_y": 586.71875,
+            "items": 2,
+            "scroll_top": 0,
+            "chrome": {
+              "banner": {
+                "height": 37,
+                "elements": [
+                  {
+                    "selector": "[data-testid=db-status-banner]",
+                    "y": 10,
+                    "height": 37
+                  }
+                ]
+              },
+              "header": {
+                "height": 81.484375,
+                "elements": [
+                  {
+                    "selector": ".pv-header .pv-title",
+                    "y": 57,
+                    "height": 46
+                  },
+                  {
+                    "selector": "[data-testid=auth-status]",
+                    "y": 113,
+                    "height": 15.59375
+                  },
+                  {
+                    "selector": ".pv-header-actions",
+                    "y": 98.484375,
+                    "height": 40
+                  }
+                ]
+              },
+              "api": {
+                "height": 32,
+                "elements": [
+                  {
+                    "selector": ".pv-conn-row",
+                    "y": 147.984375,
+                    "height": 32
+                  }
+                ]
+              },
+              "tabs": {
+                "height": 108,
+                "elements": [
+                  {
+                    "selector": ".pv-nav",
+                    "y": 189.984375,
+                    "height": 108
+                  }
+                ]
+              },
+              "heading": {
+                "height": 90,
+                "elements": [
+                  {
+                    "selector": ".pv-content .pv-library-heading",
+                    "y": 322.125,
+                    "height": 22.5
+                  },
+                  {
+                    "selector": ".pv-content .pv-library-heading",
+                    "y": 425.515625,
+                    "height": 22.5
+                  },
+                  {
+                    "selector": ".pv-content .pv-library-heading",
+                    "y": 472.5,
+                    "height": 22.5
+                  },
+                  {
+                    "selector": ".pv-content .pv-library-heading",
+                    "y": 519.484375,
+                    "height": 22.5
+                  }
+                ]
+              },
+              "toolbar": {
+                "height": 146.75,
+                "elements": [
+                  {
+                    "selector": ".pv-content .pv-toolbar:not(:has([data-testid=gallery-search]))",
+                    "y": 307.984375,
+                    "height": 50.796875
+                  },
+                  {
+                    "selector": ".pv-recommend-shelf-header",
+                    "y": 420.78125,
+                    "height": 31.984375
+                  },
+                  {
+                    "selector": ".pv-recommend-shelf-header",
+                    "y": 467.765625,
+                    "height": 31.984375
+                  },
+                  {
+                    "selector": ".pv-recommend-shelf-header",
+                    "y": 514.75,
+                    "height": 31.984375
+                  }
+                ]
+              },
+              "candidates": {
+                "height": 0,
+                "elements": []
+              },
+              "status": {
+                "height": 19.5,
+                "elements": [
+                  {
+                    "selector": ".pv-content [role=status]",
+                    "y": 390.28125,
+                    "height": 19.5
+                  }
+                ]
+              },
+              "search": {
+                "height": 0,
+                "elements": []
+              }
+            },
+            "chrome_boundary": 586.71875,
+            "chrome_union_height": 424.734375,
+            "chrome_unassigned_height": 161.984375,
+            "complete_cards": 0
+          }
+        },
+        "dedup": {
+          "initial": {
+            "viewport": [
+              1024,
+              640
+            ],
+            "visible_rect": [
+              10,
+              466.984375,
+              996,
+              163
+            ],
+            "area_ratio": 0.247723388671875,
+            "first_image_y": 491.984375,
+            "image_rect": [
+              175,
+              491.984375,
+              144,
+              108
+            ],
+            "image_ratio": 0.02373046875,
+            "first_image_complete": true,
+            "complete_images": 2,
+            "rendered_images": 2,
+            "visible_images": 2,
+            "first_item_y": 466.984375,
+            "items": 1,
+            "scroll_top": 0,
+            "chrome": {
+              "banner": {
+                "height": 37,
+                "elements": [
+                  {
+                    "selector": "[data-testid=db-status-banner]",
+                    "y": 10,
+                    "height": 37
+                  }
+                ]
+              },
+              "header": {
+                "height": 81.484375,
+                "elements": [
+                  {
+                    "selector": ".pv-header .pv-title",
+                    "y": 57,
+                    "height": 46
+                  },
+                  {
+                    "selector": "[data-testid=auth-status]",
+                    "y": 113,
+                    "height": 15.59375
+                  },
+                  {
+                    "selector": ".pv-header-actions",
+                    "y": 98.484375,
+                    "height": 40
+                  }
+                ]
+              },
+              "api": {
+                "height": 32,
+                "elements": [
+                  {
+                    "selector": ".pv-conn-row",
+                    "y": 147.984375,
+                    "height": 32
+                  }
+                ]
+              },
+              "tabs": {
+                "height": 108,
+                "elements": [
+                  {
+                    "selector": ".pv-nav",
+                    "y": 189.984375,
+                    "height": 108
+                  }
+                ]
+              },
+              "heading": {
+                "height": 22.5,
+                "elements": [
+                  {
+                    "selector": ".pv-content .pv-library-heading",
+                    "y": 307.984375,
+                    "height": 22.5
+                  }
+                ]
+              },
+              "toolbar": {
+                "height": 56,
+                "elements": [
+                  {
+                    "selector": ".pv-content .pv-toolbar:not(:has([data-testid=gallery-search]))",
+                    "y": 336.484375,
+                    "height": 56
+                  }
+                ]
+              },
+              "candidates": {
+                "height": 0,
+                "elements": []
+              },
+              "status": {
+                "height": 19.5,
+                "elements": [
+                  {
+                    "selector": ".pv-content [role=status]",
+                    "y": 408.234375,
+                    "height": 19.5
+                  }
+                ]
+              },
+              "search": {
+                "height": 0,
+                "elements": []
+              }
+            },
+            "chrome_boundary": 466.984375,
+            "chrome_union_height": 356.484375,
+            "chrome_unassigned_height": 110.5,
+            "complete_cards": 0
+          }
+        },
+        "view-history": {
+          "initial": {
+            "viewport": [
+              1024,
+              640
+            ],
+            "visible_rect": [
+              272,
+              169.90625,
+              465,
+              307
+            ],
+            "area_ratio": 0.21782684326171875,
+            "first_image_y": 177.90625,
+            "image_rect": [
+              272,
+              177.90625,
+              64,
+              64
+            ],
+            "image_ratio": 0.00625,
+            "first_image_complete": true,
+            "complete_images": 1,
+            "rendered_images": 1,
+            "visible_images": 1,
+            "first_item_y": 169.90625,
+            "items": 1,
+            "scroll_top": 0,
+            "chrome": {
+              "banner": {
+                "height": 37,
+                "elements": [
+                  {
+                    "selector": "[data-testid=db-status-banner]",
+                    "y": 10,
+                    "height": 37
+                  }
+                ]
+              },
+              "header": {
+                "height": 81.484375,
+                "elements": [
+                  {
+                    "selector": ".pv-header .pv-title",
+                    "y": 57,
+                    "height": 46
+                  },
+                  {
+                    "selector": "[data-testid=auth-status]",
+                    "y": 113,
+                    "height": 15.59375
+                  },
+                  {
+                    "selector": ".pv-header-actions",
+                    "y": 98.484375,
+                    "height": 40
+                  }
+                ]
+              },
+              "api": {
+                "height": 21.921875,
+                "elements": [
+                  {
+                    "selector": ".pv-conn-row",
+                    "y": 147.984375,
+                    "height": 21.921875
+                  }
+                ]
+              },
+              "tabs": {
+                "height": 0,
+                "elements": []
+              },
+              "heading": {
+                "height": 24,
+                "elements": [
+                  {
+                    "selector": ".pv-dialog-title",
+                    "y": 82.90625,
+                    "height": 24
+                  }
+                ]
+              },
+              "toolbar": {
+                "height": 0,
+                "elements": []
+              },
+              "candidates": {
+                "height": 0,
+                "elements": []
+              },
+              "status": {
+                "height": 19.5,
+                "elements": [
+                  {
+                    "selector": "[data-testid=view-history-status]",
+                    "y": 142.40625,
+                    "height": 19.5
+                  }
+                ]
+              },
+              "search": {
+                "height": 0,
+                "elements": []
+              }
+            },
+            "chrome_boundary": 169.90625,
+            "chrome_union_height": 145.984375,
+            "chrome_unassigned_height": 23.921875,
+            "complete_cards": 1,
+            "settled_dialog": {
+              "x": 256,
+              "y": 66.90625,
+              "width": 512,
+              "height": 506.171875
+            }
+          }
+        },
+        "learning": {
+          "initial": {
+            "viewport": [
+              1024,
+              640
+            ],
+            "visible_rect": [
+              10,
+              361.96875,
+              552,
+              268
+            ],
+            "area_ratio": 0.14393653919299446,
+            "first_image_y": 362.96875,
+            "image_rect": [
+              108.67708333333331,
+              362.96875,
+              354.64583333333337,
+              265.984375
+            ],
+            "image_ratio": 0.14393653919299446,
+            "first_image_complete": true,
+            "complete_images": 1,
+            "rendered_images": 1,
+            "visible_images": 1,
+            "first_item_y": 362.96875,
+            "items": 1,
+            "scroll_top": 0,
+            "chrome": {
+              "banner": {
+                "height": 37,
+                "elements": [
+                  {
+                    "selector": "[data-testid=db-status-banner]",
+                    "y": 10,
+                    "height": 37
+                  }
+                ]
+              },
+              "header": {
+                "height": 81.484375,
+                "elements": [
+                  {
+                    "selector": ".pv-header .pv-title",
+                    "y": 57,
+                    "height": 46
+                  },
+                  {
+                    "selector": "[data-testid=auth-status]",
+                    "y": 113,
+                    "height": 15.59375
+                  },
+                  {
+                    "selector": ".pv-header-actions",
+                    "y": 98.484375,
+                    "height": 40
+                  }
+                ]
+              },
+              "api": {
+                "height": 32,
+                "elements": [
+                  {
+                    "selector": ".pv-conn-row",
+                    "y": 147.984375,
+                    "height": 32
+                  }
+                ]
+              },
+              "tabs": {
+                "height": 108,
+                "elements": [
+                  {
+                    "selector": ".pv-nav",
+                    "y": 189.984375,
+                    "height": 108
+                  }
+                ]
+              },
+              "heading": {
+                "height": 0,
+                "elements": []
+              },
+              "toolbar": {
+                "height": 47.984375,
+                "elements": [
+                  {
+                    "selector": ".pv-content .pv-toolbar:not(:has([data-testid=gallery-search]))",
+                    "y": 307.984375,
+                    "height": 47.984375
+                  }
+                ]
+              },
+              "candidates": {
+                "height": 0,
+                "elements": []
+              },
+              "status": {
+                "height": 0,
+                "elements": []
+              },
+              "search": {
+                "height": 0,
+                "elements": []
+              }
+            },
+            "chrome_boundary": 361.96875,
+            "chrome_union_height": 306.46875,
+            "chrome_unassigned_height": 55.5,
+            "complete_cards": 1,
+            "judgments": [
+              {
+                "focused_and_hittable": true,
+                "enabled": true
+              },
+              {
+                "focused_and_hittable": true,
+                "enabled": true
+              },
+              {
+                "focused_and_hittable": true,
+                "enabled": true
+              },
+              {
+                "focused_and_hittable": true,
+                "enabled": true
+              }
+            ]
+          }
+        }
+      },
+      "viewport": {
+        "width": 1024,
+        "height": 640,
+        "dpr": 1,
+        "zoom": 1,
+        "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+      },
+      "theme_confirmed": true,
+      "header": {
+        "db-status-banner": {
+          "x": 10,
+          "y": 10,
+          "width": 1004,
+          "height": 37
+        },
+        "shared-get-recovery-open": {
+          "x": 137.421875,
+          "y": 147.984375,
+          "width": 160,
+          "height": 31.984375
+        },
+        "automation-unresolved": null,
+        "automation-breakdown": null,
+        "request-retry-status": null
+      }
+    },
+    {
+      "size": [
+        1024,
+        640
+      ],
+      "theme": "light",
+      "variant": "stress",
+      "screens": {
+        "download": {
+          "initial": {
+            "viewport": [
+              1024,
+              640
+            ],
+            "visible_rect": [
+              27,
+              640,
+              593,
+              0
+            ],
+            "area_ratio": 0,
+            "first_image_y": null,
+            "image_rect": null,
+            "image_ratio": null,
+            "first_image_complete": false,
+            "complete_images": 0,
+            "rendered_images": 0,
+            "visible_images": 0,
+            "first_item_y": 951.96875,
+            "items": 4,
+            "scroll_top": 0,
+            "chrome": {
+              "banner": {
+                "height": 79,
+                "elements": [
+                  {
+                    "selector": "[data-testid=db-status-banner]",
+                    "y": 10,
+                    "height": 79
+                  }
+                ]
+              },
+              "header": {
+                "height": 101.59375,
+                "elements": [
+                  {
+                    "selector": ".pv-header .pv-title",
+                    "y": 99,
+                    "height": 46
+                  },
+                  {
+                    "selector": "[data-testid=auth-status]",
+                    "y": 155,
+                    "height": 15.59375
+                  },
+                  {
+                    "selector": ".pv-header-actions",
+                    "y": 302.984375,
+                    "height": 40
+                  }
+                ]
+              },
+              "api": {
+                "height": 198,
+                "elements": [
+                  {
+                    "selector": ".pv-conn-row",
+                    "y": 189.984375,
+                    "height": 32
+                  },
+                  {
+                    "selector": ".pv-header [data-testid=request-retry-status]",
+                    "y": 231.984375,
+                    "height": 166
+                  }
+                ]
+              },
+              "tabs": {
+                "height": 83.03125,
+                "elements": [
+                  {
+                    "selector": ".pv-nav",
+                    "y": 556.96875,
+                    "height": 83.03125
+                  }
+                ]
+              },
+              "heading": {
+                "height": 0,
+                "elements": []
+              },
+              "toolbar": {
+                "height": 0,
+                "elements": []
+              },
+              "candidates": {
+                "height": 0,
+                "elements": []
+              },
+              "status": {
+                "height": 0,
+                "elements": []
+              },
+              "search": {
+                "height": 0,
+                "elements": []
+              }
+            },
+            "chrome_boundary": 640,
+            "chrome_union_height": 421.625,
+            "chrome_unassigned_height": 218.375,
+            "complete_cards": 0
+          }
+        },
+        "ranking": {
+          "measurement_issue": "TimeoutError (ranking-fetch)"
+        },
+        "personal": {
+          "measurement_issue": "TimeoutError (personal-fetch)"
+        },
+        "library": {
+          "measurement_issue": "TimeoutError (library-authors-scroll)"
+        },
+        "library-works": {
+          "measurement_issue": "TimeoutError (library-author-open)"
+        },
+        "bookmarks": {
+          "measurement_issue": "TimeoutError (library-subview-bookmarks)"
+        },
+        "recommend": {
+          "initial": {
+            "viewport": [
+              1024,
+              640
+            ],
+            "visible_rect": [
+              10,
+              640,
+              996,
+              0
+            ],
+            "area_ratio": 0,
+            "first_image_y": 922.36328125,
+            "image_rect": [
+              17,
+              640,
+              175.59375,
+              0
+            ],
+            "image_ratio": 0,
+            "first_image_complete": false,
+            "complete_images": 0,
+            "rendered_images": 2,
+            "visible_images": 0,
+            "first_item_y": 908.703125,
+            "items": 2,
+            "scroll_top": 0,
+            "chrome": {
+              "banner": {
+                "height": 44,
+                "elements": [
+                  {
+                    "selector": "[data-testid=db-status-banner]",
+                    "y": 0,
+                    "height": 44
+                  }
+                ]
+              },
+              "header": {
+                "height": 101.59375,
+                "elements": [
+                  {
+                    "selector": ".pv-header .pv-title",
+                    "y": 54,
+                    "height": 46
+                  },
+                  {
+                    "selector": "[data-testid=auth-status]",
+                    "y": 110,
+                    "height": 15.59375
+                  },
+                  {
+                    "selector": ".pv-header-actions",
+                    "y": 257.984375,
+                    "height": 40
+                  }
+                ]
+              },
+              "api": {
+                "height": 198,
+                "elements": [
+                  {
+                    "selector": ".pv-conn-row",
+                    "y": 144.984375,
+                    "height": 32
+                  },
+                  {
+                    "selector": ".pv-header [data-testid=request-retry-status]",
+                    "y": 186.984375,
+                    "height": 166
+                  }
+                ]
+              },
+              "tabs": {
+                "height": 108,
+                "elements": [
+                  {
+                    "selector": ".pv-nav",
+                    "y": 511.96875,
+                    "height": 108
+                  }
+                ]
+              },
+              "heading": {
+                "height": 0,
+                "elements": []
+              },
+              "toolbar": {
+                "height": 0,
+                "elements": []
+              },
+              "candidates": {
+                "height": 0,
+                "elements": []
+              },
+              "status": {
+                "height": 0,
+                "elements": []
+              },
+              "search": {
+                "height": 0,
+                "elements": []
+              }
+            },
+            "chrome_boundary": 640,
+            "chrome_union_height": 411.59375,
+            "chrome_unassigned_height": 228.40625,
+            "complete_cards": 0
+          }
+        },
+        "dedup": {
+          "measurement_issue": "TimeoutError (duplicate-scan)"
+        },
+        "view-history": {
+          "initial": {
+            "viewport": [
+              1024,
+              640
+            ],
+            "visible_rect": [
+              272,
+              169.90625,
+              465,
+              307
+            ],
+            "area_ratio": 0.21782684326171875,
+            "first_image_y": 177.90625,
+            "image_rect": [
+              272,
+              177.90625,
+              64,
+              64
+            ],
+            "image_ratio": 0.00625,
+            "first_image_complete": true,
+            "complete_images": 1,
+            "rendered_images": 1,
+            "visible_images": 1,
+            "first_item_y": 169.90625,
+            "items": 1,
+            "scroll_top": 0,
+            "chrome": {
+              "banner": {
+                "height": 49,
+                "elements": [
+                  {
+                    "selector": "[data-testid=db-status-banner]",
+                    "y": 0,
+                    "height": 49
+                  }
+                ]
+              },
+              "header": {
+                "height": 61.59375,
+                "elements": [
+                  {
+                    "selector": ".pv-header .pv-title",
+                    "y": 59,
+                    "height": 46
+                  },
+                  {
+                    "selector": "[data-testid=auth-status]",
+                    "y": 115,
+                    "height": 15.59375
+                  }
+                ]
+              },
+              "api": {
+                "height": 19.921875,
+                "elements": [
+                  {
+                    "selector": ".pv-conn-row",
+                    "y": 149.984375,
+                    "height": 19.921875
+                  }
+                ]
+              },
+              "tabs": {
+                "height": 0,
+                "elements": []
+              },
+              "heading": {
+                "height": 24,
+                "elements": [
+                  {
+                    "selector": ".pv-dialog-title",
+                    "y": 82.90625,
+                    "height": 24
+                  }
+                ]
+              },
+              "toolbar": {
+                "height": 0,
+                "elements": []
+              },
+              "candidates": {
+                "height": 0,
+                "elements": []
+              },
+              "status": {
+                "height": 19.5,
+                "elements": [
+                  {
+                    "selector": "[data-testid=view-history-status]",
+                    "y": 142.40625,
+                    "height": 19.5
+                  }
+                ]
+              },
+              "search": {
+                "height": 0,
+                "elements": []
+              }
+            },
+            "chrome_boundary": 169.90625,
+            "chrome_union_height": 140,
+            "chrome_unassigned_height": 29.90625,
+            "complete_cards": 1,
+            "settled_dialog": {
+              "x": 256,
+              "y": 66.90625,
+              "width": 512,
+              "height": 506.171875
+            }
+          }
+        },
+        "learning": {
+          "measurement_issue": "TimeoutError"
+        }
+      },
+      "viewport": {
+        "width": 1024,
+        "height": 640,
+        "dpr": 1,
+        "zoom": 1,
+        "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+      },
+      "theme_confirmed": true,
+      "header": {
+        "db-status-banner": {
+          "x": 10,
+          "y": 10,
+          "width": 1004,
+          "height": 79
+        },
+        "shared-get-recovery-open": {
+          "x": 137.421875,
+          "y": 189.984375,
+          "width": 160,
+          "height": 31.984375
+        },
+        "automation-unresolved": null,
+        "automation-breakdown": null,
+        "request-retry-status": {
+          "x": 10,
+          "y": 231.984375,
+          "width": 727,
+          "height": 166
+        }
+      }
+    },
+    {
+      "size": [
+        1024,
+        640
+      ],
+      "theme": "dark",
+      "variant": "normal",
+      "screens": {
+        "download": {
+          "initial": {
+            "viewport": [
+              1024,
+              640
+            ],
+            "visible_rect": [
+              27,
+              584.984375,
+              593,
+              45
+            ],
+            "area_ratio": 0.04071807861328125,
+            "first_image_y": null,
+            "image_rect": null,
+            "image_ratio": null,
+            "first_image_complete": false,
+            "complete_images": 0,
+            "rendered_images": 0,
+            "visible_images": 0,
+            "first_item_y": 584.984375,
+            "items": 4,
+            "scroll_top": 0,
+            "chrome": {
+              "banner": {
+                "height": 37,
+                "elements": [
+                  {
+                    "selector": "[data-testid=db-status-banner]",
+                    "y": 10,
+                    "height": 37
+                  }
+                ]
+              },
+              "header": {
+                "height": 81.484375,
+                "elements": [
+                  {
+                    "selector": ".pv-header .pv-title",
+                    "y": 57,
+                    "height": 46
+                  },
+                  {
+                    "selector": "[data-testid=auth-status]",
+                    "y": 113,
+                    "height": 15.59375
+                  },
+                  {
+                    "selector": ".pv-header-actions",
+                    "y": 98.484375,
+                    "height": 40
+                  }
+                ]
+              },
+              "api": {
+                "height": 32,
+                "elements": [
+                  {
+                    "selector": ".pv-conn-row",
+                    "y": 147.984375,
+                    "height": 32
+                  }
+                ]
+              },
+              "tabs": {
+                "height": 108,
+                "elements": [
+                  {
+                    "selector": ".pv-nav",
+                    "y": 189.984375,
+                    "height": 108
+                  }
+                ]
+              },
+              "heading": {
+                "height": 27,
+                "elements": [
+                  {
+                    "selector": ".pv-ud-title",
+                    "y": 317.484375,
+                    "height": 27
+                  }
+                ]
+              },
+              "toolbar": {
+                "height": 122,
+                "elements": [
+                  {
+                    "selector": ".pv-ud-moderow",
+                    "y": 378.984375,
+                    "height": 42
+                  },
+                  {
+                    "selector": ".pv-ud-tools",
+                    "y": 480.984375,
+                    "height": 32
+                  },
+                  {
+                    "selector": ".pv-ud-note",
+                    "y": 520.984375,
+                    "height": 17
+                  },
+                  {
+                    "selector": ".pv-ud-thead",
+                    "y": 545.984375,
+                    "height": 31
+                  }
+                ]
+              },
+              "candidates": {
+                "height": 0,
+                "elements": []
+              },
+              "status": {
+                "height": 0,
+                "elements": []
+              },
+              "search": {
+                "height": 42,
+                "elements": [
+                  {
+                    "selector": "[data-testid=unified-search]",
+                    "y": 430.984375,
+                    "height": 42
+                  }
+                ]
+              }
+            },
+            "chrome_boundary": 584.984375,
+            "chrome_union_height": 449.484375,
+            "chrome_unassigned_height": 135.5,
+            "complete_cards": 1
+          }
+        },
+        "ranking": {
+          "initial": {
+            "viewport": [
+              1024,
+              640
+            ],
+            "visible_rect": [
+              10,
+              600.484375,
+              1004,
+              29.5
+            ],
+            "area_ratio": 0.0451934814453125,
+            "first_image_y": 623.671875,
+            "image_rect": [
+              19.052083333333343,
+              623.671875,
+              173.08333333333331,
+              6.3125
+            ],
+            "image_ratio": 0.0016671578089396157,
+            "first_image_complete": false,
+            "complete_images": 0,
+            "rendered_images": 29,
+            "visible_images": 5,
+            "first_item_y": 600.484375,
+            "items": 30,
+            "scroll_top": 0,
+            "chrome": {
+              "banner": {
+                "height": 37,
+                "elements": [
+                  {
+                    "selector": "[data-testid=db-status-banner]",
+                    "y": 10,
+                    "height": 37
+                  }
+                ]
+              },
+              "header": {
+                "height": 81.484375,
+                "elements": [
+                  {
+                    "selector": ".pv-header .pv-title",
+                    "y": 57,
+                    "height": 46
+                  },
+                  {
+                    "selector": "[data-testid=auth-status]",
+                    "y": 113,
+                    "height": 15.59375
+                  },
+                  {
+                    "selector": ".pv-header-actions",
+                    "y": 98.484375,
+                    "height": 40
+                  }
+                ]
+              },
+              "api": {
+                "height": 32,
+                "elements": [
+                  {
+                    "selector": ".pv-conn-row",
+                    "y": 147.984375,
+                    "height": 32
+                  }
+                ]
+              },
+              "tabs": {
+                "height": 108,
+                "elements": [
+                  {
+                    "selector": ".pv-nav",
+                    "y": 189.984375,
+                    "height": 108
+                  }
+                ]
+              },
+              "heading": {
+                "height": 0,
+                "elements": []
+              },
+              "toolbar": {
+                "height": 116,
+                "elements": [
+                  {
+                    "selector": ".pv-content .pv-toolbar:not(:has([data-testid=gallery-search]))",
+                    "y": 307.984375,
+                    "height": 116
+                  }
+                ]
+              },
+              "candidates": {
+                "height": 0,
+                "elements": []
+              },
+              "status": {
+                "height": 40.5,
+                "elements": [
+                  {
+                    "selector": ".pv-content [role=status]",
+                    "y": 439.984375,
+                    "height": 21
+                  },
+                  {
+                    "selector": ".pv-content .pv-counter",
+                    "y": 568.984375,
+                    "height": 19.5
+                  }
+                ]
+              },
+              "search": {
+                "height": 64,
+                "elements": [
+                  {
+                    "selector": ".pv-toolbar:has([data-testid=gallery-search])",
+                    "y": 492.984375,
+                    "height": 64
+                  }
+                ]
+              }
+            },
+            "chrome_boundary": 600.484375,
+            "chrome_union_height": 478.984375,
+            "chrome_unassigned_height": 121.5,
+            "complete_cards": 0
+          }
+        },
+        "personal": {
+          "initial": {
+            "viewport": [
+              1024,
+              640
+            ],
+            "visible_rect": [
+              10,
+              599.453125,
+              1004,
+              30.53125
+            ],
+            "area_ratio": 0.046773338317871095,
+            "first_image_y": 622.640625,
+            "image_rect": [
+              19.052083333333343,
+              622.640625,
+              173.08333333333331,
+              7.34375
+            ],
+            "image_ratio": 0.0019395152727762857,
+            "first_image_complete": false,
+            "complete_images": 0,
+            "rendered_images": 30,
+            "visible_images": 5,
+            "first_item_y": 599.453125,
+            "items": 30,
+            "scroll_top": 0,
+            "chrome": {
+              "banner": {
+                "height": 37,
+                "elements": [
+                  {
+                    "selector": "[data-testid=db-status-banner]",
+                    "y": 10,
+                    "height": 37
+                  }
+                ]
+              },
+              "header": {
+                "height": 81.484375,
+                "elements": [
+                  {
+                    "selector": ".pv-header .pv-title",
+                    "y": 57,
+                    "height": 46
+                  },
+                  {
+                    "selector": "[data-testid=auth-status]",
+                    "y": 113,
+                    "height": 15.59375
+                  },
+                  {
+                    "selector": ".pv-header-actions",
+                    "y": 98.484375,
+                    "height": 40
+                  }
+                ]
+              },
+              "api": {
+                "height": 32,
+                "elements": [
+                  {
+                    "selector": ".pv-conn-row",
+                    "y": 147.984375,
+                    "height": 32
+                  }
+                ]
+              },
+              "tabs": {
+                "height": 108,
+                "elements": [
+                  {
+                    "selector": ".pv-nav",
+                    "y": 189.984375,
+                    "height": 108
+                  }
+                ]
+              },
+              "heading": {
+                "height": 22.5,
+                "elements": [
+                  {
+                    "selector": ".pv-content .pv-library-heading",
+                    "y": 307.984375,
+                    "height": 22.5
+                  }
+                ]
+              },
+              "toolbar": {
+                "height": 56,
+                "elements": [
+                  {
+                    "selector": ".pv-content .pv-toolbar:not(:has([data-testid=gallery-search]))",
+                    "y": 336.484375,
+                    "height": 56
+                  }
+                ]
+              },
+              "candidates": {
+                "height": 63.96875,
+                "elements": [
+                  {
+                    "selector": "[data-testid=personal-candidates-row]",
+                    "y": 398.484375,
+                    "height": 31.984375
+                  },
+                  {
+                    "selector": "[data-testid=personal-chips]",
+                    "y": 436.46875,
+                    "height": 31.984375
+                  }
+                ]
+              },
+              "status": {
+                "height": 39,
+                "elements": [
+                  {
+                    "selector": ".pv-content [role=status]",
+                    "y": 474.453125,
+                    "height": 19.5
+                  },
+                  {
+                    "selector": ".pv-content .pv-counter",
+                    "y": 567.953125,
+                    "height": 19.5
+                  },
+                  {
+                    "selector": ".pv-personal-status",
+                    "y": 474.453125,
+                    "height": 19.5
+                  }
+                ]
+              },
+              "search": {
+                "height": 56,
+                "elements": [
+                  {
+                    "selector": ".pv-toolbar:has([data-testid=gallery-search])",
+                    "y": 499.953125,
+                    "height": 56
+                  }
+                ]
+              }
+            },
+            "chrome_boundary": 599.453125,
+            "chrome_union_height": 495.953125,
+            "chrome_unassigned_height": 103.5,
+            "complete_cards": 0
+          }
+        },
+        "library": {
+          "initial": {
+            "viewport": [
+              1024,
+              640
+            ],
+            "visible_rect": [
+              10,
+              427.890625,
+              1004,
+              201.890625
+            ],
+            "area_ratio": 0.3092928886413574,
+            "first_image_y": 434.890625,
+            "image_rect": [
+              17,
+              434.890625,
+              177,
+              146.609375
+            ],
+            "image_ratio": 0.03959634304046631,
+            "first_image_complete": true,
+            "complete_images": 2,
+            "rendered_images": 2,
+            "visible_images": 2,
+            "first_item_y": 427.890625,
+            "items": 2,
+            "scroll_top": 0,
+            "chrome": {
+              "banner": {
+                "height": 37,
+                "elements": [
+                  {
+                    "selector": "[data-testid=db-status-banner]",
+                    "y": 10,
+                    "height": 37
+                  }
+                ]
+              },
+              "header": {
+                "height": 81.484375,
+                "elements": [
+                  {
+                    "selector": ".pv-header .pv-title",
+                    "y": 57,
+                    "height": 46
+                  },
+                  {
+                    "selector": "[data-testid=auth-status]",
+                    "y": 113,
+                    "height": 15.59375
+                  },
+                  {
+                    "selector": ".pv-header-actions",
+                    "y": 98.484375,
+                    "height": 40
+                  }
+                ]
+              },
+              "api": {
+                "height": 32,
+                "elements": [
+                  {
+                    "selector": ".pv-conn-row",
+                    "y": 147.984375,
+                    "height": 32
+                  }
+                ]
+              },
+              "tabs": {
+                "height": 108,
+                "elements": [
+                  {
+                    "selector": ".pv-nav",
+                    "y": 189.984375,
+                    "height": 108
+                  }
+                ]
+              },
+              "heading": {
+                "height": 22.5,
+                "elements": [
+                  {
+                    "selector": ".pv-content .pv-library-heading",
+                    "y": 313.734375,
+                    "height": 22.5
+                  }
+                ]
+              },
+              "toolbar": {
+                "height": 50.21875,
+                "elements": [
+                  {
+                    "selector": ".pv-library-summary",
+                    "y": 396.78125,
+                    "height": 25.109375
+                  },
+                  {
+                    "selector": ".pv-library-subviews",
+                    "y": 312.421875,
+                    "height": 25.109375
+                  }
+                ]
+              },
+              "candidates": {
+                "height": 0,
+                "elements": []
+              },
+              "status": {
+                "height": 19.5,
+                "elements": [
+                  {
+                    "selector": ".pv-content .pv-counter",
+                    "y": 399.578125,
+                    "height": 19.5
+                  }
+                ]
+              },
+              "search": {
+                "height": 34,
+                "elements": [
+                  {
+                    "selector": "[data-testid=library-search]",
+                    "y": 307.984375,
+                    "height": 34
+                  }
+                ]
+              }
+            },
+            "chrome_boundary": 427.890625,
+            "chrome_union_height": 317.59375,
+            "chrome_unassigned_height": 110.296875,
+            "complete_cards": 2
+          }
+        },
+        "library-works": {
+          "initial": {
+            "viewport": [
+              1024,
+              640
+            ],
+            "visible_rect": [
+              10,
+              454.671875,
+              1004,
+              175
+            ],
+            "area_ratio": 0.268096923828125,
+            "first_image_y": 461.671875,
+            "image_rect": [
+              17,
+              461.671875,
+              177,
+              90
+            ],
+            "image_ratio": 0.0243072509765625,
+            "first_image_complete": true,
+            "complete_images": 1,
+            "rendered_images": 1,
+            "visible_images": 1,
+            "first_item_y": 454.671875,
+            "items": 1,
+            "scroll_top": 0,
+            "chrome": {
+              "banner": {
+                "height": 37,
+                "elements": [
+                  {
+                    "selector": "[data-testid=db-status-banner]",
+                    "y": 10,
+                    "height": 37
+                  }
+                ]
+              },
+              "header": {
+                "height": 81.484375,
+                "elements": [
+                  {
+                    "selector": ".pv-header .pv-title",
+                    "y": 57,
+                    "height": 46
+                  },
+                  {
+                    "selector": "[data-testid=auth-status]",
+                    "y": 113,
+                    "height": 15.59375
+                  },
+                  {
+                    "selector": ".pv-header-actions",
+                    "y": 98.484375,
+                    "height": 40
+                  }
+                ]
+              },
+              "api": {
+                "height": 32,
+                "elements": [
+                  {
+                    "selector": ".pv-conn-row",
+                    "y": 147.984375,
+                    "height": 32
+                  }
+                ]
+              },
+              "tabs": {
+                "height": 108,
+                "elements": [
+                  {
+                    "selector": ".pv-nav",
+                    "y": 189.984375,
+                    "height": 108
+                  }
+                ]
+              },
+              "heading": {
+                "height": 48.890625,
+                "elements": [
+                  {
+                    "selector": ".pv-content .pv-library-heading",
+                    "y": 313.734375,
+                    "height": 22.5
+                  },
+                  {
+                    "selector": ".pv-library-detail-header",
+                    "y": 396.78125,
+                    "height": 26.390625
+                  }
+                ]
+              },
+              "toolbar": {
+                "height": 25.109375,
+                "elements": [
+                  {
+                    "selector": ".pv-library-subviews",
+                    "y": 312.421875,
+                    "height": 25.109375
+                  }
+                ]
+              },
+              "candidates": {
+                "height": 0,
+                "elements": []
+              },
+              "status": {
+                "height": 19.5,
+                "elements": [
+                  {
+                    "selector": ".pv-content .pv-counter",
+                    "y": 429.171875,
+                    "height": 19.5
+                  }
+                ]
+              },
+              "search": {
+                "height": 34,
+                "elements": [
+                  {
+                    "selector": "[data-testid=library-search]",
+                    "y": 307.984375,
+                    "height": 34
+                  }
+                ]
+              }
+            },
+            "chrome_boundary": 454.671875,
+            "chrome_union_height": 338.375,
+            "chrome_unassigned_height": 116.296875,
+            "complete_cards": 0
+          }
+        },
+        "bookmarks": {
+          "initial": {
+            "viewport": [
+              1024,
+              640
+            ],
+            "visible_rect": [
+              10,
+              441.890625,
+              1004,
+              187.890625
+            ],
+            "area_ratio": 0.2878451347351074,
+            "first_image_y": 448.890625,
+            "image_rect": [
+              17,
+              448.890625,
+              177,
+              146
+            ],
+            "image_ratio": 0.0394317626953125,
+            "first_image_complete": true,
+            "complete_images": 1,
+            "rendered_images": 1,
+            "visible_images": 1,
+            "first_item_y": 441.890625,
+            "items": 1,
+            "scroll_top": 0,
+            "chrome": {
+              "banner": {
+                "height": 37,
+                "elements": [
+                  {
+                    "selector": "[data-testid=db-status-banner]",
+                    "y": 10,
+                    "height": 37
+                  }
+                ]
+              },
+              "header": {
+                "height": 81.484375,
+                "elements": [
+                  {
+                    "selector": ".pv-header .pv-title",
+                    "y": 57,
+                    "height": 46
+                  },
+                  {
+                    "selector": "[data-testid=auth-status]",
+                    "y": 113,
+                    "height": 15.59375
+                  },
+                  {
+                    "selector": ".pv-header-actions",
+                    "y": 98.484375,
+                    "height": 40
+                  }
+                ]
+              },
+              "api": {
+                "height": 32,
+                "elements": [
+                  {
+                    "selector": ".pv-conn-row",
+                    "y": 147.984375,
+                    "height": 32
+                  }
+                ]
+              },
+              "tabs": {
+                "height": 108,
+                "elements": [
+                  {
+                    "selector": ".pv-nav",
+                    "y": 189.984375,
+                    "height": 108
+                  }
+                ]
+              },
+              "heading": {
+                "height": 45,
+                "elements": [
+                  {
+                    "selector": ".pv-content .pv-library-heading",
+                    "y": 313.125,
+                    "height": 22.5
+                  },
+                  {
+                    "selector": ".pv-content .pv-library-heading",
+                    "y": 354.078125,
+                    "height": 22.5
+                  }
+                ]
+              },
+              "toolbar": {
+                "height": 50.21875,
+                "elements": [
+                  {
+                    "selector": ".pv-library-summary",
+                    "y": 352.78125,
+                    "height": 25.109375
+                  },
+                  {
+                    "selector": ".pv-library-subviews",
+                    "y": 311.828125,
+                    "height": 25.109375
+                  }
+                ]
+              },
+              "candidates": {
+                "height": 0,
+                "elements": []
+              },
+              "status": {
+                "height": 19.5,
+                "elements": [
+                  {
+                    "selector": ".pv-content .pv-counter",
+                    "y": 355.578125,
+                    "height": 19.5
+                  },
+                  {
+                    "selector": ".pv-content .pv-counter",
+                    "y": 355.578125,
+                    "height": 19.5
+                  },
+                  {
+                    "selector": ".pv-content .pv-counter",
+                    "y": 355.578125,
+                    "height": 19.5
+                  }
+                ]
+              },
+              "search": {
+                "height": 40,
+                "elements": [
+                  {
+                    "selector": "[data-testid=bookmark-search]",
+                    "y": 383.890625,
+                    "height": 40
+                  }
+                ]
+              }
+            },
+            "chrome_boundary": 441.890625,
+            "chrome_union_height": 348.703125,
+            "chrome_unassigned_height": 93.1875,
+            "complete_cards": 0
+          }
+        },
+        "recommend": {
+          "initial": {
+            "viewport": [
+              1024,
+              640
+            ],
+            "visible_rect": [
+              10,
+              586.71875,
+              996,
+              43.265625
+            ],
+            "area_ratio": 0.06575403213500977,
+            "first_image_y": 600.37890625,
+            "image_rect": [
+              17,
+              600.37890625,
+              175.59375,
+              29.60546875
+            ],
+            "image_ratio": 0.007932335324585437,
+            "first_image_complete": false,
+            "complete_images": 0,
+            "rendered_images": 2,
+            "visible_images": 2,
+            "first_item_y": 586.71875,
+            "items": 2,
+            "scroll_top": 0,
+            "chrome": {
+              "banner": {
+                "height": 37,
+                "elements": [
+                  {
+                    "selector": "[data-testid=db-status-banner]",
+                    "y": 10,
+                    "height": 37
+                  }
+                ]
+              },
+              "header": {
+                "height": 81.484375,
+                "elements": [
+                  {
+                    "selector": ".pv-header .pv-title",
+                    "y": 57,
+                    "height": 46
+                  },
+                  {
+                    "selector": "[data-testid=auth-status]",
+                    "y": 113,
+                    "height": 15.59375
+                  },
+                  {
+                    "selector": ".pv-header-actions",
+                    "y": 98.484375,
+                    "height": 40
+                  }
+                ]
+              },
+              "api": {
+                "height": 32,
+                "elements": [
+                  {
+                    "selector": ".pv-conn-row",
+                    "y": 147.984375,
+                    "height": 32
+                  }
+                ]
+              },
+              "tabs": {
+                "height": 108,
+                "elements": [
+                  {
+                    "selector": ".pv-nav",
+                    "y": 189.984375,
+                    "height": 108
+                  }
+                ]
+              },
+              "heading": {
+                "height": 90,
+                "elements": [
+                  {
+                    "selector": ".pv-content .pv-library-heading",
+                    "y": 322.125,
+                    "height": 22.5
+                  },
+                  {
+                    "selector": ".pv-content .pv-library-heading",
+                    "y": 425.515625,
+                    "height": 22.5
+                  },
+                  {
+                    "selector": ".pv-content .pv-library-heading",
+                    "y": 472.5,
+                    "height": 22.5
+                  },
+                  {
+                    "selector": ".pv-content .pv-library-heading",
+                    "y": 519.484375,
+                    "height": 22.5
+                  }
+                ]
+              },
+              "toolbar": {
+                "height": 146.75,
+                "elements": [
+                  {
+                    "selector": ".pv-content .pv-toolbar:not(:has([data-testid=gallery-search]))",
+                    "y": 307.984375,
+                    "height": 50.796875
+                  },
+                  {
+                    "selector": ".pv-recommend-shelf-header",
+                    "y": 420.78125,
+                    "height": 31.984375
+                  },
+                  {
+                    "selector": ".pv-recommend-shelf-header",
+                    "y": 467.765625,
+                    "height": 31.984375
+                  },
+                  {
+                    "selector": ".pv-recommend-shelf-header",
+                    "y": 514.75,
+                    "height": 31.984375
+                  }
+                ]
+              },
+              "candidates": {
+                "height": 0,
+                "elements": []
+              },
+              "status": {
+                "height": 19.5,
+                "elements": [
+                  {
+                    "selector": ".pv-content [role=status]",
+                    "y": 390.28125,
+                    "height": 19.5
+                  }
+                ]
+              },
+              "search": {
+                "height": 0,
+                "elements": []
+              }
+            },
+            "chrome_boundary": 586.71875,
+            "chrome_union_height": 424.734375,
+            "chrome_unassigned_height": 161.984375,
+            "complete_cards": 0
+          }
+        },
+        "dedup": {
+          "initial": {
+            "viewport": [
+              1024,
+              640
+            ],
+            "visible_rect": [
+              10,
+              466.984375,
+              996,
+              163
+            ],
+            "area_ratio": 0.247723388671875,
+            "first_image_y": 491.984375,
+            "image_rect": [
+              175,
+              491.984375,
+              144,
+              108
+            ],
+            "image_ratio": 0.02373046875,
+            "first_image_complete": true,
+            "complete_images": 2,
+            "rendered_images": 2,
+            "visible_images": 2,
+            "first_item_y": 466.984375,
+            "items": 1,
+            "scroll_top": 0,
+            "chrome": {
+              "banner": {
+                "height": 37,
+                "elements": [
+                  {
+                    "selector": "[data-testid=db-status-banner]",
+                    "y": 10,
+                    "height": 37
+                  }
+                ]
+              },
+              "header": {
+                "height": 81.484375,
+                "elements": [
+                  {
+                    "selector": ".pv-header .pv-title",
+                    "y": 57,
+                    "height": 46
+                  },
+                  {
+                    "selector": "[data-testid=auth-status]",
+                    "y": 113,
+                    "height": 15.59375
+                  },
+                  {
+                    "selector": ".pv-header-actions",
+                    "y": 98.484375,
+                    "height": 40
+                  }
+                ]
+              },
+              "api": {
+                "height": 32,
+                "elements": [
+                  {
+                    "selector": ".pv-conn-row",
+                    "y": 147.984375,
+                    "height": 32
+                  }
+                ]
+              },
+              "tabs": {
+                "height": 108,
+                "elements": [
+                  {
+                    "selector": ".pv-nav",
+                    "y": 189.984375,
+                    "height": 108
+                  }
+                ]
+              },
+              "heading": {
+                "height": 22.5,
+                "elements": [
+                  {
+                    "selector": ".pv-content .pv-library-heading",
+                    "y": 307.984375,
+                    "height": 22.5
+                  }
+                ]
+              },
+              "toolbar": {
+                "height": 56,
+                "elements": [
+                  {
+                    "selector": ".pv-content .pv-toolbar:not(:has([data-testid=gallery-search]))",
+                    "y": 336.484375,
+                    "height": 56
+                  }
+                ]
+              },
+              "candidates": {
+                "height": 0,
+                "elements": []
+              },
+              "status": {
+                "height": 19.5,
+                "elements": [
+                  {
+                    "selector": ".pv-content [role=status]",
+                    "y": 408.234375,
+                    "height": 19.5
+                  }
+                ]
+              },
+              "search": {
+                "height": 0,
+                "elements": []
+              }
+            },
+            "chrome_boundary": 466.984375,
+            "chrome_union_height": 356.484375,
+            "chrome_unassigned_height": 110.5,
+            "complete_cards": 0
+          }
+        },
+        "view-history": {
+          "initial": {
+            "viewport": [
+              1024,
+              640
+            ],
+            "visible_rect": [
+              272,
+              169.90625,
+              465,
+              307
+            ],
+            "area_ratio": 0.21782684326171875,
+            "first_image_y": 177.90625,
+            "image_rect": [
+              272,
+              177.90625,
+              64,
+              64
+            ],
+            "image_ratio": 0.00625,
+            "first_image_complete": true,
+            "complete_images": 1,
+            "rendered_images": 1,
+            "visible_images": 1,
+            "first_item_y": 169.90625,
+            "items": 1,
+            "scroll_top": 0,
+            "chrome": {
+              "banner": {
+                "height": 37,
+                "elements": [
+                  {
+                    "selector": "[data-testid=db-status-banner]",
+                    "y": 10,
+                    "height": 37
+                  }
+                ]
+              },
+              "header": {
+                "height": 81.484375,
+                "elements": [
+                  {
+                    "selector": ".pv-header .pv-title",
+                    "y": 57,
+                    "height": 46
+                  },
+                  {
+                    "selector": "[data-testid=auth-status]",
+                    "y": 113,
+                    "height": 15.59375
+                  },
+                  {
+                    "selector": ".pv-header-actions",
+                    "y": 98.484375,
+                    "height": 40
+                  }
+                ]
+              },
+              "api": {
+                "height": 21.921875,
+                "elements": [
+                  {
+                    "selector": ".pv-conn-row",
+                    "y": 147.984375,
+                    "height": 21.921875
+                  }
+                ]
+              },
+              "tabs": {
+                "height": 0,
+                "elements": []
+              },
+              "heading": {
+                "height": 24,
+                "elements": [
+                  {
+                    "selector": ".pv-dialog-title",
+                    "y": 82.90625,
+                    "height": 24
+                  }
+                ]
+              },
+              "toolbar": {
+                "height": 0,
+                "elements": []
+              },
+              "candidates": {
+                "height": 0,
+                "elements": []
+              },
+              "status": {
+                "height": 19.5,
+                "elements": [
+                  {
+                    "selector": "[data-testid=view-history-status]",
+                    "y": 142.40625,
+                    "height": 19.5
+                  }
+                ]
+              },
+              "search": {
+                "height": 0,
+                "elements": []
+              }
+            },
+            "chrome_boundary": 169.90625,
+            "chrome_union_height": 145.984375,
+            "chrome_unassigned_height": 23.921875,
+            "complete_cards": 1,
+            "settled_dialog": {
+              "x": 256,
+              "y": 66.90625,
+              "width": 512,
+              "height": 506.171875
+            }
+          }
+        },
+        "learning": {
+          "initial": {
+            "viewport": [
+              1024,
+              640
+            ],
+            "visible_rect": [
+              10,
+              361.96875,
+              552,
+              268
+            ],
+            "area_ratio": 0.14393653919299446,
+            "first_image_y": 362.96875,
+            "image_rect": [
+              108.67708333333331,
+              362.96875,
+              354.64583333333337,
+              265.984375
+            ],
+            "image_ratio": 0.14393653919299446,
+            "first_image_complete": true,
+            "complete_images": 1,
+            "rendered_images": 1,
+            "visible_images": 1,
+            "first_item_y": 362.96875,
+            "items": 1,
+            "scroll_top": 0,
+            "chrome": {
+              "banner": {
+                "height": 37,
+                "elements": [
+                  {
+                    "selector": "[data-testid=db-status-banner]",
+                    "y": 10,
+                    "height": 37
+                  }
+                ]
+              },
+              "header": {
+                "height": 81.484375,
+                "elements": [
+                  {
+                    "selector": ".pv-header .pv-title",
+                    "y": 57,
+                    "height": 46
+                  },
+                  {
+                    "selector": "[data-testid=auth-status]",
+                    "y": 113,
+                    "height": 15.59375
+                  },
+                  {
+                    "selector": ".pv-header-actions",
+                    "y": 98.484375,
+                    "height": 40
+                  }
+                ]
+              },
+              "api": {
+                "height": 32,
+                "elements": [
+                  {
+                    "selector": ".pv-conn-row",
+                    "y": 147.984375,
+                    "height": 32
+                  }
+                ]
+              },
+              "tabs": {
+                "height": 108,
+                "elements": [
+                  {
+                    "selector": ".pv-nav",
+                    "y": 189.984375,
+                    "height": 108
+                  }
+                ]
+              },
+              "heading": {
+                "height": 0,
+                "elements": []
+              },
+              "toolbar": {
+                "height": 47.984375,
+                "elements": [
+                  {
+                    "selector": ".pv-content .pv-toolbar:not(:has([data-testid=gallery-search]))",
+                    "y": 307.984375,
+                    "height": 47.984375
+                  }
+                ]
+              },
+              "candidates": {
+                "height": 0,
+                "elements": []
+              },
+              "status": {
+                "height": 0,
+                "elements": []
+              },
+              "search": {
+                "height": 0,
+                "elements": []
+              }
+            },
+            "chrome_boundary": 361.96875,
+            "chrome_union_height": 306.46875,
+            "chrome_unassigned_height": 55.5,
+            "complete_cards": 1,
+            "judgments": [
+              {
+                "focused_and_hittable": true,
+                "enabled": true
+              },
+              {
+                "focused_and_hittable": true,
+                "enabled": true
+              },
+              {
+                "focused_and_hittable": true,
+                "enabled": true
+              },
+              {
+                "focused_and_hittable": true,
+                "enabled": true
+              }
+            ]
+          }
+        }
+      },
+      "viewport": {
+        "width": 1024,
+        "height": 640,
+        "dpr": 1,
+        "zoom": 1,
+        "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+      },
+      "theme_confirmed": true,
+      "header": {
+        "db-status-banner": {
+          "x": 10,
+          "y": 10,
+          "width": 1004,
+          "height": 37
+        },
+        "shared-get-recovery-open": {
+          "x": 137.421875,
+          "y": 147.984375,
+          "width": 160,
+          "height": 31.984375
+        },
+        "automation-unresolved": null,
+        "automation-breakdown": null,
+        "request-retry-status": null
+      }
+    },
+    {
+      "size": [
+        1024,
+        640
+      ],
+      "theme": "dark",
+      "variant": "stress",
+      "screens": {
+        "download": {
+          "initial": {
+            "viewport": [
+              1024,
+              640
+            ],
+            "visible_rect": [
+              27,
+              640,
+              593,
+              0
+            ],
+            "area_ratio": 0,
+            "first_image_y": null,
+            "image_rect": null,
+            "image_ratio": null,
+            "first_image_complete": false,
+            "complete_images": 0,
+            "rendered_images": 0,
+            "visible_images": 0,
+            "first_item_y": 951.96875,
+            "items": 4,
+            "scroll_top": 0,
+            "chrome": {
+              "banner": {
+                "height": 79,
+                "elements": [
+                  {
+                    "selector": "[data-testid=db-status-banner]",
+                    "y": 10,
+                    "height": 79
+                  }
+                ]
+              },
+              "header": {
+                "height": 101.59375,
+                "elements": [
+                  {
+                    "selector": ".pv-header .pv-title",
+                    "y": 99,
+                    "height": 46
+                  },
+                  {
+                    "selector": "[data-testid=auth-status]",
+                    "y": 155,
+                    "height": 15.59375
+                  },
+                  {
+                    "selector": ".pv-header-actions",
+                    "y": 302.984375,
+                    "height": 40
+                  }
+                ]
+              },
+              "api": {
+                "height": 198,
+                "elements": [
+                  {
+                    "selector": ".pv-conn-row",
+                    "y": 189.984375,
+                    "height": 32
+                  },
+                  {
+                    "selector": ".pv-header [data-testid=request-retry-status]",
+                    "y": 231.984375,
+                    "height": 166
+                  }
+                ]
+              },
+              "tabs": {
+                "height": 83.03125,
+                "elements": [
+                  {
+                    "selector": ".pv-nav",
+                    "y": 556.96875,
+                    "height": 83.03125
+                  }
+                ]
+              },
+              "heading": {
+                "height": 0,
+                "elements": []
+              },
+              "toolbar": {
+                "height": 0,
+                "elements": []
+              },
+              "candidates": {
+                "height": 0,
+                "elements": []
+              },
+              "status": {
+                "height": 0,
+                "elements": []
+              },
+              "search": {
+                "height": 0,
+                "elements": []
+              }
+            },
+            "chrome_boundary": 640,
+            "chrome_union_height": 421.625,
+            "chrome_unassigned_height": 218.375,
+            "complete_cards": 0
+          }
+        },
+        "ranking": {
+          "initial": {
+            "viewport": [
+              1024,
+              640
+            ],
+            "visible_rect": [
+              10,
+              640,
+              1004,
+              0
+            ],
+            "area_ratio": 0,
+            "first_image_y": 990.65625,
+            "image_rect": [
+              19.052083333333343,
+              640,
+              173.08333333333331,
+              0
+            ],
+            "image_ratio": 0,
+            "first_image_complete": false,
+            "complete_images": 0,
+            "rendered_images": 25,
+            "visible_images": 0,
+            "first_item_y": 967.46875,
+            "items": 30,
+            "scroll_top": 0,
+            "chrome": {
+              "banner": {
+                "height": 79,
+                "elements": [
+                  {
+                    "selector": "[data-testid=db-status-banner]",
+                    "y": 10,
+                    "height": 79
+                  }
+                ]
+              },
+              "header": {
+                "height": 101.59375,
+                "elements": [
+                  {
+                    "selector": ".pv-header .pv-title",
+                    "y": 99,
+                    "height": 46
+                  },
+                  {
+                    "selector": "[data-testid=auth-status]",
+                    "y": 155,
+                    "height": 15.59375
+                  },
+                  {
+                    "selector": ".pv-header-actions",
+                    "y": 302.984375,
+                    "height": 40
+                  }
+                ]
+              },
+              "api": {
+                "height": 198,
+                "elements": [
+                  {
+                    "selector": ".pv-conn-row",
+                    "y": 189.984375,
+                    "height": 32
+                  },
+                  {
+                    "selector": ".pv-header [data-testid=request-retry-status]",
+                    "y": 231.984375,
+                    "height": 166
+                  }
+                ]
+              },
+              "tabs": {
+                "height": 83.03125,
+                "elements": [
+                  {
+                    "selector": ".pv-nav",
+                    "y": 556.96875,
+                    "height": 83.03125
+                  }
+                ]
+              },
+              "heading": {
+                "height": 0,
+                "elements": []
+              },
+              "toolbar": {
+                "height": 0,
+                "elements": []
+              },
+              "candidates": {
+                "height": 0,
+                "elements": []
+              },
+              "status": {
+                "height": 0,
+                "elements": []
+              },
+              "search": {
+                "height": 0,
+                "elements": []
+              }
+            },
+            "chrome_boundary": 640,
+            "chrome_union_height": 421.625,
+            "chrome_unassigned_height": 218.375,
+            "complete_cards": 0
+          }
+        },
+        "personal": {
+          "measurement_issue": "TimeoutError (personal-fetch)"
+        },
+        "library": {
+          "measurement_issue": "TimeoutError (library-authors-scroll)"
+        },
+        "library-works": {
+          "measurement_issue": "TimeoutError (library-author-open)"
+        },
+        "bookmarks": {
+          "measurement_issue": "TimeoutError (library-subview-bookmarks)"
+        },
+        "recommend": {
+          "initial": {
+            "viewport": [
+              1024,
+              640
+            ],
+            "visible_rect": [
+              10,
+              640,
+              996,
+              0
+            ],
+            "area_ratio": 0,
+            "first_image_y": 922.36328125,
+            "image_rect": [
+              17,
+              640,
+              175.59375,
+              0
+            ],
+            "image_ratio": 0,
+            "first_image_complete": false,
+            "complete_images": 0,
+            "rendered_images": 2,
+            "visible_images": 0,
+            "first_item_y": 908.703125,
+            "items": 2,
+            "scroll_top": 0,
+            "chrome": {
+              "banner": {
+                "height": 44,
+                "elements": [
+                  {
+                    "selector": "[data-testid=db-status-banner]",
+                    "y": 0,
+                    "height": 44
+                  }
+                ]
+              },
+              "header": {
+                "height": 101.59375,
+                "elements": [
+                  {
+                    "selector": ".pv-header .pv-title",
+                    "y": 54,
+                    "height": 46
+                  },
+                  {
+                    "selector": "[data-testid=auth-status]",
+                    "y": 110,
+                    "height": 15.59375
+                  },
+                  {
+                    "selector": ".pv-header-actions",
+                    "y": 257.984375,
+                    "height": 40
+                  }
+                ]
+              },
+              "api": {
+                "height": 198,
+                "elements": [
+                  {
+                    "selector": ".pv-conn-row",
+                    "y": 144.984375,
+                    "height": 32
+                  },
+                  {
+                    "selector": ".pv-header [data-testid=request-retry-status]",
+                    "y": 186.984375,
+                    "height": 166
+                  }
+                ]
+              },
+              "tabs": {
+                "height": 108,
+                "elements": [
+                  {
+                    "selector": ".pv-nav",
+                    "y": 511.96875,
+                    "height": 108
+                  }
+                ]
+              },
+              "heading": {
+                "height": 0,
+                "elements": []
+              },
+              "toolbar": {
+                "height": 0,
+                "elements": []
+              },
+              "candidates": {
+                "height": 0,
+                "elements": []
+              },
+              "status": {
+                "height": 0,
+                "elements": []
+              },
+              "search": {
+                "height": 0,
+                "elements": []
+              }
+            },
+            "chrome_boundary": 640,
+            "chrome_union_height": 411.59375,
+            "chrome_unassigned_height": 228.40625,
+            "complete_cards": 0
+          }
+        },
+        "dedup": {
+          "measurement_issue": "TimeoutError (duplicate-scan)"
+        },
+        "view-history": {
+          "initial": {
+            "viewport": [
+              1024,
+              640
+            ],
+            "visible_rect": [
+              272,
+              169.90625,
+              465,
+              307
+            ],
+            "area_ratio": 0.21782684326171875,
+            "first_image_y": 177.90625,
+            "image_rect": [
+              272,
+              177.90625,
+              64,
+              64
+            ],
+            "image_ratio": 0.00625,
+            "first_image_complete": true,
+            "complete_images": 1,
+            "rendered_images": 1,
+            "visible_images": 1,
+            "first_item_y": 169.90625,
+            "items": 1,
+            "scroll_top": 0,
+            "chrome": {
+              "banner": {
+                "height": 49,
+                "elements": [
+                  {
+                    "selector": "[data-testid=db-status-banner]",
+                    "y": 0,
+                    "height": 49
+                  }
+                ]
+              },
+              "header": {
+                "height": 61.59375,
+                "elements": [
+                  {
+                    "selector": ".pv-header .pv-title",
+                    "y": 59,
+                    "height": 46
+                  },
+                  {
+                    "selector": "[data-testid=auth-status]",
+                    "y": 115,
+                    "height": 15.59375
+                  }
+                ]
+              },
+              "api": {
+                "height": 19.921875,
+                "elements": [
+                  {
+                    "selector": ".pv-conn-row",
+                    "y": 149.984375,
+                    "height": 19.921875
+                  }
+                ]
+              },
+              "tabs": {
+                "height": 0,
+                "elements": []
+              },
+              "heading": {
+                "height": 24,
+                "elements": [
+                  {
+                    "selector": ".pv-dialog-title",
+                    "y": 82.90625,
+                    "height": 24
+                  }
+                ]
+              },
+              "toolbar": {
+                "height": 0,
+                "elements": []
+              },
+              "candidates": {
+                "height": 0,
+                "elements": []
+              },
+              "status": {
+                "height": 19.5,
+                "elements": [
+                  {
+                    "selector": "[data-testid=view-history-status]",
+                    "y": 142.40625,
+                    "height": 19.5
+                  }
+                ]
+              },
+              "search": {
+                "height": 0,
+                "elements": []
+              }
+            },
+            "chrome_boundary": 169.90625,
+            "chrome_union_height": 140,
+            "chrome_unassigned_height": 29.90625,
+            "complete_cards": 1,
+            "settled_dialog": {
+              "x": 256,
+              "y": 66.90625,
+              "width": 512,
+              "height": 506.171875
+            }
+          }
+        },
+        "learning": {
+          "measurement_issue": "TimeoutError"
+        }
+      },
+      "viewport": {
+        "width": 1024,
+        "height": 640,
+        "dpr": 1,
+        "zoom": 1,
+        "font": "\"Noto Sans JP\", system-ui, -apple-system, \"Segoe UI\", sans-serif"
+      },
+      "theme_confirmed": true,
+      "header": {
+        "db-status-banner": {
+          "x": 10,
+          "y": 10,
+          "width": 1004,
+          "height": 79
+        },
+        "shared-get-recovery-open": {
+          "x": 137.421875,
+          "y": 189.984375,
+          "width": 160,
+          "height": 31.984375
+        },
+        "automation-unresolved": null,
+        "automation-breakdown": null,
+        "request-retry-status": {
+          "x": 10,
+          "y": 231.984375,
+          "width": 727,
+          "height": 166
+        }
+      }
+    }
+  ],
+  "browser_errors": 0,
+  "emulation": "1024×640 CSS viewport at 100% browser zoom, DPR 1 for CSS layout equivalence",
+  "host": "Windows-11-10.0.26300-SP0",
+  "flet_local_font_sha256": "5113756f8a3b5d01b2211025e267c50121e3b36f465b7bbaf3cdaf4c3430bfd0",
+  "edge_version": "157.0.4341.60",
+  "server_network_denied": 0,
+  "foreign_browser_destinations_blocked": 0,
+  "owned_remaining": 0,
+  "owned_ports_closed": true,
+  "scratch_cleaned": {
+    "files": 371,
+    "bytes": 7221538
+  },
+  "scratch_remaining": 0,
+  "seconds": 105.51
+}
