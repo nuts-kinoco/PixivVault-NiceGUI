@@ -2,6 +2,8 @@
 import asyncio
 from nicegui import ui
 
+from .management_dialog import managed_dialog
+
 from .action_controls import danger_button, dialog_actions, dialog_card, secondary_button
 from ..managed_network_stop_gate import (
     ManagedNetworkGateBusy, ManagedNetworkStopped,
@@ -26,8 +28,13 @@ class SharedGetRecoveryView:
         self.entry = secondary_button('取得停止の確認・回復', self.open, testid='shared-get-recovery-open')
         self.summary = ui.label('').classes('pv-alert-banner').props('role=alert data-testid=shared-get-recovery-summary')
         self.summary.set_visibility(False)
-        with ui.dialog().props('persistent data-testid=shared-get-recovery-dialog') as self.dialog:
-            with dialog_card('前の取得が中断された場合の回復', size='lg'):
+        with managed_dialog(return_focus=self.entry).props('persistent no-shake data-testid=shared-get-recovery-dialog') as self.dialog:
+
+            self.dialog.on('keydown.esc.stop', self.cancel)
+            with dialog_card(size='lg', classes='pv-settings-modal'):
+                title = ui.label('前の取得が中断された場合の回復').classes('pv-dialog-title').props(
+                    'role=heading aria-level=1 tabindex=-1 data-autofocus')
+                self.dialog.props['aria-labelledby'] = title.html_id
                 self.notice = ui.label('まだ確認していません。').classes('pv-subtitle').props(
                     'role=status data-testid=shared-get-recovery-notice')
                 ui.label('前の送信結果は回復後も不明です。他のPixivVaultで取得が動いていないことを確認してください。'
@@ -35,7 +42,7 @@ class SharedGetRecoveryView:
                          '今回の429の設定待機・再試行や、試行上限による起動中の停止も、この操作では解除しません。'
                          '自動再送は行いません。回復後に元の画面で取得をやり直してください。').classes('pv-subtitle')
                 self.acknowledge = ui.checkbox('他の取得処理が動いていないことと、前の結果が不明なままであることを確認しました',
-                    on_change=lambda _: self.sync()).props('dense data-testid=shared-get-recovery-ack')
+                    on_change=lambda _: self.sync()).props('dense data-testid=shared-get-recovery-ack').classes('pv-hit28')
                 with dialog_actions():
                     self.cancel_button = secondary_button('閉じる', self.cancel, testid='shared-get-recovery-cancel')
                     self.confirm_button = danger_button('確認して取得待ちの記録を退避する', self.recover,

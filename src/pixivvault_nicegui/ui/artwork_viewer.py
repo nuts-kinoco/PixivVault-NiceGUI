@@ -6,6 +6,8 @@ from collections.abc import Callable
 
 from nicegui import ui
 
+from .management_dialog import dismiss_focus_js
+
 from ..models import Artwork
 from .card_context_menu import MenuEntry, build_context_menu, open_from_keyboard
 from .artwork_page import (
@@ -39,26 +41,27 @@ class ArtworkViewer:
                     ui.label("画集ビューア").classes("pv-viewer-heading")
                     ui.space()
                     self.counter = PageLabel().classes("pv-counter")
-                    self.quality_button = PageButton('原寸を表示', icon='high_quality', color=None).props(
+                    self.quality_button = PageButton('原寸を表示', icon='high_quality', color=None).classes('pv-hit28').props(
                         'flat dense no-caps data-testid=viewer-quality-toggle '
                         'aria-label=現在のページを原寸で表示')
                     self.quality_button.set_enabled(False)
                     self.download_button = self._unavailable_action("download", "個別DL", "個別ダウンロード")
                     self.bookmark_button = self._unavailable_action("favorite_border", "ブクマ", "ブックマーク")
                     self.follow_button = self._unavailable_action("person_add", "フォロー", "作者フォロー")
-                    with ui.button(icon='more_vert', color=None).props('flat round aria-label=作品メニュー'):
+                    with ui.button(icon='more_vert', color=None).classes('pv-hit28').props('flat round aria-label=作品メニュー'):
                         with ui.menu():
-                            self.pixiv_link = PageLink('Pixivで作品を開く', new_tab=True).classes('p-3').props(
+                            self.pixiv_link = PageLink('Pixivで作品を開く…', new_tab=True).classes('p-3 pv-focus-ring').props(
                                 'data-testid=viewer-pixiv-link')
                             self.pixiv_link.props['rel'] = 'noopener noreferrer'
                     self.close_button = ui.button(
-                        icon="close", on_click=on_close, color=None
-                    ).props("flat round aria-label=閉じる")
+                        icon="close", color=None
+                    ).classes("pv-hit28").props("flat round aria-label=閉じる data-testid=viewer-close")
+                    self.close_button.on("click", on_close, js_handler=dismiss_focus_js(self.root))
                 with ui.element("div").classes("pv-viewer-stage") as self.stage:
                     self._build_context_menu(context_hide)
                     self.previous_page = PageButton(
                         icon="chevron_left", on_click=on_previous, color=None
-                    ).props("flat round aria-label=前のページ").classes("pv-viewer-page-prev")
+                    ).props("flat round aria-label=前のページ").classes("pv-viewer-page-prev pv-hit28")
                     with ui.element("div").classes("pv-viewer-viewport").props(
                         "data-testid=viewer-zoom-viewport role=region aria-label=作品画像の拡大と移動"
                     ) as self.viewport:
@@ -69,17 +72,17 @@ class ArtworkViewer:
                             self.image.on("click", lambda _: self._close_details_on_image_click(on_details))
                     self.next_page = PageButton(
                         icon="chevron_right", on_click=on_next, color=None
-                    ).props("flat round aria-label=次のページ").classes("pv-viewer-page-next")
+                    ).props("flat round aria-label=次のページ").classes("pv-viewer-page-next pv-hit28")
                     with ui.row().classes("pv-viewer-zoom-tools items-center").props(
                         "role=group aria-label=画像の拡大縮小"
                     ) as self.zoom_tools:
-                        self.zoom_out = PageButton("−", color=None).props(
+                        self.zoom_out = PageButton("−", color=None).classes('pv-hit28').props(
                             "flat dense aria-label=縮小 data-testid=viewer-zoom-out")
                         self.zoom_value = ui.label("100%").classes("pv-viewer-zoom-value").props(
                             "role=status aria-live=polite aria-atomic=true data-testid=viewer-zoom-value")
-                        self.zoom_in = PageButton("+", color=None).props(
+                        self.zoom_in = PageButton("+", color=None).classes('pv-hit28').props(
                             "flat dense aria-label=拡大 data-testid=viewer-zoom-in")
-                        self.zoom_reset = PageButton("元に戻す", color=None).props(
+                        self.zoom_reset = PageButton("元に戻す", color=None).classes('pv-hit28').props(
                             "flat dense aria-label=倍率と位置をリセット data-testid=viewer-zoom-reset")
                         self.zoom_help = ui.label("ホイールまたは＋／−で拡大縮小、0でリセット。拡大中はドラッグで移動").classes(
                             "pv-viewer-zoom-help")
@@ -88,7 +91,7 @@ class ArtworkViewer:
                     self.image_status = PageLabel().classes("pv-subtitle pv-viewer-status")
                     self.retry_button = PageButton(
                         "画像を再読込", on_click=on_retry, color=None
-                    ).props("flat").classes("pv-viewer-retry")
+                    ).props("flat").classes("pv-viewer-retry pv-hit28")
                     with PageColumn().classes("pv-description pv-viewer-details gap-2").props(
                         'data-testid=viewer-detail-panel aria-busy=false'
                     ) as self.details_panel:
@@ -112,14 +115,20 @@ class ArtworkViewer:
                     with ui.row().classes("pv-viewer-info w-full items-center"):
                         self.title = PageLabel().classes("pv-view-title")
                         ui.element("span").classes("pv-viewer-info-separator").style("width:1px;height:14px")
-                        self.author = PageButton(color=None).classes('pv-subtitle').props(
+                        self.author = PageButton(color=None).classes('pv-subtitle pv-hit28').props(
                             'flat dense no-caps data-testid=viewer-author-open')
                         self.author_button = self.author
                         self.author_button.tooltip('作者の作品を表示')
                         ui.space()
                         self.details_button = PageButton(
                             "詳細", on_click=on_details, color=None
-                        ).props("flat aria-expanded=false")
+                        ).classes('pv-hit28').props('flat aria-expanded=false')
+                        self.details_button.props['aria-keyshortcuts'] = 'Tab I'
+                        keyboard_help = ui.label(
+                            'Tab または I で詳細を開閉。Shift+Tab で前へ、Shift+右矢印で次の操作へ移動。'
+                        ).classes('pv-viewer-zoom-help')
+                        self.root.props['aria-describedby'] = keyboard_help.html_id
+                        self.details_button.tooltip('Tab / I：詳細、Shift+Tab：前の操作、Shift+→：次の操作')
                     self.action_status = PageLabel().classes('pv-subtitle')
                     self.action_status.set_visibility(False)
         self._detail_tags = ()
@@ -144,16 +153,16 @@ class ArtworkViewer:
     def _build_context_menu(self, with_hide: bool) -> None:
         """元 artbook_viewer.py:849-870 の右クリック 4 項目。"""
         entries = [
-            MenuEntry('pixiv', 'pixivで作品ページを開く', href='', enabled=False,
+            MenuEntry('pixiv', 'Pixivで作品ページを開く…', href='', enabled=False,
                       testid='viewer-context-pixiv'),
-            MenuEntry('author', '作者ページを開く', href='', enabled=False,
+            MenuEntry('author', '作者ページを開く…', href='', enabled=False,
                       testid='viewer-context-author'),
         ]
         if with_hide:
             entries.append(MenuEntry('hide', '出さない',
                                      enabled=False,
                                      testid='viewer-context-hide'))
-        entries.append(MenuEntry('folder', '保存フォルダを開く',
+        entries.append(MenuEntry('folder', '保存フォルダを開く…',
                                  enabled=False,
                                  testid='viewer-context-folder'))
         self.context_menu, self.context_items = build_context_menu(entries, testid='viewer-context-menu', item_type=PageMenuItem)
@@ -174,7 +183,7 @@ class ArtworkViewer:
 
     @staticmethod
     def _unavailable_action(icon: str, label: str, purpose: str):
-        button = PageButton(label, icon=icon, color=None).props("flat no-caps").classes("pv-viewer-header-action")
+        button = PageButton(label, icon=icon, color=None).props("flat no-caps").classes("pv-viewer-header-action pv-hit28")
         button.props(f"aria-label={purpose}")
         button.set_enabled(False)
         button.tooltip("表示中の1ページを専用保存先へ保存します" if purpose == "個別ダウンロード" else
@@ -327,11 +336,34 @@ class ArtworkViewer:
                 event.stopImmediatePropagation();
             }, true);
 
+            const unavailable = node => node?.matches(':disabled, .disabled, [aria-disabled="true"]');
+            const pageArrows = '.pv-viewer-page-prev, .pv-viewer-page-next';
+            viewer.pvFocusReplacement = focused => {
+                const arrow = focused.matches(pageArrows) &&
+                    [...viewer.querySelectorAll(pageArrows)].find(button => !unavailable(button));
+                return arrow || viewer.querySelector('[data-testid=viewer-close]') || viewer;
+            };
             viewer.addEventListener('keydown', event => {
                 const tag = event.target?.tagName?.toLowerCase();
-                if (event.repeat || event.isComposing || event.ctrlKey || event.altKey ||
+                if (event.isComposing || event.ctrlKey || event.altKey ||
                     event.metaKey || ['input', 'textarea', 'select'].includes(tag) ||
-                    event.target?.isContentEditable || !currentImage()) return;
+                    event.target?.isContentEditable) return;
+                // Plain Tab still reaches the shared viewer's detail shortcut.
+                if (event.key === 'Tab') event.preventDefault();
+                if (event.shiftKey && ['Tab', 'ArrowRight'].includes(event.key)) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    const direction = event.key === 'Tab' ? -1 : 1;
+                    const controls = [...viewer.querySelectorAll('button, a[href], [tabindex]')].filter(
+                        node => node.tabIndex >= 0 && !unavailable(node) &&
+                            !node.closest('[inert], [aria-hidden="true"]') && node.getClientRects().length);
+                    const current = controls.indexOf(event.target);
+                    const next = current < 0 ? (direction < 0 ? controls.at(-1) : controls[0]) :
+                        controls[(current + direction + controls.length) % controls.length];
+                    next?.focus();
+                    return;
+                }
+                if (event.repeat || !currentImage()) return;
                 if (event.key === '+' || event.key === '=') centerZoom(step);
                 else if (event.key === '-' || event.key === '_') centerZoom(1 / step);
                 else if (event.key === '0') reset();
@@ -353,7 +385,8 @@ class ArtworkViewer:
                     reset();
                 }
             });
-            observer.observe(viewer, {attributes: true, attributeFilter: ['data-zoom-generation', 'aria-hidden']});
+            observer.observe(viewer, {attributes:true, subtree:true,
+                attributeFilter:['data-zoom-generation', 'aria-hidden', 'disabled', 'aria-disabled']});
             const resize = new ResizeObserver(paint);
             resize.observe(viewport);
             viewport.__pvZoomController = {reset, dispose() { observer.disconnect(); resize.disconnect(); }};
@@ -377,12 +410,12 @@ class ArtworkViewer:
             if (!node) return;
             const generation = (node.__pvFocusGeneration || 0) + 1;
             node.__pvFocusGeneration = generation;
-            node.__pvPreviousFocus = document.activeElement;
+            node.pvFocusOrigin = document.activeElement;
             requestAnimationFrame(() => {{
                 if (node.__pvFocusGeneration === generation && node.isConnected &&
                     node.getClientRects().length &&
                     !node.closest('[inert], [aria-hidden="true"]'))
-                    node.focus({{preventScroll:true}});
+                    (node.querySelector('[data-testid=viewer-close]') || node).focus({{preventScroll:true}});
             }});
         }})()""")
         self.page.after_state(self._zoom_script())
@@ -402,15 +435,12 @@ class ArtworkViewer:
                 if (!node) return;
                 const generation = (node.__pvFocusGeneration || 0) + 1;
                 node.__pvFocusGeneration = generation;
-                const previous = node.__pvPreviousFocus;
-                node.__pvPreviousFocus = null;
+                const previous = node.pvFocusOrigin;
+                node.pvFocusOrigin = null;
                 if ({str(restore_focus).lower()}) requestAnimationFrame(() => {{
                     if (node.__pvFocusGeneration === generation &&
-                        node.getAttribute('aria-hidden') === 'true' &&
-                        previous?.isConnected && previous.getClientRects().length &&
-                        !previous.closest('[inert], [aria-hidden="true"]') &&
-                        typeof previous.focus === 'function')
-                        previous.focus({{preventScroll:true}});
+                        node.getAttribute('aria-hidden') === 'true' && previous)
+                        window.pvFocus.restore({{origin: previous, excluded: node}});
                 }});
             }})()""")
 
@@ -424,10 +454,8 @@ class ArtworkViewer:
             requestAnimationFrame(() => {{
                 const opener = {lookup};
                 if (viewer.isConnected && viewer.__pvFocusGeneration === generation &&
-                    viewer.getAttribute('aria-hidden') === 'true' &&
-                    opener?.isConnected && opener.getClientRects().length &&
-                    !opener.closest('[inert], [aria-hidden="true"]'))
-                    opener.focus({{preventScroll:true}});
+                    viewer.getAttribute('aria-hidden') === 'true' && opener)
+                    window.pvFocus.restore({{origin: opener, excluded: viewer}});
             }});
         }})()""")
 
@@ -435,7 +463,10 @@ class ArtworkViewer:
         if not 0 <= page_no < artwork.page_count:
             raise ValueError("page_no out of range")
         self.title.set_text(artwork.title)
+        self.title.props['title'] = artwork.title
         self.author.set_text(artwork.author)
+        self.author.props['title'] = artwork.author
+        self.author.props['aria-label'] = f'作者を開く：{artwork.author}…'
         self.description.set_text(artwork.description)
         self.set_detail_values(artwork.description,artwork.tags,artwork.create_date,artwork.bookmark_count)
         # A new work/page starts with its own allocation. Once a lazy read starts,

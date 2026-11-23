@@ -11,6 +11,8 @@ from pathlib import Path
 
 from nicegui import ui
 
+from .management_dialog import managed_dialog
+
 from .action_controls import dialog_actions, dialog_card, outlined_select, primary_button, secondary_button
 
 from ..native_profile import NativeProfileConflict, NativeProfileError
@@ -36,7 +38,9 @@ class NativeProfileView:
         # Called (no arguments) after a successful save; the application then
         # rechecks the saved Cookie and updates the header login status.
         self.on_saved = None
-        self.dialog = ui.dialog().props('persistent data-testid=native-profile-dialog')
+        self.dialog = managed_dialog().props('persistent no-shake data-testid=native-profile-dialog')
+
+        self.dialog.on('keyup.esc.stop', self.cancel)
         self.snapshot = None
         self.draft_cookie = None
         self.draft_parent = None
@@ -68,7 +72,10 @@ class NativeProfileView:
         if self._closed:
             return
         self.dialog.clear()
-        with self.dialog, dialog_card('起動と保存先の設定', size='lg'):
+        with self.dialog, dialog_card(size='lg', classes='pv-settings-modal'):
+            title = ui.label('起動と保存先の設定').classes('pv-dialog-title').props(
+                'role=heading aria-level=1 tabindex=-1 data-autofocus')
+            self.dialog.props['aria-labelledby'] = title.html_id
             self.build(standalone=True)
         self.dialog.open()
 
@@ -89,7 +96,7 @@ class NativeProfileView:
         policy=getattr(self,'request_retry_policy',None)
         if policy is not None:
             from .request_status_view import RequestStatusView
-            self._request_status=RequestStatusView(policy)
+            self._request_status=RequestStatusView(policy, prefix="native-request-retry")
         async def choose_cookie():
             if self._active and self._epoch == epoch:
                 await self.choose_cookie()
@@ -150,7 +157,7 @@ class NativeProfileView:
                             testid='native-profile-clear-folder').set_enabled(self.snapshot is not None)
             with ui.expansion('旧ライブラリ（任意・読取専用）', icon='folder_open',
                               value=self.draft_database is not None or self.draft_images is not None).classes(
-                                  'w-full pv-settings-expansion').props('dense').props(
+                                  'w-full pv-settings-expansion').props('dense header-class=pv-focus-ring').props(
                                   'data-testid=native-profile-library-section'):
                 ui.label('旧DBは凍結コピー、画像は読取専用の参照先を選択してください。元データの移行や変更は行いません。').classes('pv-field-hint')
                 self.database_value = ui.label().classes('pv-field-hint').props('data-testid=native-profile-database-value')
@@ -164,7 +171,7 @@ class NativeProfileView:
                     secondary_button('旧ライブラリ参照を解除',
                         lambda:self.clear_library() if self._epoch == epoch else None, testid='native-profile-clear-library').set_enabled(self.snapshot is not None)
             with ui.expansion('画像解析・GPU', icon='memory', value=self.draft_model is not None).classes(
-                    'w-full pv-settings-expansion').props('dense').props('data-testid=native-gpu-section'):
+                    'w-full pv-settings-expansion').props('dense header-class=pv-focus-ring data-testid=native-gpu-section'):
                 self.model_value = ui.label().classes('pv-field-hint').props('data-testid=native-gpu-model')
                 with ui.row().classes('pv-toolbar pv-compact-toolbar'):
                     self.model_button = secondary_button('EgaraNetモデルを選択', choose_model, testid='native-gpu-pick-model')

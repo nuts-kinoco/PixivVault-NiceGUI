@@ -8,6 +8,8 @@ from dataclasses import replace
 from uuid import uuid4
 from nicegui import ui
 
+from .action_controls import notify_action
+
 from ..bookmark_state import BookmarkState
 from ..library_filters import LibraryFilters
 from ..library_models import AuthorSummary, LibrarySnapshot, LibraryWork, PageRef
@@ -15,6 +17,7 @@ from ..library_state import LibraryState
 from ..services import ApplicationServices
 from ..state import GalleryState
 from ..viewer_metadata import pixiv_url
+from .bookmark_view import BookmarkView, add_library_card_titles
 from .card_grid import CardGrid, MoreCell
 from .card_size_control import size_buttons, update_size_buttons
 from .grid_layout import MAX_COLUMNS
@@ -130,38 +133,41 @@ class LibraryView(ViewerController):
                     self.downloaded_button = ui.button(
                         "DL済み", color=None, on_click=lambda: self.show_subview("downloaded")
                     ).props("flat dense no-caps data-testid=library-subview-downloaded"
-                            ).classes("pv-library-subview-selected")
+                            ).classes("pv-library-subview-selected pv-hit28")
                     self.bookmarks_button = ui.button(
                         "マイブックマーク", color=None, on_click=lambda: self.show_subview("bookmarks")
-                    ).props("flat dense no-caps data-testid=library-subview-bookmarks")
+                    ).classes('pv-hit28').props("flat dense no-caps data-testid=library-subview-bookmarks")
                 self.search_input = ui.input(
                     placeholder="タイトル・作者・タグを検索",
                     on_change=lambda event: self.search(event.value),
                 ).props("outlined dense clearable debounce=200 data-testid=library-search").classes(
                     "pv-library-search")
+                self.search_input.props['aria-label'] = 'タイトル・作者・タグを検索'
                 self.search_input.on("keydown.enter", lambda _: self.search(self.search_input.value))
-                self.scope_library = ui.button('ライブラリのみ', color=None, on_click=lambda: self.set_search_scope('library')).props(
+                self.scope_library = ui.button('ライブラリのみ', color=None, on_click=lambda: self.set_search_scope('library')).classes('pv-hit28').props(
                     'flat dense no-caps data-testid=library-scope-local')
-                self.scope_pixiv = ui.button('pixiv本体も含む', color=None, on_click=lambda: self.set_search_scope('pixiv')).props(
+                self.scope_pixiv = ui.button('pixiv本体も含む', color=None, on_click=lambda: self.set_search_scope('pixiv')).classes('pv-hit28').props(
                     'flat dense no-caps data-testid=library-scope-pixiv')
                 self.scope_pending = ui.label('準備中').classes('pv-subtitle').props('data-testid=library-scope-pending')
                 if on_premium_search is not None:
-                    ui.button('人気順で探す',on_click=lambda:on_premium_search(str(self.search_input.value or ''))).props(
+                    ui.button('人気順で探す…',on_click=lambda:on_premium_search(str(self.search_input.value or ''))).classes('pv-hit28').props(
                         'flat dense data-testid=library-premium-search')
                 self.db_refresh_button = None
                 if services.library_refresh_available:
                     self.db_refresh_button = ui.button(
                         "保存先更新" if services.managed_downloads is not None else "DB更新",
-                        color=None, on_click=self.refresh_from_disk).props(
+                        color=None, on_click=self.refresh_from_disk).classes('pv-hit28').props(
                         "flat dense no-caps data-testid=library-db-refresh")
                     self.db_refresh_button.tooltip('専用保存先と接続済みの旧ライブラリを再読込します。' if services.managed_downloads is not None else '接続済みの旧ライブラリを読み直します。')
                 self.sort_buttons = {}
                 for key in ("view_count", "last_backup", "capacity"):
                     self.sort_buttons[key] = ui.button(
                         "", color=None, on_click=lambda _, value=key: self.sort(value),
-                    ).props(f"flat dense no-caps data-testid=library-sort-{key}")
+                    ).classes('pv-hit28').props(f"flat dense no-caps data-testid=library-sort-{key}")
                 with ui.row().classes("pv-library-sizes"):
                     self.size_buttons = size_buttons(self.change_size, prefix="library")
+                    for size_button in self.size_buttons.values():
+                        size_button.classes('pv-hit28')
 
             self.filter_now_host = ui.row().classes("pv-library-filter-now-host w-full")
             self.filter_now_host.set_visibility(False)
@@ -180,11 +186,11 @@ class LibraryView(ViewerController):
             self.pixiv_error_row.set_visibility(False)
             with ui.column().classes("pv-library-panel w-full") as self.authors_panel:
                 with ui.row().classes("pv-library-summary w-full"):
-                    self.filter_toggle = ui.button("絞り込み ›").props(
+                    self.filter_toggle = ui.button("絞り込み ›").classes('pv-hit28').props(
                         "flat dense no-caps data-testid=library-filter-toggle")
-                    self.capacity_button = ui.button("管理保存容量を再計測", on_click=self.measure_capacity).props("flat dense data-testid=library-capacity-measure")
+                    self.capacity_button = ui.button("管理保存容量を再計測", on_click=self.measure_capacity).classes('pv-hit28').props("flat dense data-testid=library-capacity-measure")
                     self.capacity_status = ui.label("").props("role=status data-testid=library-capacity-status")
-                    self.legacy_capacity_button = ui.button('作者保存先の容量を再計測',on_click=self.measure_legacy_capacity).props('flat dense data-testid=library-legacy-capacity-measure')
+                    self.legacy_capacity_button = ui.button('作者保存先の容量を再計測',on_click=self.measure_legacy_capacity).classes('pv-hit28').props('flat dense data-testid=library-legacy-capacity-measure')
                     self.legacy_capacity_status = ui.label('').props('role=status data-testid=library-legacy-capacity-status')
                     self.legacy_auto_capacity_status = ui.label('').props('role=status data-testid=library-legacy-capacity-auto-status')
                     ui.space()
@@ -196,6 +202,7 @@ class LibraryView(ViewerController):
                 ) as self.authors_scroll:
                     self.author_grid = CardGrid(self._on_author_grid_event).classes("pv-grid")
                     self.author_grid.props.update(layout='library-author', library_placeholder=_IMAGE_OUTLINE)
+                    add_library_card_titles(self.author_grid, caption='.pv-library-card-title', action='作者を開く')
                     self.author_more_button = ui.button("もっと見る", on_click=self.more_authors).props(
                         "flat no-caps data-testid=library-author-more")
                 self._remember_scroll(self.authors_scroll)
@@ -204,14 +211,14 @@ class LibraryView(ViewerController):
                 "data-testid=library-detail"
             ) as self.pages_panel:
                 with ui.row().classes("pv-library-detail-header w-full"):
-                    self.detail_back = ui.button("← 作者一覧", color=None, on_click=self.close_author).props(
+                    self.detail_back = ui.button("← 作者一覧", color=None, on_click=self.close_author).classes('pv-hit28').props(
                         "flat dense no-caps data-testid=library-back")
                     self.detail_title = ui.label().classes("pv-library-detail-title")
-                    self.zip_export_button = ui.button('旧形式ZIPを書き出す', color=None).props(
+                    self.zip_export_button = ui.button('旧形式ZIPを書き出す', color=None).classes('pv-hit28').props(
                         'flat dense no-caps data-testid=library-legacy-zip-export')
                     self.zip_export_button.on('click', self._zip_export_event,
                         js_handler=f"() => {{const d=document.getElementById('{self.root.html_id}').dataset;emit({{epoch:d.zipExportEpoch}})}}")
-                    ui.button(icon="close", color=None, on_click=self.close_author).props(
+                    ui.button(icon="close", color=None, on_click=self.close_author).classes('pv-hit28').props(
                         "flat dense round aria-label=作者一覧へ戻る data-testid=library-detail-close")
                 self.zip_export_status = ui.label().classes('pv-subtitle').props(
                     'role=status data-testid=library-legacy-zip-status')
@@ -224,10 +231,10 @@ class LibraryView(ViewerController):
                 ) as self.pages_scroll:
                     self.page_grid = CardGrid(self._on_page_grid_event).classes("pv-grid")
                     self.page_grid.props.update(layout='library-page', library_placeholder=_IMAGE_OUTLINE)
+                    add_library_card_titles(self.page_grid, caption='.pv-library-card-title', action='作品を開く')
                     self.more_cell = self.more_button = MoreCell(self.page_grid)
                 self._remember_scroll(self.pages_scroll)
 
-            from .bookmark_view import BookmarkView
             self.bookmarks = BookmarkView(
                 self.bookmark_state,
                 on_refresh=self.refresh_bookmarks,
@@ -756,6 +763,8 @@ class LibraryView(ViewerController):
                                   or (apply_deferred and (self._remote_retired or self._reload_after_viewer))))
         page_key, self._viewer_focus_page = self._viewer_focus_page, None
         author = self.state.selected_author_id
+        artwork = self._viewer_state.selected_artwork
+        bookmark_id = artwork.work_id if artwork is not None and self.subview == 'bookmarks' else None
         super().close_viewer(restore_focus=restore_focus and not returns_to_redraw)
         if self._bookmark_projection_pending and not self.closed and self.active:
             self._bookmark_projection_pending = False
@@ -766,13 +775,22 @@ class LibraryView(ViewerController):
             elif self._reload_after_viewer:
                 self.reload(preserve=True)
         if returns_to_redraw:
-            self._focus_rebuilt_opener(page_key, author)
+            self._focus_rebuilt_opener(page_key, author, bookmark_id)
 
-    def _focus_rebuilt_opener(self, page_key, author):
+    def _focus_rebuilt_opener(self, page_key, author, bookmark_id):
         if self.closed or not self.active:
             return
         if self.subview == 'bookmarks':
             target = self.bookmarks_button
+            grid = self.bookmarks.grid
+            self.viewer.focus_after_close(target, opener=(
+                f"[...(document.getElementById('{grid.html_id}')"
+                "?.querySelectorAll('[data-testid=bookmark-card]') || [])]"
+                f".find(card => card.dataset.workId === {json.dumps(bookmark_id)})"
+                "?.querySelector('[data-testid=bookmark-open][tabindex=\"0\"]')"
+                f" || document.getElementById('{target.html_id}')"
+            ))
+            return
         elif self.state.selected_author_id is not None:
             card = self.page_cards.get(page_key)
             if card is not None and not card['disabled']:
@@ -1112,7 +1130,7 @@ class LibraryView(ViewerController):
             await self.services.open_external_saved(author.representative.work_id,
                 catalog_token=provider.token,author_id=author.author_id,is_current=current)
         except Exception:
-            if current():ui.notify('保存場所を開けませんでした。',type='negative')
+            if current():notify_action('保存場所を開けませんでした。',type='negative')
 
     async def open_remote_author(self,author_id,session,menu=None):
         if not self.active or self.closed or session is not self._author_session:return
@@ -1215,7 +1233,7 @@ class LibraryView(ViewerController):
             await self.services.open_external_saved(work_id,page_no+1,catalog_token=token)
         except Exception:
             if not self.closed and self.active and generation==self.state.generation and session is self._page_session:
-                ui.notify('保存場所を外部ビューアで開けませんでした。',type='negative')
+                notify_action('保存場所を外部ビューアで開けませんでした。',type='negative')
         finally:self._external_busy=False
 
     def _similar_work(self,work_id,page):
@@ -1516,9 +1534,9 @@ class LibraryView(ViewerController):
                 const root = document.getElementById('{self.root.html_id}');
                 const node = {self._author_opener(author_id)};
                 if (root?.dataset.active === 'true' &&
-                    root.dataset.libraryGeneration === '{self.state.generation}' &&
-                    node?.isConnected && node.getClientRects().length)
-                    node.focus({{preventScroll:true}});
+                    root.dataset.libraryGeneration === '{self.state.generation}' && node)
+                    window.pvFocus.restore({{origin: node, near: root,
+                        excluded: document.getElementById('{self.pages_panel.html_id}')}});
             }})""")
 
     def open_page(self, work_id: str, page_no: int, generation: int | None = None,

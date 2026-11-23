@@ -23,6 +23,7 @@ from nicegui import ui
 
 from ..account_scope import AccountMismatch
 from .. import unified_download_state as U
+from .management_dialog import focus_after_dialog, managed_dialog
 
 PAGE_SIZE = 50
 BODY_MIN_H = 240            # 元 BODY_MIN_H: 左右カラムがこれを下回ったら詳細を自動で閉じる
@@ -64,7 +65,7 @@ CSS = """
 .pv-ud-grow { flex:1 1 auto; }
 .pv-ud-sortbtn { display:inline-flex; align-items:center; gap:2px; border:0; background:transparent; color:var(--pv-text); font:inherit; font-size:12px; cursor:pointer; padding:0 8px; height:28px; }
 .pv-ud-sortbtn .q-icon { font-size:16px; color:var(--pv-muted); }
-.pv-ud-ibtn { width:28px; height:28px; padding:0; border:0; border-radius:14px; background:transparent; color:var(--pv-muted); display:inline-flex; align-items:center; justify-content:center; cursor:pointer; }
+.pv-ud-ibtn { flex:0 0 28px; width:28px; min-width:28px; height:28px; min-height:28px; padding:0; border:0; border-radius:14px; background:transparent; color:var(--pv-muted); display:inline-flex; align-items:center; justify-content:center; cursor:pointer; }
 .pv-ud-ibtn .q-icon { font-size:14px; }
 .pv-ud-ibtn[data-on=true] { color:var(--pv-download-accent-text); }
 .pv-ud-ibtn:disabled { opacity:.4; cursor:default; }
@@ -72,13 +73,12 @@ CSS = """
 .pv-ud-thead { display:flex; flex-direction:row; align-items:center; gap:8px; padding:4px 8px; border-bottom:1px solid var(--pv-border); flex:0 0 auto; font-size:11px; color:var(--pv-muted); }
 .pv-ud-list { flex:1 1 0; min-height:0; overflow-y:auto; display:flex; flex-direction:column; gap:4px; }
 .pv-ud-row { display:flex; flex-direction:row; align-items:center; gap:8px; height:34px; flex:0 0 34px; padding:0 8px; border-bottom:1px solid var(--pv-border); cursor:pointer; }
-.pv-ud-check { flex:0 0 16px; width:16px; height:16px; border-radius:4px; background:var(--pv-raised); border:1px solid var(--pv-muted); display:flex; align-items:center; justify-content:center; color:#0b0b10; }
+.pv-ud-check { position:relative; flex:0 0 16px; width:16px; height:16px; border-radius:4px; background:var(--pv-raised); border:1px solid var(--pv-muted); display:flex; align-items:center; justify-content:center; color:#0b0b10; }
 .pv-ud-check .q-icon { font-size:12px; }
 .pv-ud-check[data-state=all], .pv-ud-check[data-state=partial], .pv-ud-row[data-picked=true] .pv-ud-check { background:#0096FA; border-color:#0096FA; }
-.pv-ud-star { flex:0 0 22px; width:22px; height:22px; display:flex; align-items:center; justify-content:center; color:var(--pv-muted); cursor:pointer; }
+.pv-ud-star { position:relative; flex:0 0 22px; width:22px; height:22px; display:flex; align-items:center; justify-content:center; color:var(--pv-muted); cursor:pointer; }
 .pv-ud-star .q-icon { font-size:15px; }
 .pv-ud-star[data-on=true] { color:var(--pv-download-accent-text); }
-.pv-ud-check:focus-visible, .pv-ud-row:focus-visible, .pv-ud-star:focus-visible { outline:2px solid #0096FA; outline-offset:2px; }
 .pv-ud-c-name { flex:0 0 210px; width:210px; font-size:12.5px; color:var(--pv-text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .pv-ud-running .pv-ud-row[data-picked=false] .pv-ud-c-name { color:var(--pv-muted); }
 .pv-ud-c-id { flex:0 0 96px; width:96px; font-size:11.5px; font-family:Consolas, monospace; color:var(--pv-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
@@ -117,17 +117,17 @@ CSS = """
 .pv-ud-run-wrap { flex:1 1 0; min-width:0; height:44px; }
 .pv-ud-run { width:100%; height:44px; border-radius:8px; border:1px solid var(--pv-border); background:#0096FA; color:#0b0b10; font:inherit; font-size:14px; display:inline-flex; align-items:center; justify-content:center; gap:8px; cursor:pointer; padding:0; }
 .pv-ud-run .q-icon { font-size:18px; }
-.pv-ud-run:disabled { background:var(--pv-surface); color:var(--pv-muted); cursor:default; }
+.pv-ud-run:disabled { background:var(--pv-surface); color:var(--pv-muted); opacity:1 !important; cursor:default; }
 .pv-ud-band { flex:0 0 84px; height:84px; width:100%; padding:0; display:flex; flex-direction:column; gap:0; overflow:hidden; background:var(--pv-surface); border:1px solid var(--pv-border); border-radius:12px; }
 .pv-ud-band[data-open=true] { border-color:#0096FA; }
 .pv-ud-band-main { flex:1 1 0; min-height:0; padding:10px; display:flex; flex-direction:column; gap:6px; }
 .pv-ud-sumband { flex:0 0 56px; height:56px; padding:0 16px; display:flex; flex-direction:row; align-items:center; gap:8px; background:var(--pv-raised); }
 .pv-ud-sumband .cap { font-size:11.5px; color:var(--pv-muted); white-space:nowrap; }
 .pv-ud-sumbox { flex:1 1 0; min-width:0; height:32px; display:flex; flex-direction:row; align-items:center; gap:6px; padding:0 8px; background:var(--pv-surface); border:1px solid var(--pv-border); border-radius:8px; }
-.pv-ud-sumbox .k { font-size:10.5px; color:var(--pv-muted); white-space:nowrap; }
+.pv-ud-sumbox .k { font-size:11px; color:var(--pv-muted); white-space:nowrap; }
 .pv-ud-sumbox .v { font-size:13px; font-family:Consolas, monospace; color:var(--pv-text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .pv-ud-sumbox .v[data-danger=true] { color:var(--pv-download-danger-text); }
-.pv-ud-hintrow { cursor:pointer; }
+.pv-ud-hintrow { position:relative; cursor:pointer; }
 .pv-ud-bmbox { display:flex; flex-direction:column; gap:10px; }
 .pv-ud-bmbox .cap { font-size:13px; color:var(--pv-text); }
 .pv-ud-bmbox .warn { font-size:11px; color:var(--pv-download-danger-text); }
@@ -140,7 +140,7 @@ CSS = """
 .pv-ud-bar > div { height:100%; background:#0096FA; }
 .pv-ud-bar[data-mode=indeterminate] > div { width:30% !important; animation:pv-ud-slide 1.2s linear infinite; }
 @keyframes pv-ud-slide { from { margin-left:-30%; } to { margin-left:100%; } }
-.pv-ud-band-hint { display:flex; flex-direction:row; align-items:center; gap:4px; font-size:10.5px; color:var(--pv-muted); }
+.pv-ud-band-hint { display:flex; flex-direction:row; align-items:center; gap:4px; font-size:11px; color:var(--pv-muted); }
 .pv-ud-band-hint .sum { flex:1 1 auto; font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .pv-ud-band-hint .q-icon { font-size:13px; }
 .pv-ud-textbtn { border:0; background:transparent; color:var(--pv-primary); font:inherit; font-size:12px; cursor:pointer; padding:2px 8px; border-radius:12px; }
@@ -177,6 +177,7 @@ class UnifiedDownloadView:
         self.epoch = 0
         self.legacy = None            # 作品単位の既存画面（最初に開いたときに作る）
         self.legacy_open = False
+        self._details_opener = None
         self.mode = "followed"
         self.authors: list[dict] = []
         self.work_counts: dict[str, int] = {}
@@ -284,11 +285,11 @@ class UnifiedDownloadView:
                 ui.label("ダウンロード").classes("pv-ud-title")
                 ui.label("作者を選ぶか、IDを入れて実行します").classes("pv-ud-sub")
                 ui.element("div").classes("pv-ud-grow")
-                self.details_button = ui.element("button").classes("pv-ud-tbtn").props(
+                self.details_button = ui.element("button").classes("pv-ud-tbtn pv-focus-ring").props(
                     "type=button data-testid=unified-details-open title=作品単位の確認・IDから作品を確認・作者個別設定・旧DBと照合・未フォロー作者を確認")
                 with self.details_button:
                     ui.icon("tune")
-                    ui.label("作品単位で選ぶ（詳細）")
+                    ui.label("作品単位で選ぶ（詳細）…")
                 self.details_button.on("click", lambda _e: self.open_details())
             with ui.element("div").classes("pv-ud-body").props("data-testid=unified-body"):
                 self._build_left()
@@ -313,7 +314,7 @@ class UnifiedDownloadView:
             with ui.element("div").classes("pv-ud-moderow"):
                 self.mode_buttons = {}
                 for key, label in (("followed", "フォロー中の作者"), ("bookmark", "マイブックマーク")):
-                    button = ui.element("button").classes("pv-ud-mode").props(
+                    button = ui.element("button").classes("pv-ud-mode pv-focus-ring").props(
                         f"type=button data-testid=unified-mode-{key} data-selected={'true' if key == 'followed' else 'false'}")
                     with button:
                         ui.label(label)
@@ -325,7 +326,7 @@ class UnifiedDownloadView:
                 self.search_input.on_value_change(lambda e: self.set_query(e.value))
                 with ui.element("div").classes("pv-ud-idrow").props("data-testid=unified-id-row") as self.id_row:
                     self.id_row_text = ui.element("span")
-                    self.id_row_button = ui.element("button").classes("pv-ud-textbtn").props(
+                    self.id_row_button = ui.element("button").classes("pv-ud-textbtn pv-focus-ring").props(
                         "type=button data-testid=unified-id-add")
                     with self.id_row_button:
                         ui.label("対象に積む")
@@ -334,18 +335,18 @@ class UnifiedDownloadView:
                 self._build_tools()
                 with ui.element("div").classes("pv-ud-note"):
                     self.count_label = ui.label("0 / 0 人").props("data-testid=unified-count")
-                    self.prev_button = ui.element("button").classes("pv-ud-ibtn").props(
+                    self.prev_button = ui.element("button").classes("pv-ud-ibtn pv-focus-ring").props(
                         "type=button data-testid=unified-page-prev title=前の50人")
                     with self.prev_button:
                         ui.icon("arrow_back_ios_new")
                     self.prev_button.on("click", lambda _e: self.go_page(-1))
-                    self.next_button = ui.element("button").classes("pv-ud-ibtn").props(
+                    self.next_button = ui.element("button").classes("pv-ud-ibtn pv-focus-ring").props(
                         "type=button data-testid=unified-page-next title=次の50人")
                     with self.next_button:
                         ui.icon("arrow_forward_ios")
                     self.next_button.on("click", lambda _e: self.go_page(1))
                 with ui.element("div").classes("pv-ud-thead").props("data-testid=unified-thead") as self.thead:
-                    self.header_check = ui.element("div").classes("pv-ud-check").props(
+                    self.header_check = ui.element("div").classes("pv-ud-check pv-hit28").props(
                         "data-testid=unified-header-check data-state=empty role=checkbox tabindex=0 aria-checked=false aria-label=表示中の作者をまとめて選ぶ")
                     self.header_check.style("cursor:pointer")
                     self.header_check.on("click", lambda _e: self.toggle_header_check())
@@ -383,7 +384,7 @@ class UnifiedDownloadView:
             with ui.element("div").classes("pv-ud-bmrow"):
                 self.bm_buttons = {}
                 for key, label in (("hier", "階層化（作者別フォルダ）"), ("flat", "フラット配置")):
-                    button = ui.element("button").classes("pv-ud-mode").props(
+                    button = ui.element("button").classes("pv-ud-mode pv-focus-ring").props(
                         f"type=button data-testid=unified-bm-{key} data-selected=false")
                     with button:
                         ui.label(label)
@@ -395,18 +396,18 @@ class UnifiedDownloadView:
                 if bool(e.value) != self.bm_work_folder else None).props(
                 "dense data-testid=unified-bm-work-folder")
             ui.element("div").classes("pv-ud-hr")
-            self.bm_unfollowed_button = ui.element("button").classes("pv-ud-tbtn").props(
+            self.bm_unfollowed_button = ui.element("button").classes("pv-ud-tbtn pv-focus-ring").props(
                 "type=button data-testid=unified-bm-unfollowed")
             with self.bm_unfollowed_button:
                 ui.icon("person_search")
                 ui.label("未フォロー作者を確認")
             self.bm_unfollowed_button.on("click", lambda _e: self.on_unfollowed_click())
-            bookmark_open = ui.element("button").classes("pv-ud-tbtn").props(
+            self.bookmark_open_button = ui.element("button").classes("pv-ud-tbtn pv-focus-ring").props(
                 "type=button data-testid=unified-bookmark-open")
-            with bookmark_open:
+            with self.bookmark_open_button:
                 ui.icon("bookmarks")
                 ui.label("ブックマークから作品を選ぶ")
-            bookmark_open.on("click", lambda _e: self.open_details("bookmark"))
+            self.bookmark_open_button.on("click", lambda _e: self.open_details("bookmark"))
         self._render_bm_layout()
 
     def _build_tools(self):
@@ -419,7 +420,7 @@ class UnifiedDownloadView:
             self.star_filter_button = self._tool_button("star_border", "☆のみ", "unified-star-only",
                                                         self.toggle_favorite_filter)
             ui.element("div").classes("pv-ud-grow")
-            self.sort_button = ui.element("button").classes("pv-ud-sortbtn").props(
+            self.sort_button = ui.element("button").classes("pv-ud-sortbtn pv-focus-ring").props(
                 "type=button data-testid=unified-sort")
             with self.sort_button:
                 self.sort_label = ui.label(U.SORT_LABELS[self.sort_key])
@@ -436,7 +437,7 @@ class UnifiedDownloadView:
                                                  lambda: self.set_sort_dir(True))
 
     def _tool_button(self, icon, text, testid, handler):
-        button = ui.element("button").classes("pv-ud-tbtn").props(f"type=button data-testid={testid}")
+        button = ui.element("button").classes("pv-ud-tbtn pv-focus-ring").props(f"type=button data-testid={testid}")
         with button:
             self_icon = ui.icon(icon)
             ui.label(text)
@@ -445,7 +446,7 @@ class UnifiedDownloadView:
         return button
 
     def _icon_button(self, icon, testid, title, handler):
-        button = ui.element("button").classes("pv-ud-ibtn").props(
+        button = ui.element("button").classes("pv-ud-ibtn pv-focus-ring").props(
             f"type=button data-testid={testid} title={title} aria-label={title}")
         with button:
             ui.icon(icon)
@@ -478,25 +479,25 @@ class UnifiedDownloadView:
                 self.favorite_add_button = self._tool_button("playlist_add", "☆を対象にする",
                                                              "unified-favorite-add", self.add_favorites_to_targets)
             with ui.element("div").classes("pv-ud-runrow").props("data-testid=unified-runrow"):
-                self.type_button = ui.element("button").classes("pv-ud-sq pv-ud-type").props(
+                self.type_button = ui.element("button").classes("pv-ud-sq pv-focus-ring pv-ud-type").props(
                     "type=button data-testid=unified-type data-dim=false")
                 with self.type_button:
                     self.type_icon = ui.icon(TYPE_ICONS[self.target_type])
                 self.type_button.on("click", lambda _e: self.cycle_type())
                 self.run_wrap = ui.element("div").classes("pv-ud-run-wrap")
                 with self.run_wrap:
-                    self.run_button = ui.element("button").classes("pv-ud-run").props(
+                    self.run_button = ui.element("button").classes("pv-ud-run pv-focus-ring").props(
                         "type=button data-testid=unified-run")
                     with self.run_button:
                         ui.icon("play_arrow")
                         self.run_label = ui.label("実行")
                 self.run_button.on("click", lambda _e: self.run())
-                self.pause_button = ui.element("button").classes("pv-ud-sq").props(
+                self.pause_button = ui.element("button").classes("pv-ud-sq pv-focus-ring").props(
                     "type=button data-testid=unified-pause title=一時停止 aria-label=一時停止")
                 with self.pause_button:
                     self.pause_icon = ui.icon("pause")
                 self.pause_button.on("click", lambda _e: self.toggle_pause())
-                self.stop_button = ui.element("button").classes("pv-ud-sq").props(
+                self.stop_button = ui.element("button").classes("pv-ud-sq pv-focus-ring").props(
                     "type=button data-testid=unified-stop title=停止 aria-label=停止")
                 with self.stop_button:
                     ui.icon("stop")
@@ -524,12 +525,12 @@ class UnifiedDownloadView:
             with ui.element("div").classes("pv-ud-band-top"):
                 self.band_status = ui.label("待機中").classes("pv-ud-band-status").props(
                     "data-testid=unified-band-status role=status")
-                self.resume_button = ui.element("button").classes("pv-ud-textbtn").props(
+                self.resume_button = ui.element("button").classes("pv-ud-textbtn pv-focus-ring").props(
                     "type=button data-testid=unified-resume")
                 with self.resume_button:
                     ui.label("再開")
                 self.resume_button.on("click", self.resume_interrupted)
-                self.discard_button = ui.element("button").classes("pv-ud-textbtn").props(
+                self.discard_button = ui.element("button").classes("pv-ud-textbtn pv-focus-ring").props(
                     "type=button data-testid=unified-discard")
                 with self.discard_button:
                     ui.label("破棄")
@@ -537,26 +538,31 @@ class UnifiedDownloadView:
             self.bar = ui.element("div").classes("pv-ud-bar").props("data-testid=unified-bar data-mode=hidden")
             with self.bar:
                 self.bar_fill = ui.element("div")
-            self.hint_row = ui.element("div").classes("pv-ud-band-hint pv-ud-hintrow").props(
-                "data-testid=unified-band-hint-row role=button")
+            self.hint_row = ui.element("div").classes("pv-ud-band-hint pv-ud-hintrow pv-hit28").props(
+                f"data-testid=unified-band-hint-row role=button tabindex=0 aria-expanded=false "
+                f"aria-controls=c{self.sumband.id} aria-label=ダウンロード進捗の詳細")
             with self.hint_row:
                 self.band_summary = ui.label("").classes("sum").props("data-testid=unified-band-summary")
                 self.hint_caret = ui.icon("keyboard_arrow_up")
                 self.hint_text = ui.label("クリックで詳細を開く").props("data-testid=unified-band-hint")
             self.hint_row.on("click", lambda _e: self.toggle_band())
+            for key in ("space", "enter"):
+                self.hint_row.on(f"keydown.{key}.prevent.stop", lambda _e: self.toggle_band())
 
     def _build_details_dialog(self):
-        with ui.dialog().props("data-testid=unified-details-dialog") as self.dialog:
+        with managed_dialog(focus_after_update=True).props("transition-duration=150 data-testid=unified-details-dialog") as self.dialog:
             with ui.card().classes("w-full").style(
                     "width:min(1100px,96vw);max-width:96vw;max-height:92vh;overflow-y:auto") as self.dialog_card:
                 with ui.row().classes("w-full items-center"):
-                    ui.label("作品単位で選ぶ（詳細）").classes("pv-library-heading")
+                    details_title = ui.label("作品単位で選ぶ（詳細）").classes("pv-library-heading")
+                    self.dialog.props["aria-labelledby"] = details_title.html_id
                     ui.element("div").classes("pv-ud-grow")
-                    ui.button(icon="close", color=None, on_click=self.close_details).props(
-                        "flat round dense aria-label=閉じる data-testid=unified-details-close")
+                    ui.button(icon="close", color=None, on_click=self.close_details).classes('pv-hit28').props(
+                        "flat round dense autofocus aria-label=閉じる data-testid=unified-details-close")
                 # 従来画面の根は flex:1 1 0 なので、高さの決まった入れ物に入れる（無いと高さ 0 に潰れる）。
                 self.dialog_body = ui.column().classes("w-full gap-0").style("height:min(78vh,820px);min-height:0")
-        self.dialog.on("hide", lambda _e: self._details_hidden())
+
+        self.dialog.on("hide", self._restore_details_focus)
 
     # ------------------------------------------------------------------ the legacy (per-work) screens
     def _ensure_legacy(self):
@@ -582,6 +588,7 @@ class UnifiedDownloadView:
         if self.closed:
             return False
         self._ensure_legacy()
+        self._details_opener = self.bookmark_open_button if mode == "bookmark" else self.details_button
         self.legacy_open = True
         self._mirror_to_legacy()
         if mode in ("bookmark", "author"):
@@ -600,6 +607,12 @@ class UnifiedDownloadView:
         if self.legacy_open:
             self.legacy_open = False
             self._set_legacy_active()
+
+    def _restore_details_focus(self):
+        self._details_hidden()
+        opener = self._details_opener or self.details_button
+        if not self.closed and self.active and opener is not None:
+            focus_after_dialog(self.client, f'#{opener.html_id}')
 
     def _set_legacy_active(self):
         if self.legacy is not None:
@@ -1346,7 +1359,7 @@ class UnifiedDownloadView:
 
     def _row(self, author, picked):
         uid = str(author["user_id"])
-        row = ui.element("div").classes("pv-ud-row").props(
+        row = ui.element("div").classes("pv-ud-row pv-focus-ring").props(
             f"data-testid=unified-author-row data-user-id={uid} data-picked={'true' if picked else 'false'} "
             f"role=checkbox tabindex=0 aria-checked={'true' if picked else 'false'}")
         with row:
@@ -1354,17 +1367,29 @@ class UnifiedDownloadView:
             with check:
                 icon = ui.icon("check")
             icon.set_visibility(picked)
-            star = ui.element("div").classes("pv-ud-star").props(
+            star = ui.element("div").classes("pv-ud-star pv-hit28").props(
                 f"data-testid=unified-row-star data-on={'true' if author.get('is_favorite') else 'false'} "
-                f"role=button tabindex=0 aria-pressed={'true' if author.get('is_favorite') else 'false'} "
-                "aria-label=☆自動監視の切り替え")
+                f"role=button tabindex=0 aria-pressed={'true' if author.get('is_favorite') else 'false'}")
+            star.props["aria-label"] = "☆自動監視の切り替え"
             with star:
                 star_icon = ui.icon("star" if author.get("is_favorite") else "star_border")
             toggle_star = lambda _e: self.toggle_favorite(uid, displayed_author=author)
             star.on("click.stop", toggle_star)
             for key in ("space", "enter"):
                 star.on(f"keydown.{key}.prevent.stop", toggle_star)
-            ui.label(str(author.get("name") or uid)).classes("pv-ud-c-name")
+            name = str(author.get("name") or uid)
+            name_label = ui.label(name).classes("pv-ud-c-name")
+            name_label.props["title"] = name
+            with name_label:
+                name_tip = ui.tooltip(name).props("no-parent-event").style(
+                    "max-width:min(44rem,90vw);overflow-wrap:anywhere;font-size:13px;line-height:1.5")
+            row.on("focus", js_handler=f"""event => {{
+                const label = getHtmlElement({name_label.id});
+                if (event.currentTarget.matches(':focus-visible') && label.scrollWidth > label.clientWidth)
+                    runMethod({name_tip.id}, 'show', []);
+            }}""")
+            row.on("blur", js_handler=f"() => runMethod({name_tip.id}, 'hide', [])")
+            row.on("keydown.escape", js_handler=f"() => runMethod({name_tip.id}, 'hide', [])")
             ui.label(uid).classes("pv-ud-c-id")
             ui.label(str(self.work_counts.get(uid, 0))).classes("pv-ud-c-count").props("data-testid=unified-row-count")
             ui.label(U.format_last_downloaded(local_stamp(author.get("last_downloaded")))).classes("pv-ud-c-last").props(
@@ -1438,10 +1463,10 @@ class UnifiedDownloadView:
             # Both strings are static for this chip; render them together instead of
             # creating two reactive server elements per visible target.
             name = escape(str(target.get("name") or uid))
-            ui.html(f'<div class="nm">{name}</div><div class="id">{escape(uid)}</div>',
+            ui.html(f'<div class="nm" title="{name}">{name}</div><div class="id">{escape(uid)}</div>',
                     sanitize=False).classes("who")
             status = ui.label(text).classes("st").props(f"data-kind={kind}")
-            drop = ui.element("button").classes("x").props(
+            drop = ui.element("button").classes("x pv-focus-ring").props(
                 "type=button data-testid=unified-chip-remove title=取り消す aria-label=取り消す")
             with drop:
                 ui.icon("close")
@@ -1548,6 +1573,8 @@ class UnifiedDownloadView:
         if self.body_h:
             self.body_h += old_height - self.band_height
         self.band.props["data-open"] = "true" if self.band_open else "false"
+        self.hint_row.props["aria-expanded"] = "true" if self.band_open else "false"
+        self.hint_row.update()
         self.band.style(replace=f"height:{self.band_height}px;flex-basis:{self.band_height}px")
         self.sumband.set_visibility(self.band_open)
         self.hint_caret.props["name"] = "keyboard_arrow_down" if self.band_open else "keyboard_arrow_up"

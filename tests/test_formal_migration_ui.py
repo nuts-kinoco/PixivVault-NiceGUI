@@ -2,8 +2,9 @@
 import asyncio
 from pathlib import Path
 import pytest
-from nicegui import ui,Client
+from nicegui import Client
 from nicegui.page import page as Page
+from nicegui.slot import Slot
 from test_formal_stop_migration import setup,service,fingerprint
 from pixivvault_nicegui.ui.stop_migration_view import StopMigrationView
 from pixivvault_nicegui.native_startup import NativeProfileBinding
@@ -11,9 +12,13 @@ from pixivvault_nicegui.native_startup import NativeProfileBinding
 
 @pytest.fixture(autouse=True)
 def preserve_ui_context():
-    previous=list(ui.context.slot_stack)
-    try:yield
-    finally:ui.context.slot_stack[:]=previous
+    # ui.context.slot_stack creates a script-mode client when there is no UI.
+    previous = Slot.get_stack().copy()
+    try:
+        yield
+    finally:
+        Slot.get_stack()[:] = previous
+        Slot.prune_stack()
 
 
 @pytest.mark.asyncio
