@@ -104,7 +104,7 @@ def test_retry_detail_receipt_catalog_and_cards_share_one_candidate(tmp_path,cou
                 assert policy_state(policy)==saved
                 waiting.append(status.label.text)
                 assert '今回の429' in status.label.text and '再試行待機中' in status.label.text
-                assert '共有STOP履歴には記録しません' in status.label.text
+                assert '再起動後に残る停止として記録しません' in status.label.text
             clock.on_wait=observe
             dto=live.get_artwork_download_record('123')
             assert dto.bookmark_count==count and calls==['detail','detail']

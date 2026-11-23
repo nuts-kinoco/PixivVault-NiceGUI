@@ -1,0 +1,110 @@
+head=a89e8b58c9086ed6662a84f99f9ffe090b4dd3d3
+launcher_pid=112520
+root=\\?\S:\Work\_tmp\PV\fix-notice-r15-20261122-7i_ddqlj
+started=2026-11-23T18:50:06.225554+09:00
+pytest_pid=135132
+FFFFFFFF...FFFFF                                                         [100%]
+================================== FAILURES ===================================
+______ test_raw_lock_denial_fences_before_exception_classification[True] ______
+tests\test_fix_notice_round15_20261122.py:70: in test_raw_lock_denial_fences_before_exception_classification
+    assert not policy.confirm_gate_notices()
+E   assert not True
+E    +  where True = confirm_gate_notices()
+E    +    where confirm_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x000001E1669DFE00>.confirm_gate_notices
+_____ test_raw_lock_denial_fences_before_exception_classification[False] ______
+tests\test_fix_notice_round15_20261122.py:70: in test_raw_lock_denial_fences_before_exception_classification
+    assert not policy.confirm_gate_notices()
+E   assert not True
+E    +  where True = confirm_gate_notices()
+E    +    where confirm_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x000001E166BA5E50>.confirm_gate_notices
+__ test_refusals_before_the_gate_lock_advance_the_physical_generation[owner] __
+tests\test_fix_notice_round15_20261122.py:117: in test_refusals_before_the_gate_lock_advance_the_physical_generation
+    assert refusal_generations().get(physical, 0) > before
+E   assert 0 > 0
+E    +  where 0 = <built-in method get of dict object at 0x000001E166BB9EC0>(((14733079502035462978, 1407374888323747), (14733079502035462978, 1688849865034402)), 0)
+E    +    where <built-in method get of dict object at 0x000001E166BB9EC0> = {((14733079502035462978, 1407374888323725), (14733079502035462978, 1688849865034380)): 1, ((14733079502035462978, 1407...462978, 2251799818455675)): 1, ((14733079502035462978, 1688849865034370), (14733079502035462978, 1407374888323713)): 1}.get
+E    +      where {((14733079502035462978, 1407374888323725), (14733079502035462978, 1688849865034380)): 1, ((14733079502035462978, 1407...462978, 2251799818455675)): 1, ((14733079502035462978, 1688849865034370), (14733079502035462978, 1407374888323713)): 1} = refusal_generations()
+_ test_refusals_before_the_gate_lock_advance_the_physical_generation[selected-reader] _
+tests\test_fix_notice_round15_20261122.py:117: in test_refusals_before_the_gate_lock_advance_the_physical_generation
+    assert refusal_generations().get(physical, 0) > before
+E   assert 0 > 0
+E    +  where 0 = <built-in method get of dict object at 0x000001E166D0B6C0>(((14733079502035462978, 1407374888323757), (14733079502035462978, 1688849865034412)), 0)
+E    +    where <built-in method get of dict object at 0x000001E166D0B6C0> = {((14733079502035462978, 1407374888323725), (14733079502035462978, 1688849865034380)): 1, ((14733079502035462978, 1407...462978, 2251799818455675)): 1, ((14733079502035462978, 1688849865034370), (14733079502035462978, 1407374888323713)): 1}.get
+E    +      where {((14733079502035462978, 1407374888323725), (14733079502035462978, 1688849865034380)): 1, ((14733079502035462978, 1407...462978, 2251799818455675)): 1, ((14733079502035462978, 1688849865034370), (14733079502035462978, 1407374888323713)): 1} = refusal_generations()
+_ test_refusals_before_the_gate_lock_advance_the_physical_generation[write-selection] _
+tests\test_fix_notice_round15_20261122.py:117: in test_refusals_before_the_gate_lock_advance_the_physical_generation
+    assert refusal_generations().get(physical, 0) > before
+E   assert 0 > 0
+E    +  where 0 = <built-in method get of dict object at 0x000001E166B5E340>(((14733079502035462978, 1407374888323773), (14733079502035462978, 1688849865034428)), 0)
+E    +    where <built-in method get of dict object at 0x000001E166B5E340> = {((14733079502035462978, 1407374888323725), (14733079502035462978, 1688849865034380)): 1, ((14733079502035462978, 1407...462978, 2251799818455675)): 1, ((14733079502035462978, 1688849865034370), (14733079502035462978, 1407374888323713)): 1}.get
+E    +      where {((14733079502035462978, 1407374888323725), (14733079502035462978, 1688849865034380)): 1, ((14733079502035462978, 1407...462978, 2251799818455675)): 1, ((14733079502035462978, 1688849865034370), (14733079502035462978, 1407374888323713)): 1} = refusal_generations()
+_ test_refusals_before_the_gate_lock_advance_the_physical_generation[refresh-selection] _
+tests\test_fix_notice_round15_20261122.py:117: in test_refusals_before_the_gate_lock_advance_the_physical_generation
+    assert refusal_generations().get(physical, 0) > before
+E   assert 0 > 0
+E    +  where 0 = <built-in method get of dict object at 0x000001E166C9FCC0>(((14733079502035462978, 1407374888323789), (14733079502035462978, 1970324841745100)), 0)
+E    +    where <built-in method get of dict object at 0x000001E166C9FCC0> = {((14733079502035462978, 1407374888323725), (14733079502035462978, 1688849865034380)): 1, ((14733079502035462978, 1407...462978, 2251799818455675)): 1, ((14733079502035462978, 1688849865034370), (14733079502035462978, 1407374888323713)): 1}.get
+E    +      where {((14733079502035462978, 1407374888323725), (14733079502035462978, 1688849865034380)): 1, ((14733079502035462978, 1407...462978, 2251799818455675)): 1, ((14733079502035462978, 1688849865034370), (14733079502035462978, 1407374888323713)): 1} = refusal_generations()
+_ test_refusals_before_the_gate_lock_advance_the_physical_generation[history] _
+tests\test_fix_notice_round15_20261122.py:117: in test_refusals_before_the_gate_lock_advance_the_physical_generation
+    assert refusal_generations().get(physical, 0) > before
+E   assert 0 > 0
+E    +  where 0 = <built-in method get of dict object at 0x000001E166B7FE80>(((14733079502035462978, 1407374888323811), (14733079502035462978, 1688849865034466)), 0)
+E    +    where <built-in method get of dict object at 0x000001E166B7FE80> = {((14733079502035462978, 1407374888323725), (14733079502035462978, 1688849865034380)): 1, ((14733079502035462978, 1407...462978, 2251799818455675)): 1, ((14733079502035462978, 1688849865034370), (14733079502035462978, 1407374888323713)): 1}.get
+E    +      where {((14733079502035462978, 1407374888323725), (14733079502035462978, 1688849865034380)): 1, ((14733079502035462978, 1407...462978, 2251799818455675)): 1, ((14733079502035462978, 1688849865034370), (14733079502035462978, 1407374888323713)): 1} = refusal_generations()
+_ test_confirmation_activity_has_no_observation_notice_in_either_order[observer-first] _
+tests\test_fix_notice_round15_20261122.py:193: in test_confirmation_activity_has_no_observation_notice_in_either_order
+    assert not observer.has_gate_notices()
+E   assert not True
+E    +  where True = has_gate_notices()
+E    +    where has_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x000001E166C0ED50>.has_gate_notices
+________ test_confirmation_overlap_retains_other_targets_inconsistency ________
+tests\test_fix_notice_round15_20261122.py:228: in test_confirmation_overlap_retains_other_targets_inconsistency
+    assert any(row['stop_cause'] == 'gate_busy' and row['gate_owners'] == ('local',)
+E   assert False
+E    +  where False = any(<generator object test_confirmation_overlap_retains_other_targets_inconsistency.<locals>.<genexpr> at 0x000001E166B64C70>)
+_ test_all_live_candidates_must_pass_even_when_a_later_sibling_recovers[lock] _
+tests\test_fix_notice_round15_20261122.py:273: in test_all_live_candidates_must_pass_even_when_a_later_sibling_recovers
+    assert not policy.confirm_gate_notices()
+E   assert not True
+E    +  where True = confirm_gate_notices()
+E    +    where confirm_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x000001E166DFD8B0>.confirm_gate_notices
+_ test_all_live_candidates_must_pass_even_when_a_later_sibling_recovers[close] _
+tests\test_fix_notice_round15_20261122.py:273: in test_all_live_candidates_must_pass_even_when_a_later_sibling_recovers
+    assert not policy.confirm_gate_notices()
+E   assert not True
+E    +  where True = confirm_gate_notices()
+E    +    where confirm_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x000001E166DFE030>.confirm_gate_notices
+_ test_all_live_candidates_must_pass_even_when_a_later_sibling_recovers[remove] _
+tests\test_fix_notice_round15_20261122.py:273: in test_all_live_candidates_must_pass_even_when_a_later_sibling_recovers
+    assert not policy.confirm_gate_notices()
+E   assert not True
+E    +  where True = confirm_gate_notices()
+E    +    where confirm_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x000001E166DFE8A0>.confirm_gate_notices
+__ test_unconfigured_native_owner_observation_deduplicates_the_first_denial ___
+tests\test_fix_notice_round15_20261122.py:286: in test_unconfigured_native_owner_observation_deduplicates_the_first_denial
+    assert sorted(row['gate_owners'] for row in rows) == [('local',), ('shared',)]
+E   AssertionError: assert [('local',), ..., ('shared',)] == [('local',), ('shared',)]
+E
+E     At index 1 diff: ('local',) != ('shared',)
+E     Left contains one more item: ('shared',)
+E     Use -v to get more diff
+=========================== short test summary info ===========================
+FAILED tests/test_fix_notice_round15_20261122.py::test_raw_lock_denial_fences_before_exception_classification[True]
+FAILED tests/test_fix_notice_round15_20261122.py::test_raw_lock_denial_fences_before_exception_classification[False]
+FAILED tests/test_fix_notice_round15_20261122.py::test_refusals_before_the_gate_lock_advance_the_physical_generation[owner]
+FAILED tests/test_fix_notice_round15_20261122.py::test_refusals_before_the_gate_lock_advance_the_physical_generation[selected-reader]
+FAILED tests/test_fix_notice_round15_20261122.py::test_refusals_before_the_gate_lock_advance_the_physical_generation[write-selection]
+FAILED tests/test_fix_notice_round15_20261122.py::test_refusals_before_the_gate_lock_advance_the_physical_generation[refresh-selection]
+FAILED tests/test_fix_notice_round15_20261122.py::test_refusals_before_the_gate_lock_advance_the_physical_generation[history]
+FAILED tests/test_fix_notice_round15_20261122.py::test_confirmation_activity_has_no_observation_notice_in_either_order[observer-first]
+FAILED tests/test_fix_notice_round15_20261122.py::test_confirmation_overlap_retains_other_targets_inconsistency
+FAILED tests/test_fix_notice_round15_20261122.py::test_all_live_candidates_must_pass_even_when_a_later_sibling_recovers[lock]
+FAILED tests/test_fix_notice_round15_20261122.py::test_all_live_candidates_must_pass_even_when_a_later_sibling_recovers[close]
+FAILED tests/test_fix_notice_round15_20261122.py::test_all_live_candidates_must_pass_even_when_a_later_sibling_recovers[remove]
+FAILED tests/test_fix_notice_round15_20261122.py::test_unconfigured_native_owner_observation_deduplicates_the_first_denial
+13 failed, 3 passed in 6.75s
+
+exit=1
+finished=2026-11-23T18:50:14.499387+09:00
+temp_removed=True

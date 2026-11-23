@@ -1,0 +1,20 @@
+owner=/root (sole writer; owns pytest and cleanup)
+branch=fix-notice
+base=a89e8b58
+candidate=4660a2ec2f2f6d246573ebf10fc7c18cb1434a00
+acceptance=R15 user request A–E; explicit-only reduced scope; supervisor independent Medium 0 and Native R8 pending
+red=red.txt (13 initial), red-boundaries.txt (3 additional)
+green=candidate-check.txt (110), final-boundaries.txt (28), p6-rekey.txt (0 issues)
+intermediate=first-green.txt; focused.txt (older expectations collected before adjustments)
+independent_internal=r15_static, read-only, finished, no owned jobs
+full_job=full.txt, session 50557, completed; full suite run once, exit 1
+D6_QUIET at launch=False
+startup_recheck=startup-recheck.txt, session 32932, completed; effective candidate=4660a2ec (initial HEAD plus correction)
+chromium=settings-chromium.txt (83475), recommendation-chromium.txt (21579), both completed
+current_jobs=none; owned temporary paths and processes=0
+pending=supervisor independent reviews and Native R8
+head=2532138adc2c285b0c0ca4bc90d8a223792aeec3
+launcher_pid=74456
+root=\\?\S:\Work\_tmp\PV\fix-notice-r15-20261122-d6hn1usp
+started=2026-11-23T19:04:37.472721+09:00
+pytest_pid=143640

@@ -1,0 +1,150 @@
+head=a89e8b58c9086ed6662a84f99f9ffe090b4dd3d3
+launcher_pid=101456
+root=\\?\S:\Work\_tmp\PV\fix-notice-r15-20261122-2fqclmtp
+started=2026-11-23T18:55:15.453734+09:00
+pytest_pid=134076
+...................F.......F....................F..F.FFF...........F.... [ 88%]
+.........                                                                [100%]
+================================== FAILURES ===================================
+___ test_other_policy_observes_native_confirmation_without_pinning_its_lock ___
+tests\test_fix_notice_round14_20261122.py:92: in test_other_policy_observes_native_confirmation_without_pinning_its_lock
+    assert policy.confirm_gate_notices()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\request_policy.py:503: in confirm_gate_notices
+    result = check()
+             ^^^^^^^
+src\pixivvault_nicegui\native_startup.py:141: in <lambda>
+    (gates, True, lambda: self._confirm_request_notice_reader(scope, shared, selected=True)),
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\native_startup.py:179: in _confirm_request_notice_reader
+    return reader._confirm_gate_admission()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\pixiv_read_client.py:899: in _confirm_gate_admission
+    proof = confirm()
+            ^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_transport.py:41: in _confirm_admission
+    locks.enter_context(gate.request())
+C:\Users\nat\miniconda3\envs\stenv\Lib\contextlib.py:530: in enter_context
+    result = _enter(cm)
+             ^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+tests\test_fix_notice_round14_20261122.py:87: in poll
+    assert check_request_notice_gates(shared).states[0].state == 'busy'
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   IndexError: tuple index out of range
+_____ test_observer_does_not_attribute_another_holder_after_native_unlock _____
+tests\test_fix_notice_round14_20261122.py:365: in test_observer_does_not_attribute_another_holder_after_native_unlock
+    assert fired and observer.has_gate_notices()
+E   assert (True and False)
+E    +  where False = has_gate_notices()
+E    +    where has_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x00000186A2FCCF50>.has_gate_notices
+_________ test_confirmation_does_not_pin_its_own_shared_gate_activity _________
+tests\test_fix_notice_round13_20261122.py:399: in test_confirmation_does_not_pin_its_own_shared_gate_activity
+    assert policy.confirm_gate_notices()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\request_policy.py:503: in confirm_gate_notices
+    result = check()
+             ^^^^^^^
+src\pixivvault_nicegui\pixiv_read_client.py:899: in _confirm_gate_admission
+    proof = confirm()
+            ^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_transport.py:41: in _confirm_admission
+    locks.enter_context(gate.request())
+C:\Users\nat\miniconda3\envs\stenv\Lib\contextlib.py:530: in enter_context
+    result = _enter(cm)
+             ^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+tests\test_fix_notice_round13_20261122.py:394: in poll_during_request
+    assert any(state.state == 'busy' for state in check_request_notice_gates(shared).states)
+E   assert False
+E    +  where False = any(<generator object test_confirmation_does_not_pin_its_own_shared_gate_activity.<locals>.poll_during_request.<locals>.<genexpr> at 0x00000186A2CAC6C0>)
+_______ test_reconfirmation_busy_filter_is_limited_to_the_gate_it_owns ________
+tests\test_fix_notice_round13_20261122.py:507: in test_reconfirmation_busy_filter_is_limited_to_the_gate_it_owns
+    assert not policy.confirm_gate_notices()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\request_policy.py:503: in confirm_gate_notices
+    result = check()
+             ^^^^^^^
+src\pixivvault_nicegui\pixiv_read_client.py:899: in _confirm_gate_admission
+    proof = confirm()
+            ^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_transport.py:41: in _confirm_admission
+    locks.enter_context(gate.request())
+C:\Users\nat\miniconda3\envs\stenv\Lib\contextlib.py:530: in enter_context
+    result = _enter(cm)
+             ^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+tests\test_fix_notice_round13_20261122.py:501: in check_during_second
+    assert [state.state for state in snapshot.states] == ['busy', 'busy']
+E   AssertionError: assert ['busy'] == ['busy', 'busy']
+E
+E     Right contains one more item: 'busy'
+E     Use -v to get more diff
+______ test_reconfirmation_does_not_hide_a_shared_lock_it_never_acquired ______
+tests\test_fix_notice_round13_20261122.py:571: in test_reconfirmation_does_not_hide_a_shared_lock_it_never_acquired
+    assert not policy.confirm_gate_notices()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\request_policy.py:503: in confirm_gate_notices
+    result = check()
+             ^^^^^^^
+src\pixivvault_nicegui\pixiv_read_client.py:899: in _confirm_gate_admission
+    proof = confirm()
+            ^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_transport.py:41: in _confirm_admission
+    locks.enter_context(gate.request())
+C:\Users\nat\miniconda3\envs\stenv\Lib\contextlib.py:530: in enter_context
+    result = _enter(cm)
+             ^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_gate.py:645: in request
+    with self._exclusive():
+         ^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_gate.py:472: in _exclusive
+    else _open_existing_stop_lock(self.lock_path))
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests\test_fix_notice_round13_20261122.py:548: in refuse_local
+    assert any(state.authority == 'shared' and state.state == 'busy' for state in snapshot.states)
+E   assert False
+E    +  where False = any(<generator object test_reconfirmation_does_not_hide_a_shared_lock_it_never_acquired.<locals>.refuse_local.<locals>.<genexpr> at 0x00000186A52352F0>)
+_________ test_late_old_reader_after_response_cookie_adoption[False] __________
+tests\test_fix_notice_round12_20261122.py:81: in test_late_old_reader_after_response_cookie_adoption
+    assert policy.confirm_gate_notices()
+E   assert False
+E    +  where False = confirm_gate_notices()
+E    +    where confirm_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x00000186A2DA9D60>.confirm_gate_notices
+__________ test_late_old_reader_after_response_cookie_adoption[True] __________
+tests\test_fix_notice_round12_20261122.py:75: in test_late_old_reader_after_response_cookie_adoption
+    assert confirm()
+E   assert False
+E    +  where False = confirm_gate_notices()
+_______ test_confirming_an_independent_reader_keeps_the_unrepaired_gate _______
+tests\test_fix_notice_round12_20261122.py:286: in test_confirming_an_independent_reader_keeps_the_unrepaired_gate
+    assert policy.confirm_gate_notices()
+E   assert False
+E    +  where False = confirm_gate_notices()
+E    +    where confirm_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x00000186A2AC9E50>.confirm_gate_notices
+=========================== short test summary info ===========================
+FAILED tests/test_fix_notice_round14_20261122.py::test_other_policy_observes_native_confirmation_without_pinning_its_lock
+FAILED tests/test_fix_notice_round14_20261122.py::test_observer_does_not_attribute_another_holder_after_native_unlock
+FAILED tests/test_fix_notice_round13_20261122.py::test_confirmation_does_not_pin_its_own_shared_gate_activity
+FAILED tests/test_fix_notice_round13_20261122.py::test_reconfirmation_busy_filter_is_limited_to_the_gate_it_owns
+FAILED tests/test_fix_notice_round13_20261122.py::test_reconfirmation_does_not_hide_a_shared_lock_it_never_acquired
+FAILED tests/test_fix_notice_round12_20261122.py::test_late_old_reader_after_response_cookie_adoption[False]
+FAILED tests/test_fix_notice_round12_20261122.py::test_late_old_reader_after_response_cookie_adoption[True]
+FAILED tests/test_fix_notice_round12_20261122.py::test_confirming_an_independent_reader_keeps_the_unrepaired_gate
+8 failed, 73 passed in 29.33s
+
+exit=1
+finished=2026-11-23T18:55:46.722515+09:00
+temp_removed=True

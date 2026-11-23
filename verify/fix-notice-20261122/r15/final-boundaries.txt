@@ -1,0 +1,11 @@
+head=a89e8b58c9086ed6662a84f99f9ffe090b4dd3d3
+launcher_pid=33088
+root=\\?\S:\Work\_tmp\PV\fix-notice-r15-20261122-gtjutpj3
+started=2026-11-23T19:03:51.357344+09:00
+pytest_pid=125840
+............................                                             [100%]
+28 passed in 12.86s
+
+exit=0
+finished=2026-11-23T19:04:05.449501+09:00
+temp_removed=True

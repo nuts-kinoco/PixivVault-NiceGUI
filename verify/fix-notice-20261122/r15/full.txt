@@ -1,0 +1,1541 @@
+head=2532138adc2c285b0c0ca4bc90d8a223792aeec3
+launcher_pid=74456
+root=\\?\S:\Work\_tmp\PV\fix-notice-r15-20261122-d6hn1usp
+started=2026-11-23T19:04:37.472721+09:00
+pytest_pid=143640
+........................................................................ [  1%]
+........................................................................ [  2%]
+........................................................................ [  3%]
+........................................................................ [  5%]
+........................................................................ [  6%]
+........................................................................ [  7%]
+........................................................................ [  9%]
+........................................................................ [ 10%]
+........................................................................ [ 11%]
+........................................................................ [ 13%]
+........................................................................ [ 14%]
+........................................................................ [ 15%]
+........................................................................ [ 17%]
+........................................................................ [ 18%]
+........................................................................ [ 19%]
+........................................................................ [ 21%]
+........................................................................ [ 22%]
+...........................................................F...FFFFF.... [ 23%]
+........................................................................ [ 25%]
+........................................................................ [ 26%]
+........................................................................ [ 27%]
+........................................................................ [ 29%]
+........................................................................ [ 30%]
+........................................................................ [ 31%]
+........................................................................ [ 32%]
+........................................................................ [ 34%]
+........................................................................ [ 35%]
+........................................................................ [ 36%]
+........................................................................ [ 38%]
+........................................................................ [ 39%]
+........................................................................ [ 40%]
+........................................................................ [ 42%]
+........................................................................ [ 43%]
+........................................................................ [ 44%]
+.F...................................................................... [ 46%]
+........................................................................ [ 47%]
+.....................s.................................................. [ 48%]
+........................................................................ [ 50%]
+..............s...................................s..................... [ 51%]
+........................................................................ [ 52%]
+........................................................................ [ 54%]
+........................................................................ [ 55%]
+........................................................................ [ 56%]
+........................................................................ [ 58%]
+........................................................................ [ 59%]
+........................................................................ [ 60%]
+........................................................................ [ 62%]
+........................................................................ [ 63%]
+..s..................................................................... [ 64%]
+........................................................................ [ 65%]
+.......F................................................................ [ 67%]
+.....................................................FF..FFFFFFFFFFFFF.F [ 68%]
+...F.....FFFF....................F...................................... [ 69%]
+........................................................................ [ 71%]
+...................................................................FFFFF [ 72%]
+FFFFFFFFFFFFFFF..FF..................................................... [ 73%]
+........................................................................ [ 75%]
+........................................................................ [ 76%]
+........................................................................ [ 77%]
+........................................................................ [ 79%]
+........................................................................ [ 80%]
+........................................................................ [ 81%]
+........................................................................ [ 83%]
+....................................................................F... [ 84%]
+........................................................................ [ 85%]
+........................................................................ [ 87%]
+........................................................................ [ 88%]
+........................................................................ [ 89%]
+........................................................................ [ 91%]
+........................................................................ [ 92%]
+........................................................................ [ 93%]
+........................................................................ [ 94%]
+........................................................................ [ 96%]
+........................................................................ [ 97%]
+........................................................................ [ 98%]
+.........................................................                [100%]
+================================== FAILURES ===================================
+_____ test_exact_empty_test_workspace_opens_normal_page_on_both_launches ______
+tests\test_first_local_start_20261114.py:22: in test_exact_empty_test_workspace_opens_normal_page_on_both_launches
+    assert bootstrap.main(['--native', '--profile-root', str(tmp_path/'profile')]) == 0
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\bootstrap.py:1102: in main
+    shared_network_stop_scope = open_shared_stop(profile_stop_scope, deadline=deadline)
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\bootstrap.py:920: in open_shared_stop
+    return open_or_initialize_windows_user_stop(
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in open_or_initialize_windows_user_stop
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+src\pixivvault_nicegui\managed_network_stop_startup.py:127: in retry_startup_lock
+    return operation()
+           ^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in <lambda>
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:280: in attach_selected_histories
+    with gate_refusal_scope(scope.gate), _report_stop_authority('shared'), _gate_storage_io():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:43: in gate_refusal_scope
+    files = gate_file(gate)
+            ^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:21: in gate_file
+    if gate is not None and gate._database_identity is not None and gate._lock_identity is not None:
+                            ^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'types.SimpleNamespace' object has no attribute '_database_identity'
+____________ test_unwired_shared_owner_never_authorizes_draft_auth ____________
+tests\test_first_local_start_20261114.py:57: in test_unwired_shared_owner_never_authorizes_draft_auth
+    assert bootstrap.main(['--native', '--profile-root', str(tmp_path/'profile')]) == 0
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\bootstrap.py:1102: in main
+    shared_network_stop_scope = open_shared_stop(profile_stop_scope, deadline=deadline)
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\bootstrap.py:920: in open_shared_stop
+    return open_or_initialize_windows_user_stop(
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in open_or_initialize_windows_user_stop
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+src\pixivvault_nicegui\managed_network_stop_startup.py:127: in retry_startup_lock
+    return operation()
+           ^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in <lambda>
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:280: in attach_selected_histories
+    with gate_refusal_scope(scope.gate), _report_stop_authority('shared'), _gate_storage_io():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:43: in gate_refusal_scope
+    files = gate_file(gate)
+            ^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:21: in gate_file
+    if gate is not None and gate._database_identity is not None and gate._lock_identity is not None:
+                            ^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'types.SimpleNamespace' object has no attribute '_database_identity'
+_________ test_first_local_start_connects_real_services_and_settings __________
+tests\test_first_local_start_20261114.py:97: in test_first_local_start_connects_real_services_and_settings
+    assert bootstrap.main(['--native', '--profile-root', str(tmp_path/'profile')]) == 0
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\bootstrap.py:1102: in main
+    shared_network_stop_scope = open_shared_stop(profile_stop_scope, deadline=deadline)
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\bootstrap.py:920: in open_shared_stop
+    return open_or_initialize_windows_user_stop(
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in open_or_initialize_windows_user_stop
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+src\pixivvault_nicegui\managed_network_stop_startup.py:127: in retry_startup_lock
+    return operation()
+           ^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in <lambda>
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:280: in attach_selected_histories
+    with gate_refusal_scope(scope.gate), _report_stop_authority('shared'), _gate_storage_io():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:43: in gate_refusal_scope
+    files = gate_file(gate)
+            ^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:21: in gate_file
+    if gate is not None and gate._database_identity is not None and gate._lock_identity is not None:
+                            ^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'types.SimpleNamespace' object has no attribute '_database_identity'
+_________ test_local_screen_does_not_clear_existing_profile_stop[401] _________
+tests\test_first_local_start_20261114.py:112: in test_local_screen_does_not_clear_existing_profile_stop
+    assert bootstrap.main(['--native', '--profile-root', str(root)]) == 0
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\bootstrap.py:1102: in main
+    shared_network_stop_scope = open_shared_stop(profile_stop_scope, deadline=deadline)
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\bootstrap.py:920: in open_shared_stop
+    return open_or_initialize_windows_user_stop(
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in open_or_initialize_windows_user_stop
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+src\pixivvault_nicegui\managed_network_stop_startup.py:127: in retry_startup_lock
+    return operation()
+           ^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in <lambda>
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:280: in attach_selected_histories
+    with gate_refusal_scope(scope.gate), _report_stop_authority('shared'), _gate_storage_io():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:43: in gate_refusal_scope
+    files = gate_file(gate)
+            ^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:21: in gate_file
+    if gate is not None and gate._database_identity is not None and gate._lock_identity is not None:
+                            ^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'types.SimpleNamespace' object has no attribute '_database_identity'
+_________ test_local_screen_does_not_clear_existing_profile_stop[403] _________
+tests\test_first_local_start_20261114.py:112: in test_local_screen_does_not_clear_existing_profile_stop
+    assert bootstrap.main(['--native', '--profile-root', str(root)]) == 0
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\bootstrap.py:1102: in main
+    shared_network_stop_scope = open_shared_stop(profile_stop_scope, deadline=deadline)
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\bootstrap.py:920: in open_shared_stop
+    return open_or_initialize_windows_user_stop(
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in open_or_initialize_windows_user_stop
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+src\pixivvault_nicegui\managed_network_stop_startup.py:127: in retry_startup_lock
+    return operation()
+           ^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in <lambda>
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:280: in attach_selected_histories
+    with gate_refusal_scope(scope.gate), _report_stop_authority('shared'), _gate_storage_io():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:43: in gate_refusal_scope
+    files = gate_file(gate)
+            ^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:21: in gate_file
+    if gate is not None and gate._database_identity is not None and gate._lock_identity is not None:
+                            ^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'types.SimpleNamespace' object has no attribute '_database_identity'
+_________ test_local_screen_does_not_clear_existing_profile_stop[429] _________
+tests\test_first_local_start_20261114.py:112: in test_local_screen_does_not_clear_existing_profile_stop
+    assert bootstrap.main(['--native', '--profile-root', str(root)]) == 0
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\bootstrap.py:1102: in main
+    shared_network_stop_scope = open_shared_stop(profile_stop_scope, deadline=deadline)
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\bootstrap.py:920: in open_shared_stop
+    return open_or_initialize_windows_user_stop(
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in open_or_initialize_windows_user_stop
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+src\pixivvault_nicegui\managed_network_stop_startup.py:127: in retry_startup_lock
+    return operation()
+           ^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in <lambda>
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:280: in attach_selected_histories
+    with gate_refusal_scope(scope.gate), _report_stop_authority('shared'), _gate_storage_io():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:43: in gate_refusal_scope
+    files = gate_file(gate)
+            ^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:21: in gate_file
+    if gate is not None and gate._database_identity is not None and gate._lock_identity is not None:
+                            ^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'types.SimpleNamespace' object has no attribute '_database_identity'
+________ test_first_install_without_shared_owner_opens_local_settings _________
+tests\test_health_recovery_guidance.py:76: in test_first_install_without_shared_owner_opens_local_settings
+    assert bootstrap.main(['--native','--profile-root',str(store.root)])==0
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\bootstrap.py:1102: in main
+    shared_network_stop_scope = open_shared_stop(profile_stop_scope, deadline=deadline)
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\bootstrap.py:920: in open_shared_stop
+    return open_or_initialize_windows_user_stop(
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in open_or_initialize_windows_user_stop
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+src\pixivvault_nicegui\managed_network_stop_startup.py:127: in retry_startup_lock
+    return operation()
+           ^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in <lambda>
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:280: in attach_selected_histories
+    with gate_refusal_scope(scope.gate), _report_stop_authority('shared'), _gate_storage_io():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:43: in gate_refusal_scope
+    files = gate_file(gate)
+            ^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:21: in gate_file
+    if gate is not None and gate._database_identity is not None and gate._lock_identity is not None:
+                            ^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'types.SimpleNamespace' object has no attribute '_database_identity'
+__ test_recommendation_lazy_media_and_dismissals_with_actual_work7_settings ___
+tests\test_recommendation_visual_browser.py:29: in test_recommendation_lazy_media_and_dismissals_with_actual_work7_settings
+    result = subprocess.run([sys.executable, '-B', __file__, str(tmp_path)],
+C:\Users\nat\miniconda3\envs\stenv\Lib\subprocess.py:556: in run
+    stdout, stderr = process.communicate(input, timeout=timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\subprocess.py:1222: in communicate
+    stdout, stderr = self._communicate(input, endtime, timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\subprocess.py:1665: in _communicate
+    raise TimeoutExpired(self.args, orig_timeout)
+E   subprocess.TimeoutExpired: Command '['S:\\Projects\\PixivVault-NiceGUI\\.venv\\Scripts\\python.exe', '-B', 'S:\\Work\\PV\\fix-notice-20261122\\tests\\test_recommendation_visual_browser.py', 'S:\\Work\\_tmp\\PV\\fix-notice-r15-20261122-d6hn1usp\\pytest\\test_recommendation_lazy_media0']' timed out after 90 seconds
+________________ test_startup_waits_for_owned_process_to_exit _________________
+tests\test_shared_stop_busy_recovery_20261122.py:94: in test_startup_waits_for_owned_process_to_exit
+    assert not startup.open_or_initialize_windows_user_stop().gate.snapshot().blocked
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in open_or_initialize_windows_user_stop
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+src\pixivvault_nicegui\managed_network_stop_startup.py:127: in retry_startup_lock
+    return operation()
+           ^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in <lambda>
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:280: in attach_selected_histories
+    with gate_refusal_scope(scope.gate), _report_stop_authority('shared'), _gate_storage_io():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:43: in gate_refusal_scope
+    files = gate_file(gate)
+            ^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:21: in gate_file
+    if gate is not None and gate._database_identity is not None and gate._lock_identity is not None:
+                            ^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'types.SimpleNamespace' object has no attribute '_database_identity'
+____________ test_selected_history_waits_for_thread_and_keeps_stop ____________
+tests\test_shared_stop_busy_recovery_20261122.py:137: in test_selected_history_waits_for_thread_and_keeps_stop
+    owner = startup.open_or_initialize_windows_user_stop(selected_roots=(('images', root),))
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in open_or_initialize_windows_user_stop
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+src\pixivvault_nicegui\managed_network_stop_startup.py:127: in retry_startup_lock
+    return operation()
+           ^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in <lambda>
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:280: in attach_selected_histories
+    with gate_refusal_scope(scope.gate), _report_stop_authority('shared'), _gate_storage_io():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:43: in gate_refusal_scope
+    files = gate_file(gate)
+            ^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:21: in gate_file
+    if gate is not None and gate._database_identity is not None and gate._lock_identity is not None:
+                            ^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'types.SimpleNamespace' object has no attribute '_database_identity'
+_________ test_startup_ticket_is_published_after_sentinel_is_written __________
+tests\test_shared_stop_busy_recovery_20261122.py:193: in test_startup_ticket_is_published_after_sentinel_is_written
+    assert not startup.open_or_initialize_windows_user_stop().gate.snapshot().blocked
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in open_or_initialize_windows_user_stop
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+src\pixivvault_nicegui\managed_network_stop_startup.py:127: in retry_startup_lock
+    return operation()
+           ^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in <lambda>
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:280: in attach_selected_histories
+    with gate_refusal_scope(scope.gate), _report_stop_authority('shared'), _gate_storage_io():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:43: in gate_refusal_scope
+    files = gate_file(gate)
+            ^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:21: in gate_file
+    if gate is not None and gate._database_identity is not None and gate._lock_identity is not None:
+                            ^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'types.SimpleNamespace' object has no attribute '_database_identity'
+_______________ test_uncontended_startup_never_waits_for_retry ________________
+tests\test_shared_stop_busy_recovery_20261122.py:205: in test_uncontended_startup_never_waits_for_retry
+    assert not startup.open_or_initialize_windows_user_stop().gate.snapshot().blocked
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in open_or_initialize_windows_user_stop
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+src\pixivvault_nicegui\managed_network_stop_startup.py:127: in retry_startup_lock
+    return operation()
+           ^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in <lambda>
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:280: in attach_selected_histories
+    with gate_refusal_scope(scope.gate), _report_stop_authority('shared'), _gate_storage_io():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:43: in gate_refusal_scope
+    files = gate_file(gate)
+            ^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:21: in gate_file
+    if gate is not None and gate._database_identity is not None and gate._lock_identity is not None:
+                            ^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'types.SimpleNamespace' object has no attribute '_database_identity'
+_____________ test_missing_established_owner_returns_without_wait _____________
+tests\test_shared_stop_busy_recovery_20261122.py:210: in test_missing_established_owner_returns_without_wait
+    owner = startup.open_or_initialize_windows_user_stop()
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in open_or_initialize_windows_user_stop
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+src\pixivvault_nicegui\managed_network_stop_startup.py:127: in retry_startup_lock
+    return operation()
+           ^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in <lambda>
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:280: in attach_selected_histories
+    with gate_refusal_scope(scope.gate), _report_stop_authority('shared'), _gate_storage_io():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:43: in gate_refusal_scope
+    files = gate_file(gate)
+            ^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:21: in gate_file
+    if gate is not None and gate._database_identity is not None and gate._lock_identity is not None:
+                            ^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'types.SimpleNamespace' object has no attribute '_database_identity'
+_____________ test_reader_creation_retries_busy_stop_aggregation ______________
+tests\test_shared_stop_busy_recovery_20261122.py:227: in test_reader_creation_retries_busy_stop_aggregation
+    owner = startup.open_or_initialize_windows_user_stop()
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in open_or_initialize_windows_user_stop
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+src\pixivvault_nicegui\managed_network_stop_startup.py:127: in retry_startup_lock
+    return operation()
+           ^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in <lambda>
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:280: in attach_selected_histories
+    with gate_refusal_scope(scope.gate), _report_stop_authority('shared'), _gate_storage_io():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:43: in gate_refusal_scope
+    files = gate_file(gate)
+            ^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:21: in gate_file
+    if gate is not None and gate._database_identity is not None and gate._lock_identity is not None:
+                            ^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'types.SimpleNamespace' object has no attribute '_database_identity'
+___________ test_recovered_auth_refuses_a_changed_profile_revision ____________
+tests\test_shared_stop_busy_recovery_20261122.py:259: in test_recovered_auth_refuses_a_changed_profile_revision
+    owner = startup.open_or_initialize_windows_user_stop(profile_scope=profile)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in open_or_initialize_windows_user_stop
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+src\pixivvault_nicegui\managed_network_stop_startup.py:127: in retry_startup_lock
+    return operation()
+           ^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in <lambda>
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:280: in attach_selected_histories
+    with gate_refusal_scope(scope.gate), _report_stop_authority('shared'), _gate_storage_io():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:43: in gate_refusal_scope
+    files = gate_file(gate)
+            ^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:21: in gate_file
+    if gate is not None and gate._database_identity is not None and gate._lock_identity is not None:
+                            ^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'types.SimpleNamespace' object has no attribute '_database_identity'
+_____ test_busy_native_page_rechecks_locally_without_restarting[allowed] ______
+tests\test_shared_stop_busy_recovery_20261122.py:287: in test_busy_native_page_rechecks_locally_without_restarting
+    owner = startup.open_or_initialize_windows_user_stop()
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in open_or_initialize_windows_user_stop
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+src\pixivvault_nicegui\managed_network_stop_startup.py:127: in retry_startup_lock
+    return operation()
+           ^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in <lambda>
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:280: in attach_selected_histories
+    with gate_refusal_scope(scope.gate), _report_stop_authority('shared'), _gate_storage_io():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:43: in gate_refusal_scope
+    files = gate_file(gate)
+            ^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:21: in gate_file
+    if gate is not None and gate._database_identity is not None and gate._lock_identity is not None:
+                            ^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'types.SimpleNamespace' object has no attribute '_database_identity'
+_____ test_busy_native_page_rechecks_locally_without_restarting[stopped] ______
+tests\test_shared_stop_busy_recovery_20261122.py:287: in test_busy_native_page_rechecks_locally_without_restarting
+    owner = startup.open_or_initialize_windows_user_stop()
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in open_or_initialize_windows_user_stop
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+src\pixivvault_nicegui\managed_network_stop_startup.py:127: in retry_startup_lock
+    return operation()
+           ^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in <lambda>
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:280: in attach_selected_histories
+    with gate_refusal_scope(scope.gate), _report_stop_authority('shared'), _gate_storage_io():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:43: in gate_refusal_scope
+    files = gate_file(gate)
+            ^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:21: in gate_file
+    if gate is not None and gate._database_identity is not None and gate._lock_identity is not None:
+                            ^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'types.SimpleNamespace' object has no attribute '_database_identity'
+____ test_busy_native_page_rechecks_locally_without_restarting[uncertain] _____
+tests\test_shared_stop_busy_recovery_20261122.py:287: in test_busy_native_page_rechecks_locally_without_restarting
+    owner = startup.open_or_initialize_windows_user_stop()
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in open_or_initialize_windows_user_stop
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+src\pixivvault_nicegui\managed_network_stop_startup.py:127: in retry_startup_lock
+    return operation()
+           ^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in <lambda>
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:280: in attach_selected_histories
+    with gate_refusal_scope(scope.gate), _report_stop_authority('shared'), _gate_storage_io():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:43: in gate_refusal_scope
+    files = gate_file(gate)
+            ^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:21: in gate_file
+    if gate is not None and gate._database_identity is not None and gate._lock_identity is not None:
+                            ^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'types.SimpleNamespace' object has no attribute '_database_identity'
+___ test_busy_native_page_rechecks_locally_without_restarting[registration] ___
+tests\test_shared_stop_busy_recovery_20261122.py:287: in test_busy_native_page_rechecks_locally_without_restarting
+    owner = startup.open_or_initialize_windows_user_stop()
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in open_or_initialize_windows_user_stop
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+src\pixivvault_nicegui\managed_network_stop_startup.py:127: in retry_startup_lock
+    return operation()
+           ^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in <lambda>
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:280: in attach_selected_histories
+    with gate_refusal_scope(scope.gate), _report_stop_authority('shared'), _gate_storage_io():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:43: in gate_refusal_scope
+    files = gate_file(gate)
+            ^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:21: in gate_file
+    if gate is not None and gate._database_identity is not None and gate._lock_identity is not None:
+                            ^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'types.SimpleNamespace' object has no attribute '_database_identity'
+_____ test_busy_native_page_rechecks_locally_without_restarting[profile] ______
+tests\test_shared_stop_busy_recovery_20261122.py:287: in test_busy_native_page_rechecks_locally_without_restarting
+    owner = startup.open_or_initialize_windows_user_stop()
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in open_or_initialize_windows_user_stop
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+src\pixivvault_nicegui\managed_network_stop_startup.py:127: in retry_startup_lock
+    return operation()
+           ^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in <lambda>
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:280: in attach_selected_histories
+    with gate_refusal_scope(scope.gate), _report_stop_authority('shared'), _gate_storage_io():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:43: in gate_refusal_scope
+    files = gate_file(gate)
+            ^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:21: in gate_file
+    if gate is not None and gate._database_identity is not None and gate._lock_identity is not None:
+                            ^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'types.SimpleNamespace' object has no attribute '_database_identity'
+_____ test_busy_native_page_rechecks_locally_without_restarting[rollback] _____
+tests\test_shared_stop_busy_recovery_20261122.py:287: in test_busy_native_page_rechecks_locally_without_restarting
+    owner = startup.open_or_initialize_windows_user_stop()
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in open_or_initialize_windows_user_stop
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+src\pixivvault_nicegui\managed_network_stop_startup.py:127: in retry_startup_lock
+    return operation()
+           ^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in <lambda>
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:280: in attach_selected_histories
+    with gate_refusal_scope(scope.gate), _report_stop_authority('shared'), _gate_storage_io():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:43: in gate_refusal_scope
+    files = gate_file(gate)
+            ^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:21: in gate_file
+    if gate is not None and gate._database_identity is not None and gate._lock_identity is not None:
+                            ^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'types.SimpleNamespace' object has no attribute '_database_identity'
+_ test_busy_native_page_rechecks_locally_without_restarting[shared-rollback] __
+tests\test_shared_stop_busy_recovery_20261122.py:287: in test_busy_native_page_rechecks_locally_without_restarting
+    owner = startup.open_or_initialize_windows_user_stop()
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in open_or_initialize_windows_user_stop
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+src\pixivvault_nicegui\managed_network_stop_startup.py:127: in retry_startup_lock
+    return operation()
+           ^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in <lambda>
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:280: in attach_selected_histories
+    with gate_refusal_scope(scope.gate), _report_stop_authority('shared'), _gate_storage_io():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:43: in gate_refusal_scope
+    files = gate_file(gate)
+            ^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:21: in gate_file
+    if gate is not None and gate._database_identity is not None and gate._lock_identity is not None:
+                            ^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'types.SimpleNamespace' object has no attribute '_database_identity'
+___________ test_profile_lock_recovery_precedes_shared_owner[False] ___________
+tests\test_shared_stop_busy_review_20261122.py:59: in test_profile_lock_recovery_precedes_shared_owner
+    assert bootstrap.main(['--native', '--profile-root', str(profile.root)]) == 0
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\bootstrap.py:1102: in main
+    shared_network_stop_scope = open_shared_stop(profile_stop_scope, deadline=deadline)
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\bootstrap.py:920: in open_shared_stop
+    return open_or_initialize_windows_user_stop(
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in open_or_initialize_windows_user_stop
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+src\pixivvault_nicegui\managed_network_stop_startup.py:127: in retry_startup_lock
+    return operation()
+           ^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in <lambda>
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:280: in attach_selected_histories
+    with gate_refusal_scope(scope.gate), _report_stop_authority('shared'), _gate_storage_io():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:43: in gate_refusal_scope
+    files = gate_file(gate)
+            ^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:21: in gate_file
+    if gate is not None and gate._database_identity is not None and gate._lock_identity is not None:
+                            ^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'types.SimpleNamespace' object has no attribute '_database_identity'
+______ test_startup_and_formal_migration_cannot_publish_over_each_other _______
+tests\test_shared_stop_busy_review_20261122.py:86: in test_startup_and_formal_migration_cannot_publish_over_each_other
+    owner = startup.open_or_initialize_windows_user_stop()
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in open_or_initialize_windows_user_stop
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+src\pixivvault_nicegui\managed_network_stop_startup.py:127: in retry_startup_lock
+    return operation()
+           ^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in <lambda>
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:280: in attach_selected_histories
+    with gate_refusal_scope(scope.gate), _report_stop_authority('shared'), _gate_storage_io():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:43: in gate_refusal_scope
+    files = gate_file(gate)
+            ^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:21: in gate_file
+    if gate is not None and gate._database_identity is not None and gate._lock_identity is not None:
+                            ^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'types.SimpleNamespace' object has no attribute '_database_identity'
+______ test_windows_exclusive_open_is_busy_until_external_handle_closes _______
+tests\test_shared_stop_busy_review_20261122.py:187: in test_windows_exclusive_open_is_busy_until_external_handle_closes
+    owner = startup.open_or_initialize_windows_user_stop()
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in open_or_initialize_windows_user_stop
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+src\pixivvault_nicegui\managed_network_stop_startup.py:127: in retry_startup_lock
+    return operation()
+           ^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in <lambda>
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:280: in attach_selected_histories
+    with gate_refusal_scope(scope.gate), _report_stop_authority('shared'), _gate_storage_io():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:43: in gate_refusal_scope
+    files = gate_file(gate)
+            ^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:21: in gate_file
+    if gate is not None and gate._database_identity is not None and gate._lock_identity is not None:
+                            ^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'types.SimpleNamespace' object has no attribute '_database_identity'
+__________________ test_cli_reports_late_busy_with_exit_two ___________________
+tests\test_shared_stop_busy_review_20261122.py:330: in test_cli_reports_late_busy_with_exit_two
+    assert bootstrap.main(['--pixiv-cookie-file', str(credential)]) == 2
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\bootstrap.py:1102: in main
+    shared_network_stop_scope = open_shared_stop(profile_stop_scope, deadline=deadline)
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\bootstrap.py:920: in open_shared_stop
+    return open_or_initialize_windows_user_stop(
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in open_or_initialize_windows_user_stop
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+src\pixivvault_nicegui\managed_network_stop_startup.py:127: in retry_startup_lock
+    return operation()
+           ^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in <lambda>
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:280: in attach_selected_histories
+    with gate_refusal_scope(scope.gate), _report_stop_authority('shared'), _gate_storage_io():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:43: in gate_refusal_scope
+    files = gate_file(gate)
+            ^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:21: in gate_file
+    if gate is not None and gate._database_identity is not None and gate._lock_identity is not None:
+                            ^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'types.SimpleNamespace' object has no attribute '_database_identity'
+__________ test_windows_lock_syscall_only_retries_lock_violation[5] ___________
+tests\test_shared_stop_busy_review_20261122.py:341: in test_windows_lock_syscall_only_retries_lock_violation
+    owner = startup.open_or_initialize_windows_user_stop()
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in open_or_initialize_windows_user_stop
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+src\pixivvault_nicegui\managed_network_stop_startup.py:127: in retry_startup_lock
+    return operation()
+           ^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in <lambda>
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:280: in attach_selected_histories
+    with gate_refusal_scope(scope.gate), _report_stop_authority('shared'), _gate_storage_io():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:43: in gate_refusal_scope
+    files = gate_file(gate)
+            ^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:21: in gate_file
+    if gate is not None and gate._database_identity is not None and gate._lock_identity is not None:
+                            ^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'types.SimpleNamespace' object has no attribute '_database_identity'
+__________ test_windows_lock_syscall_only_retries_lock_violation[32] __________
+tests\test_shared_stop_busy_review_20261122.py:341: in test_windows_lock_syscall_only_retries_lock_violation
+    owner = startup.open_or_initialize_windows_user_stop()
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in open_or_initialize_windows_user_stop
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+src\pixivvault_nicegui\managed_network_stop_startup.py:127: in retry_startup_lock
+    return operation()
+           ^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in <lambda>
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:280: in attach_selected_histories
+    with gate_refusal_scope(scope.gate), _report_stop_authority('shared'), _gate_storage_io():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:43: in gate_refusal_scope
+    files = gate_file(gate)
+            ^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:21: in gate_file
+    if gate is not None and gate._database_identity is not None and gate._lock_identity is not None:
+                            ^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'types.SimpleNamespace' object has no attribute '_database_identity'
+__________ test_windows_lock_syscall_only_retries_lock_violation[33] __________
+tests\test_shared_stop_busy_review_20261122.py:341: in test_windows_lock_syscall_only_retries_lock_violation
+    owner = startup.open_or_initialize_windows_user_stop()
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in open_or_initialize_windows_user_stop
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+src\pixivvault_nicegui\managed_network_stop_startup.py:127: in retry_startup_lock
+    return operation()
+           ^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in <lambda>
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:280: in attach_selected_histories
+    with gate_refusal_scope(scope.gate), _report_stop_authority('shared'), _gate_storage_io():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:43: in gate_refusal_scope
+    files = gate_file(gate)
+            ^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:21: in gate_file
+    if gate is not None and gate._database_identity is not None and gate._lock_identity is not None:
+                            ^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'types.SimpleNamespace' object has no attribute '_database_identity'
+_______________ test_first_profile_launch_creates_its_crash_log _______________
+tests\test_smalldec_crash_log_20261122.py:103: in test_first_profile_launch_creates_its_crash_log
+    assert crash_entry.main() == 0
+           ^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\crash_entry.py:25: in main
+    return bootstrap_main()
+           ^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\bootstrap.py:1102: in main
+    shared_network_stop_scope = open_shared_stop(profile_stop_scope, deadline=deadline)
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\bootstrap.py:920: in open_shared_stop
+    return open_or_initialize_windows_user_stop(
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in open_or_initialize_windows_user_stop
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+src\pixivvault_nicegui\managed_network_stop_startup.py:127: in retry_startup_lock
+    return operation()
+           ^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in <lambda>
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:280: in attach_selected_histories
+    with gate_refusal_scope(scope.gate), _report_stop_authority('shared'), _gate_storage_io():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:43: in gate_refusal_scope
+    files = gate_file(gate)
+            ^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:21: in gate_file
+    if gate is not None and gate._database_identity is not None and gate._lock_identity is not None:
+                            ^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'types.SimpleNamespace' object has no attribute '_database_identity'
+_____________ test_normal_cli_initializes_and_uses_guarded_reader _____________
+tests\test_startup_owner_lifecycle_20261116.py:89: in test_normal_cli_initializes_and_uses_guarded_reader
+    assert bootstrap.main(['--pixiv-cookie-file', str(cookie),
+src\pixivvault_nicegui\bootstrap.py:1102: in main
+    shared_network_stop_scope = open_shared_stop(profile_stop_scope, deadline=deadline)
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\bootstrap.py:920: in open_shared_stop
+    return open_or_initialize_windows_user_stop(
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in open_or_initialize_windows_user_stop
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+src\pixivvault_nicegui\managed_network_stop_startup.py:127: in retry_startup_lock
+    return operation()
+           ^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in <lambda>
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:280: in attach_selected_histories
+    with gate_refusal_scope(scope.gate), _report_stop_authority('shared'), _gate_storage_io():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:43: in gate_refusal_scope
+    files = gate_file(gate)
+            ^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:21: in gate_file
+    if gate is not None and gate._database_identity is not None and gate._lock_identity is not None:
+                            ^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'types.SimpleNamespace' object has no attribute '_database_identity'
+_______________ test_new_native_draft_save_restart_borrow_entry _______________
+tests\test_startup_owner_lifecycle_20261116.py:100: in test_new_native_draft_save_restart_borrow_entry
+    assert bootstrap.main(['--native','--profile-root',str(profile)]) == 0
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\bootstrap.py:1102: in main
+    shared_network_stop_scope = open_shared_stop(profile_stop_scope, deadline=deadline)
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\bootstrap.py:920: in open_shared_stop
+    return open_or_initialize_windows_user_stop(
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in open_or_initialize_windows_user_stop
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+src\pixivvault_nicegui\managed_network_stop_startup.py:127: in retry_startup_lock
+    return operation()
+           ^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in <lambda>
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:280: in attach_selected_histories
+    with gate_refusal_scope(scope.gate), _report_stop_authority('shared'), _gate_storage_io():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:43: in gate_refusal_scope
+    files = gate_file(gate)
+            ^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:21: in gate_file
+    if gate is not None and gate._database_identity is not None and gate._lock_identity is not None:
+                            ^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'types.SimpleNamespace' object has no attribute '_database_identity'
+____ test_selected_old_stop_preserved_before_first_owner_publication[401] _____
+tests\test_startup_owner_lifecycle_20261116.py:168: in test_selected_old_stop_preserved_before_first_owner_publication
+    owner = open_or_initialize_windows_user_stop(selected_roots=(('images', root),))
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in open_or_initialize_windows_user_stop
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+src\pixivvault_nicegui\managed_network_stop_startup.py:127: in retry_startup_lock
+    return operation()
+           ^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in <lambda>
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:280: in attach_selected_histories
+    with gate_refusal_scope(scope.gate), _report_stop_authority('shared'), _gate_storage_io():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:43: in gate_refusal_scope
+    files = gate_file(gate)
+            ^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:21: in gate_file
+    if gate is not None and gate._database_identity is not None and gate._lock_identity is not None:
+                            ^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'types.SimpleNamespace' object has no attribute '_database_identity'
+____ test_selected_old_stop_preserved_before_first_owner_publication[403] _____
+tests\test_startup_owner_lifecycle_20261116.py:168: in test_selected_old_stop_preserved_before_first_owner_publication
+    owner = open_or_initialize_windows_user_stop(selected_roots=(('images', root),))
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in open_or_initialize_windows_user_stop
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+src\pixivvault_nicegui\managed_network_stop_startup.py:127: in retry_startup_lock
+    return operation()
+           ^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in <lambda>
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:280: in attach_selected_histories
+    with gate_refusal_scope(scope.gate), _report_stop_authority('shared'), _gate_storage_io():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:43: in gate_refusal_scope
+    files = gate_file(gate)
+            ^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:21: in gate_file
+    if gate is not None and gate._database_identity is not None and gate._lock_identity is not None:
+                            ^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'types.SimpleNamespace' object has no attribute '_database_identity'
+____ test_selected_old_stop_preserved_before_first_owner_publication[429] _____
+tests\test_startup_owner_lifecycle_20261116.py:168: in test_selected_old_stop_preserved_before_first_owner_publication
+    owner = open_or_initialize_windows_user_stop(selected_roots=(('images', root),))
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in open_or_initialize_windows_user_stop
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+src\pixivvault_nicegui\managed_network_stop_startup.py:127: in retry_startup_lock
+    return operation()
+           ^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in <lambda>
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:280: in attach_selected_histories
+    with gate_refusal_scope(scope.gate), _report_stop_authority('shared'), _gate_storage_io():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:43: in gate_refusal_scope
+    files = gate_file(gate)
+            ^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:21: in gate_file
+    if gate is not None and gate._database_identity is not None and gate._lock_identity is not None:
+                            ^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'types.SimpleNamespace' object has no attribute '_database_identity'
+______________ test_later_old_writer_stop_is_seen_without_reset _______________
+tests\test_startup_owner_lifecycle_20261116.py:183: in test_later_old_writer_stop_is_seen_without_reset
+    owner = open_or_initialize_windows_user_stop(selected_roots=(('images', root),))
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in open_or_initialize_windows_user_stop
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+src\pixivvault_nicegui\managed_network_stop_startup.py:127: in retry_startup_lock
+    return operation()
+           ^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in <lambda>
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:280: in attach_selected_histories
+    with gate_refusal_scope(scope.gate), _report_stop_authority('shared'), _gate_storage_io():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:43: in gate_refusal_scope
+    files = gate_file(gate)
+            ^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:21: in gate_file
+    if gate is not None and gate._database_identity is not None and gate._lock_identity is not None:
+                            ^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'types.SimpleNamespace' object has no attribute '_database_identity'
+_________ test_normal_owner_loss_never_reinitializes[owner-directory] _________
+tests\test_startup_owner_lifecycle_20261116.py:194: in test_normal_owner_loss_never_reinitializes
+    owner = open_or_initialize_windows_user_stop()
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in open_or_initialize_windows_user_stop
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+src\pixivvault_nicegui\managed_network_stop_startup.py:127: in retry_startup_lock
+    return operation()
+           ^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in <lambda>
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:280: in attach_selected_histories
+    with gate_refusal_scope(scope.gate), _report_stop_authority('shared'), _gate_storage_io():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:43: in gate_refusal_scope
+    files = gate_file(gate)
+            ^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:21: in gate_file
+    if gate is not None and gate._database_identity is not None and gate._lock_identity is not None:
+                            ^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'types.SimpleNamespace' object has no attribute '_database_identity'
+_________ test_normal_owner_loss_never_reinitializes[both-gate-files] _________
+tests\test_startup_owner_lifecycle_20261116.py:194: in test_normal_owner_loss_never_reinitializes
+    owner = open_or_initialize_windows_user_stop()
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in open_or_initialize_windows_user_stop
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+src\pixivvault_nicegui\managed_network_stop_startup.py:127: in retry_startup_lock
+    return operation()
+           ^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in <lambda>
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:280: in attach_selected_histories
+    with gate_refusal_scope(scope.gate), _report_stop_authority('shared'), _gate_storage_io():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:43: in gate_refusal_scope
+    files = gate_file(gate)
+            ^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:21: in gate_file
+    if gate is not None and gate._database_identity is not None and gate._lock_identity is not None:
+                            ^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'types.SimpleNamespace' object has no attribute '_database_identity'
+_________ test_normal_owner_loss_never_reinitializes[startup-record] __________
+tests\test_startup_owner_lifecycle_20261116.py:194: in test_normal_owner_loss_never_reinitializes
+    owner = open_or_initialize_windows_user_stop()
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in open_or_initialize_windows_user_stop
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+src\pixivvault_nicegui\managed_network_stop_startup.py:127: in retry_startup_lock
+    return operation()
+           ^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in <lambda>
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:280: in attach_selected_histories
+    with gate_refusal_scope(scope.gate), _report_stop_authority('shared'), _gate_storage_io():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:43: in gate_refusal_scope
+    files = gate_file(gate)
+            ^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:21: in gate_file
+    if gate is not None and gate._database_identity is not None and gate._lock_identity is not None:
+                            ^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'types.SimpleNamespace' object has no attribute '_database_identity'
+__________ test_normal_owner_loss_never_reinitializes[parent-anchor] __________
+tests\test_startup_owner_lifecycle_20261116.py:194: in test_normal_owner_loss_never_reinitializes
+    owner = open_or_initialize_windows_user_stop()
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in open_or_initialize_windows_user_stop
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+src\pixivvault_nicegui\managed_network_stop_startup.py:127: in retry_startup_lock
+    return operation()
+           ^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in <lambda>
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:280: in attach_selected_histories
+    with gate_refusal_scope(scope.gate), _report_stop_authority('shared'), _gate_storage_io():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:43: in gate_refusal_scope
+    files = gate_file(gate)
+            ^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:21: in gate_file
+    if gate is not None and gate._database_identity is not None and gate._lock_identity is not None:
+                            ^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'types.SimpleNamespace' object has no attribute '_database_identity'
+__________ test_normal_owner_loss_never_reinitializes[both-records] ___________
+tests\test_startup_owner_lifecycle_20261116.py:194: in test_normal_owner_loss_never_reinitializes
+    owner = open_or_initialize_windows_user_stop()
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in open_or_initialize_windows_user_stop
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+src\pixivvault_nicegui\managed_network_stop_startup.py:127: in retry_startup_lock
+    return operation()
+           ^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in <lambda>
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:280: in attach_selected_histories
+    with gate_refusal_scope(scope.gate), _report_stop_authority('shared'), _gate_storage_io():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:43: in gate_refusal_scope
+    files = gate_file(gate)
+            ^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:21: in gate_file
+    if gate is not None and gate._database_identity is not None and gate._lock_identity is not None:
+                            ^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'types.SimpleNamespace' object has no attribute '_database_identity'
+_____________________ test_uncertain_get_survives_restart _____________________
+tests\test_startup_owner_lifecycle_20261116.py:206: in test_uncertain_get_survives_restart
+    owner = open_or_initialize_windows_user_stop()
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in open_or_initialize_windows_user_stop
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+src\pixivvault_nicegui\managed_network_stop_startup.py:127: in retry_startup_lock
+    return operation()
+           ^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in <lambda>
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:280: in attach_selected_histories
+    with gate_refusal_scope(scope.gate), _report_stop_authority('shared'), _gate_storage_io():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:43: in gate_refusal_scope
+    files = gate_file(gate)
+            ^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:21: in gate_file
+    if gate is not None and gate._database_identity is not None and gate._lock_identity is not None:
+                            ^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'types.SimpleNamespace' object has no attribute '_database_identity'
+__ test_authentication_diagnostics_are_distinct[missing-owner-owner_absent] ___
+tests\test_startup_owner_lifecycle_20261116.py:224: in test_authentication_diagnostics_are_distinct
+    binding.shared_network_stop_scope = open_or_initialize_windows_user_stop()
+                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in open_or_initialize_windows_user_stop
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+src\pixivvault_nicegui\managed_network_stop_startup.py:127: in retry_startup_lock
+    return operation()
+           ^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in <lambda>
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:280: in attach_selected_histories
+    with gate_refusal_scope(scope.gate), _report_stop_authority('shared'), _gate_storage_io():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:43: in gate_refusal_scope
+    files = gate_file(gate)
+            ^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:21: in gate_file
+    if gate is not None and gate._database_identity is not None and gate._lock_identity is not None:
+                            ^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'types.SimpleNamespace' object has no attribute '_database_identity'
+_ test_authentication_diagnostics_are_distinct[bad-cookie-cookie_unreadable] __
+tests\test_startup_owner_lifecycle_20261116.py:224: in test_authentication_diagnostics_are_distinct
+    binding.shared_network_stop_scope = open_or_initialize_windows_user_stop()
+                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in open_or_initialize_windows_user_stop
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+src\pixivvault_nicegui\managed_network_stop_startup.py:127: in retry_startup_lock
+    return operation()
+           ^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in <lambda>
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:280: in attach_selected_histories
+    with gate_refusal_scope(scope.gate), _report_stop_authority('shared'), _gate_storage_io():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:43: in gate_refusal_scope
+    files = gate_file(gate)
+            ^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:21: in gate_file
+    if gate is not None and gate._database_identity is not None and gate._lock_identity is not None:
+                            ^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'types.SimpleNamespace' object has no attribute '_database_identity'
+________ test_authentication_diagnostics_are_distinct[stopped-stopped] ________
+tests\test_startup_owner_lifecycle_20261116.py:224: in test_authentication_diagnostics_are_distinct
+    binding.shared_network_stop_scope = open_or_initialize_windows_user_stop()
+                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in open_or_initialize_windows_user_stop
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+src\pixivvault_nicegui\managed_network_stop_startup.py:127: in retry_startup_lock
+    return operation()
+           ^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in <lambda>
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:280: in attach_selected_histories
+    with gate_refusal_scope(scope.gate), _report_stop_authority('shared'), _gate_storage_io():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:43: in gate_refusal_scope
+    files = gate_file(gate)
+            ^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:21: in gate_file
+    if gate is not None and gate._database_identity is not None and gate._lock_identity is not None:
+                            ^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'types.SimpleNamespace' object has no attribute '_database_identity'
+______ test_authentication_diagnostics_are_distinct[uncertain-uncertain] ______
+tests\test_startup_owner_lifecycle_20261116.py:224: in test_authentication_diagnostics_are_distinct
+    binding.shared_network_stop_scope = open_or_initialize_windows_user_stop()
+                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in open_or_initialize_windows_user_stop
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+src\pixivvault_nicegui\managed_network_stop_startup.py:127: in retry_startup_lock
+    return operation()
+           ^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in <lambda>
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:280: in attach_selected_histories
+    with gate_refusal_scope(scope.gate), _report_stop_authority('shared'), _gate_storage_io():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:43: in gate_refusal_scope
+    files = gate_file(gate)
+            ^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:21: in gate_file
+    if gate is not None and gate._database_identity is not None and gate._lock_identity is not None:
+                            ^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'types.SimpleNamespace' object has no attribute '_database_identity'
+_____ test_authentication_diagnostics_are_distinct[denied-remote_denied] ______
+tests\test_startup_owner_lifecycle_20261116.py:224: in test_authentication_diagnostics_are_distinct
+    binding.shared_network_stop_scope = open_or_initialize_windows_user_stop()
+                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in open_or_initialize_windows_user_stop
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+src\pixivvault_nicegui\managed_network_stop_startup.py:127: in retry_startup_lock
+    return operation()
+           ^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in <lambda>
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:280: in attach_selected_histories
+    with gate_refusal_scope(scope.gate), _report_stop_authority('shared'), _gate_storage_io():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:43: in gate_refusal_scope
+    files = gate_file(gate)
+            ^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:21: in gate_file
+    if gate is not None and gate._database_identity is not None and gate._lock_identity is not None:
+                            ^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'types.SimpleNamespace' object has no attribute '_database_identity'
+_ test_authentication_diagnostics_are_distinct[anonymous-identity_unverified] _
+tests\test_startup_owner_lifecycle_20261116.py:224: in test_authentication_diagnostics_are_distinct
+    binding.shared_network_stop_scope = open_or_initialize_windows_user_stop()
+                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in open_or_initialize_windows_user_stop
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+src\pixivvault_nicegui\managed_network_stop_startup.py:127: in retry_startup_lock
+    return operation()
+           ^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in <lambda>
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:280: in attach_selected_histories
+    with gate_refusal_scope(scope.gate), _report_stop_authority('shared'), _gate_storage_io():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:43: in gate_refusal_scope
+    files = gate_file(gate)
+            ^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:21: in gate_file
+    if gate is not None and gate._database_identity is not None and gate._lock_identity is not None:
+                            ^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'types.SimpleNamespace' object has no attribute '_database_identity'
+____ test_authentication_diagnostics_are_distinct[rate-limit-rate_limited] ____
+tests\test_startup_owner_lifecycle_20261116.py:224: in test_authentication_diagnostics_are_distinct
+    binding.shared_network_stop_scope = open_or_initialize_windows_user_stop()
+                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in open_or_initialize_windows_user_stop
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+src\pixivvault_nicegui\managed_network_stop_startup.py:127: in retry_startup_lock
+    return operation()
+           ^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in <lambda>
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:280: in attach_selected_histories
+    with gate_refusal_scope(scope.gate), _report_stop_authority('shared'), _gate_storage_io():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:43: in gate_refusal_scope
+    files = gate_file(gate)
+            ^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:21: in gate_file
+    if gate is not None and gate._database_identity is not None and gate._lock_identity is not None:
+                            ^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'types.SimpleNamespace' object has no attribute '_database_identity'
+______________ test_busy_old_writer_does_not_poison_first_setup _______________
+tests\test_startup_owner_lifecycle_20261116.py:262: in test_busy_old_writer_does_not_poison_first_setup
+    open_or_initialize_windows_user_stop(selected_roots=(('images',root),))
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in open_or_initialize_windows_user_stop
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+src\pixivvault_nicegui\managed_network_stop_startup.py:127: in retry_startup_lock
+    return operation()
+           ^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in <lambda>
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:280: in attach_selected_histories
+    with gate_refusal_scope(scope.gate), _report_stop_authority('shared'), _gate_storage_io():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:43: in gate_refusal_scope
+    files = gate_file(gate)
+            ^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:21: in gate_file
+    if gate is not None and gate._database_identity is not None and gate._lock_identity is not None:
+                            ^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'types.SimpleNamespace' object has no attribute '_database_identity'
+_ test_cli_startup_failures_have_bounded_cause_and_next_action[missing-established-owner] _
+tests\test_startup_owner_lifecycle_20261116.py:298: in test_cli_startup_failures_have_bounded_cause_and_next_action
+    owner = open_or_initialize_windows_user_stop()
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in open_or_initialize_windows_user_stop
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+src\pixivvault_nicegui\managed_network_stop_startup.py:127: in retry_startup_lock
+    return operation()
+           ^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in <lambda>
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:280: in attach_selected_histories
+    with gate_refusal_scope(scope.gate), _report_stop_authority('shared'), _gate_storage_io():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:43: in gate_refusal_scope
+    files = gate_file(gate)
+            ^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:21: in gate_file
+    if gate is not None and gate._database_identity is not None and gate._lock_identity is not None:
+                            ^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'types.SimpleNamespace' object has no attribute '_database_identity'
+_____ test_native_local_owner_failure_keeps_its_cause_for_recovery_screen _____
+tests\test_startup_owner_lifecycle_20261116.py:308: in test_native_local_owner_failure_keeps_its_cause_for_recovery_screen
+    owner = open_or_initialize_windows_user_stop()
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in open_or_initialize_windows_user_stop
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+src\pixivvault_nicegui\managed_network_stop_startup.py:127: in retry_startup_lock
+    return operation()
+           ^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:224: in <lambda>
+    retry_lock(lambda: attach_selected_histories(history, selected_roots))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_startup.py:280: in attach_selected_histories
+    with gate_refusal_scope(scope.gate), _report_stop_authority('shared'), _gate_storage_io():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:43: in gate_refusal_scope
+    files = gate_file(gate)
+            ^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\gate_refusal_state.py:21: in gate_file
+    if gate is not None and gate._database_identity is not None and gate._lock_identity is not None:
+                            ^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'types.SimpleNamespace' object has no attribute '_database_identity'
+______________ test_visual_settings_dialog_keyboard_and_contrast ______________
+tests\test_visual_preference_browser.py:59: in test_visual_settings_dialog_keyboard_and_contrast
+    assert server.is_alive()
+E   assert False
+E    +  where False = is_alive()
+E    +    where is_alive = <Thread(Thread-1412 (<lambda>), stopped 141104)>.is_alive
+============================== warnings summary ===============================
+..\..\..\Projects\PixivVault-NiceGUI\.venv\Lib\site-packages\fastapi\testclient.py:1
+  S:\Projects\PixivVault-NiceGUI\.venv\Lib\site-packages\fastapi\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+tests/test_l14_bookmark_count.py: 12 warnings
+  S:\Work\PV\fix-notice-20261122\src\pixivvault_nicegui\managed_viewer_page.py:51: DeprecationWarning: pathlib.PurePath.is_reserved() is deprecated and scheduled for removal in Python 3.15. Use os.path.isreserved() to detect reserved paths on Windows.
+    value.endswith((' ', '.')) or PureWindowsPath(value).is_reserved()):
+
+tests/test_required_legacy_duplicates.py::test_unsafe_or_duplicate_zip_members_do_not_publish[same.png]
+  C:\Users\nat\miniconda3\envs\stenv\Lib\zipfile\__init__.py:1655: UserWarning: Duplicate name: 'same.png'
+    return self._open_to_write(zinfo, force_zip64=force_zip64)
+
+tests/test_visual_preference_browser.py::test_visual_settings_dialog_keyboard_and_contrast
+  S:\Projects\PixivVault-NiceGUI\.venv\Lib\site-packages\_pytest\threadexception.py:58: PytestUnhandledThreadExceptionWarning: Exception in thread Thread-1412 (<lambda>)
+
+  Traceback (most recent call last):
+    File "C:\Users\nat\miniconda3\envs\stenv\Lib\threading.py", line 1044, in _bootstrap_inner
+      self.run()
+      ~~~~~~~~^^
+    File "C:\Users\nat\miniconda3\envs\stenv\Lib\threading.py", line 995, in run
+      self._target(*self._args, **self._kwargs)
+      ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "S:\Work\PV\fix-notice-20261122\tests\test_visual_preference_browser.py", line 44, in <lambda>
+      server = Thread(target=lambda: ui.run(host='127.0.0.1', port=0, show=False, reload=False,
+                                     ~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                                            show_welcome_message=False))
+                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "S:\Projects\PixivVault-NiceGUI\.venv\Lib\site-packages\nicegui\ui_run.py", line 138, in run
+      raise RuntimeError(
+      ...<2 lines>...
+      )
+  RuntimeError: ui.page cannot be used in NiceGUI scripts when UI is defined in the global scope.
+  To use multiple pages, either move all UI into page functions or use ui.sub_pages.
+
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+    warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+SKIPPED [1] tests\test_legacy_managed_startup.py:306: symlink creation unavailable
+SKIPPED [1] tests\test_managed_downloads.py:257: symlink requires privileges
+SKIPPED [1] tests\test_managed_network_stop_gate.py:263: symlink unavailable
+SKIPPED [1] tests\test_q_shell_20261117.py:239: Edge ‚ª‹N“®‚Å‚«‚È‚¢
+FAILED tests/test_first_local_start_20261114.py::test_exact_empty_test_workspace_opens_normal_page_on_both_launches
+FAILED tests/test_first_local_start_20261114.py::test_unwired_shared_owner_never_authorizes_draft_auth
+FAILED tests/test_first_local_start_20261114.py::test_first_local_start_connects_real_services_and_settings
+FAILED tests/test_first_local_start_20261114.py::test_local_screen_does_not_clear_existing_profile_stop[401]
+FAILED tests/test_first_local_start_20261114.py::test_local_screen_does_not_clear_existing_profile_stop[403]
+FAILED tests/test_first_local_start_20261114.py::test_local_screen_does_not_clear_existing_profile_stop[429]
+FAILED tests/test_health_recovery_guidance.py::test_first_install_without_shared_owner_opens_local_settings
+FAILED tests/test_recommendation_visual_browser.py::test_recommendation_lazy_media_and_dismissals_with_actual_work7_settings
+FAILED tests/test_shared_stop_busy_recovery_20261122.py::test_startup_waits_for_owned_process_to_exit
+FAILED tests/test_shared_stop_busy_recovery_20261122.py::test_selected_history_waits_for_thread_and_keeps_stop
+FAILED tests/test_shared_stop_busy_recovery_20261122.py::test_startup_ticket_is_published_after_sentinel_is_written
+FAILED tests/test_shared_stop_busy_recovery_20261122.py::test_uncontended_startup_never_waits_for_retry
+FAILED tests/test_shared_stop_busy_recovery_20261122.py::test_missing_established_owner_returns_without_wait
+FAILED tests/test_shared_stop_busy_recovery_20261122.py::test_reader_creation_retries_busy_stop_aggregation
+FAILED tests/test_shared_stop_busy_recovery_20261122.py::test_recovered_auth_refuses_a_changed_profile_revision
+FAILED tests/test_shared_stop_busy_recovery_20261122.py::test_busy_native_page_rechecks_locally_without_restarting[allowed]
+FAILED tests/test_shared_stop_busy_recovery_20261122.py::test_busy_native_page_rechecks_locally_without_restarting[stopped]
+FAILED tests/test_shared_stop_busy_recovery_20261122.py::test_busy_native_page_rechecks_locally_without_restarting[uncertain]
+FAILED tests/test_shared_stop_busy_recovery_20261122.py::test_busy_native_page_rechecks_locally_without_restarting[registration]
+FAILED tests/test_shared_stop_busy_recovery_20261122.py::test_busy_native_page_rechecks_locally_without_restarting[profile]
+FAILED tests/test_shared_stop_busy_recovery_20261122.py::test_busy_native_page_rechecks_locally_without_restarting[rollback]
+FAILED tests/test_shared_stop_busy_recovery_20261122.py::test_busy_native_page_rechecks_locally_without_restarting[shared-rollback]
+FAILED tests/test_shared_stop_busy_review_20261122.py::test_profile_lock_recovery_precedes_shared_owner[False]
+FAILED tests/test_shared_stop_busy_review_20261122.py::test_startup_and_formal_migration_cannot_publish_over_each_other
+FAILED tests/test_shared_stop_busy_review_20261122.py::test_windows_exclusive_open_is_busy_until_external_handle_closes
+FAILED tests/test_shared_stop_busy_review_20261122.py::test_cli_reports_late_busy_with_exit_two
+FAILED tests/test_shared_stop_busy_review_20261122.py::test_windows_lock_syscall_only_retries_lock_violation[5]
+FAILED tests/test_shared_stop_busy_review_20261122.py::test_windows_lock_syscall_only_retries_lock_violation[32]
+FAILED tests/test_shared_stop_busy_review_20261122.py::test_windows_lock_syscall_only_retries_lock_violation[33]
+FAILED tests/test_smalldec_crash_log_20261122.py::test_first_profile_launch_creates_its_crash_log
+FAILED tests/test_startup_owner_lifecycle_20261116.py::test_normal_cli_initializes_and_uses_guarded_reader
+FAILED tests/test_startup_owner_lifecycle_20261116.py::test_new_native_draft_save_restart_borrow_entry
+FAILED tests/test_startup_owner_lifecycle_20261116.py::test_selected_old_stop_preserved_before_first_owner_publication[401]
+FAILED tests/test_startup_owner_lifecycle_20261116.py::test_selected_old_stop_preserved_before_first_owner_publication[403]
+FAILED tests/test_startup_owner_lifecycle_20261116.py::test_selected_old_stop_preserved_before_first_owner_publication[429]
+FAILED tests/test_startup_owner_lifecycle_20261116.py::test_later_old_writer_stop_is_seen_without_reset
+FAILED tests/test_startup_owner_lifecycle_20261116.py::test_normal_owner_loss_never_reinitializes[owner-directory]
+FAILED tests/test_startup_owner_lifecycle_20261116.py::test_normal_owner_loss_never_reinitializes[both-gate-files]
+FAILED tests/test_startup_owner_lifecycle_20261116.py::test_normal_owner_loss_never_reinitializes[startup-record]
+FAILED tests/test_startup_owner_lifecycle_20261116.py::test_normal_owner_loss_never_reinitializes[parent-anchor]
+FAILED tests/test_startup_owner_lifecycle_20261116.py::test_normal_owner_loss_never_reinitializes[both-records]
+FAILED tests/test_startup_owner_lifecycle_20261116.py::test_uncertain_get_survives_restart
+FAILED tests/test_startup_owner_lifecycle_20261116.py::test_authentication_diagnostics_are_distinct[missing-owner-owner_absent]
+FAILED tests/test_startup_owner_lifecycle_20261116.py::test_authentication_diagnostics_are_distinct[bad-cookie-cookie_unreadable]
+FAILED tests/test_startup_owner_lifecycle_20261116.py::test_authentication_diagnostics_are_distinct[stopped-stopped]
+FAILED tests/test_startup_owner_lifecycle_20261116.py::test_authentication_diagnostics_are_distinct[uncertain-uncertain]
+FAILED tests/test_startup_owner_lifecycle_20261116.py::test_authentication_diagnostics_are_distinct[denied-remote_denied]
+FAILED tests/test_startup_owner_lifecycle_20261116.py::test_authentication_diagnostics_are_distinct[anonymous-identity_unverified]
+FAILED tests/test_startup_owner_lifecycle_20261116.py::test_authentication_diagnostics_are_distinct[rate-limit-rate_limited]
+FAILED tests/test_startup_owner_lifecycle_20261116.py::test_busy_old_writer_does_not_poison_first_setup
+FAILED tests/test_startup_owner_lifecycle_20261116.py::test_cli_startup_failures_have_bounded_cause_and_next_action[missing-established-owner]
+FAILED tests/test_startup_owner_lifecycle_20261116.py::test_native_local_owner_failure_keeps_its_cause_for_recovery_screen
+FAILED tests/test_visual_preference_browser.py::test_visual_settings_dialog_keyboard_and_contrast
+53 failed, 5400 passed, 4 skipped, 3 deselected, 15 warnings in 2009.50s (0:33:29)
+
+exit=1
+finished=2026-11-23T19:38:12.849774+09:00
+owned_files=61764
+owned_bytes=314798843
+temp_removed=True

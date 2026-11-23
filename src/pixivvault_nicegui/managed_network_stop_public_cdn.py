@@ -32,7 +32,8 @@ def bind_public_cdn_shared_stop(client: PublicImageReadClient,
         raise ManagedNetworkGateStorageError("public CDN owner transport unavailable")
     if scope is None:
         def deny(*_args):
-            raise ManagedNetworkGateStorageError("shared Pixiv CDN STOP owner required")
+            raise ManagedNetworkGateStorageError("shared Pixiv CDN STOP owner required", authority="shared")
+        deny._notice_gates = (None, None)
         client._transport = deny
         return
     if type(scope) is not ManagedUserNetworkStopScope:

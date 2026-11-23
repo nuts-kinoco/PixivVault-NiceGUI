@@ -1,0 +1,12 @@
+head=2532138adc2c285b0c0ca4bc90d8a223792aeec3
+launcher_pid=136712
+root=\\?\S:\Work\_tmp\PV\fix-notice-r15-20261122-alovgsjy
+started=2026-11-23T19:40:41.061370+09:00
+pytest_pid=35156
+........................................................................ [ 92%]
+......                                                                   [100%]
+78 passed in 40.57s
+
+exit=0
+finished=2026-11-23T19:41:23.520294+09:00
+temp_removed=True

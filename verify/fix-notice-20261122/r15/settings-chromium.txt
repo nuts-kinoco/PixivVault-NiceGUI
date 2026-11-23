@@ -1,0 +1,13 @@
+head=4660a2ec2f2f6d246573ebf10fc7c18cb1434a00
+launcher_pid=20244
+root=\\?\S:\Work\_tmp\PV\fix-notice-r15-20261122-v9j03_ex
+started=2026-11-23T19:41:37.486033+09:00
+pytest_pid=132600
+.                                                                        [100%]
+1 passed in 7.81s
+
+exit=0
+finished=2026-11-23T19:41:46.950278+09:00
+owned_files=183
+owned_bytes=15614629
+temp_removed=True

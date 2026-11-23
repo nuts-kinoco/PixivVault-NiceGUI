@@ -1,0 +1,34 @@
+head=a89e8b58c9086ed6662a84f99f9ffe090b4dd3d3
+launcher_pid=101940
+root=\\?\S:\Work\_tmp\PV\fix-notice-r15-20261122-98261lbn
+started=2026-11-23T18:57:48.651414+09:00
+pytest_pid=131092
+FFF                                                                      [100%]
+================================== FAILURES ===================================
+_ test_raw_lock_denial_fences_before_exception_classification[native-return-True] _
+tests\test_fix_notice_round15_20261122.py:92: in test_raw_lock_denial_fences_before_exception_classification
+    assert not policy.confirm_gate_notices()
+E   assert not True
+E    +  where True = confirm_gate_notices()
+E    +    where confirm_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x000001560F393CB0>.confirm_gate_notices
+_ test_raw_lock_denial_fences_before_exception_classification[native-return-False] _
+tests\test_fix_notice_round15_20261122.py:92: in test_raw_lock_denial_fences_before_exception_classification
+    assert not policy.confirm_gate_notices()
+E   assert not True
+E    +  where True = confirm_gate_notices()
+E    +    where confirm_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x000001560F791810>.confirm_gate_notices
+______ test_discarded_observation_does_not_record_a_shared_owner_denial _______
+tests\test_fix_notice_round15_20261122.py:335: in test_discarded_observation_does_not_record_a_shared_owner_denial
+    assert policy.confirm_gate_notices()
+E   assert False
+E    +  where False = confirm_gate_notices()
+E    +    where confirm_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x000001560F789CD0>.confirm_gate_notices
+=========================== short test summary info ===========================
+FAILED tests/test_fix_notice_round15_20261122.py::test_raw_lock_denial_fences_before_exception_classification[native-return-True]
+FAILED tests/test_fix_notice_round15_20261122.py::test_raw_lock_denial_fences_before_exception_classification[native-return-False]
+FAILED tests/test_fix_notice_round15_20261122.py::test_discarded_observation_does_not_record_a_shared_owner_denial
+3 failed, 16 deselected in 3.34s
+
+exit=1
+finished=2026-11-23T18:57:53.412385+09:00
+temp_removed=True

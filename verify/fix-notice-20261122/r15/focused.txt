@@ -1,0 +1,60 @@
+head=a89e8b58c9086ed6662a84f99f9ffe090b4dd3d3
+launcher_pid=98752
+root=\\?\S:\Work\_tmp\PV\fix-notice-r15-20261122-rvxn87g2
+started=2026-11-23T18:59:14.806503+09:00
+pytest_pid=119324
+..................................FFFF.................................. [  7%]
+........................................................................ [ 14%]
+....F................................................................... [ 21%]
+........................................................................ [ 29%]
+........................................................................ [ 36%]
+........................................................................ [ 43%]
+........................................................................ [ 50%]
+........................................................................ [ 58%]
+........................................................................ [ 65%]
+........................................................................ [ 72%]
+........................................................................ [ 80%]
+........................................................................ [ 87%]
+........................................................................ [ 94%]
+.............................................s........                   [100%]
+================================== FAILURES ===================================
+______ test_reader_replacement_retires_old_selection_proof[False-False] _______
+tests\test_fix_notice_round10_20261122.py:179: in test_reader_replacement_retires_old_selection_proof
+    assert policy.confirm_gate_notices()
+E   assert False
+E    +  where False = confirm_gate_notices()
+E    +    where confirm_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x000002057F58F980>.confirm_gate_notices
+_______ test_reader_replacement_retires_old_selection_proof[False-True] _______
+tests\test_fix_notice_round10_20261122.py:179: in test_reader_replacement_retires_old_selection_proof
+    assert policy.confirm_gate_notices()
+E   assert False
+E    +  where False = confirm_gate_notices()
+E    +    where confirm_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x000002057F58E8A0>.confirm_gate_notices
+_______ test_reader_replacement_retires_old_selection_proof[True-False] _______
+tests\test_fix_notice_round10_20261122.py:179: in test_reader_replacement_retires_old_selection_proof
+    assert policy.confirm_gate_notices()
+E   assert False
+E    +  where False = confirm_gate_notices()
+E    +    where confirm_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x000002057F58E4E0>.confirm_gate_notices
+_______ test_reader_replacement_retires_old_selection_proof[True-True] ________
+tests\test_fix_notice_round10_20261122.py:179: in test_reader_replacement_retires_old_selection_proof
+    assert policy.confirm_gate_notices()
+E   assert False
+E    +  where False = confirm_gate_notices()
+E    +    where confirm_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x000002057F58C5F0>.confirm_gate_notices
+____ test_local_fault_reappearing_during_shared_final_check_keeps_polling _____
+tests\test_fix_notice_round4_20261122.py:79: in test_local_fault_reappearing_during_shared_final_check_keeps_polling
+    assert calls == 3
+E   assert 4 == 3
+=========================== short test summary info ===========================
+SKIPPED [1] tests\test_managed_network_stop_gate.py:263: symlink unavailable
+FAILED tests/test_fix_notice_round10_20261122.py::test_reader_replacement_retires_old_selection_proof[False-False]
+FAILED tests/test_fix_notice_round10_20261122.py::test_reader_replacement_retires_old_selection_proof[False-True]
+FAILED tests/test_fix_notice_round10_20261122.py::test_reader_replacement_retires_old_selection_proof[True-False]
+FAILED tests/test_fix_notice_round10_20261122.py::test_reader_replacement_retires_old_selection_proof[True-True]
+FAILED tests/test_fix_notice_round4_20261122.py::test_local_fault_reappearing_during_shared_final_check_keeps_polling
+5 failed, 984 passed, 1 skipped in 236.83s (0:03:56)
+
+exit=1
+finished=2026-11-23T19:03:13.676338+09:00
+temp_removed=True
