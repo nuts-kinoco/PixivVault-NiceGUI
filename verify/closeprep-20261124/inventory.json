@@ -1,0 +1,30 @@
+{
+ "total": 4052,
+ "by_source": {
+  "auto-range": 1347,
+  "rule": 809,
+  "rule-wide": 844,
+  "auto-range-wide": 691,
+  "auto-text": 96,
+  "auto-section-T": 44,
+  "auto-name": 46,
+  "rule-function": 12,
+  "auto-qualname": 5,
+  "table-rule": 52,
+  "unused": 14,
+  "rule-file": 40,
+  "manual": 24,
+  "auto-nearest": 28
+ },
+ "unmapped": [],
+ "tier_a": 2432,
+ "tier_b": 57,
+ "tier_c": 1563,
+ "gap_items": 0,
+ "gap_rows_none": [],
+ "gap_rows_weak": [],
+ "port_text_missing": 882,
+ "port_text_missing_on_ok_rows": 875,
+ "reverse_empty_rows": [],
+ "errors": []
+}

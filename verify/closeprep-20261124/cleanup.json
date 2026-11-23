@@ -1,0 +1,11 @@
+﻿{
+    "owned_scratch":  "S:\\Work\\_tmp\\PV\\closeprep-20261124",
+    "enumerated_files":  8,
+    "enumerated_directories":  7,
+    "enumerated_bytes":  889,
+    "reparse_entries":  0,
+    "scratch_removed":  false,
+    "cleanup_error":  "execution policy rejected recursive removal before the command ran",
+    "pytest_pid":  139760,
+    "remaining_owned_job_processes":  0
+}

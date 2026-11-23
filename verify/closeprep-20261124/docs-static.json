@@ -1,0 +1,14 @@
+{
+  "cli_flags_declared": [
+    "--native",
+    "--host",
+    "--port",
+    "--profile-root"
+  ],
+  "old45_rows": 45,
+  "physical_notes": 13,
+  "capture_rows": 20,
+  "roadmap_rows_per_json": 10,
+  "p2_exits_met": 9,
+  "progress_json_crlf": true
+}

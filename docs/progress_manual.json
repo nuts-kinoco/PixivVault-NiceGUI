@@ -32,7 +32,7 @@
           "ev": "evidence_realapp_2026-11-17_1130.md"
         },
         {
-          "t": "152069551 のカード・絞り込みを実機で確認",
+          "t": "対象アカウント のカード・絞り込みを実機で確認",
           "ok": true,
           "ev": "evidence_realapp_2026-11-17_1130.md"
         }
@@ -92,7 +92,7 @@
         {
           "t": "inventory.json と網羅チェック（取りこぼし 0）",
           "ok": true,
-          "ev": "docs/inventory.json（2814 件）、tools/check_inventory_coverage.py"
+          "ev": "docs/inventory.json（4,052 件）、tools/check_inventory_coverage.py、verify/closeprep-20261124/inventory.json"
         },
         {
           "t": "core.py・database.py・pixiv_client.py の走査を台帳へ",
@@ -141,7 +141,7 @@
         {
           "t": "台帳の無・弱 57 行を、本人裁定・意図的削除を除いてゼロにする（check_inventory_coverage --strict-gaps が 0）",
           "ok": true,
-          "ev": "work 4f828a1: check_inventory_coverage --strict-gaps 終了 0（無・弱の台帳行 0）。台帳は Z01/Z02/Z04/Z05/Z07/Z12/I15/D00/D03/D08-D12/D16/A13 を有に再ステータス（根拠付き）"
+          "ev": "164745bc: check_inventory_coverage --strict-gaps 終了 0。inventory 4,052 件、対応漏れ 0、台帳の無 0・弱 0。条件付きの実機確認は残る（verify/closeprep-20261124/inventory.json）"
         },
         {
           "t": "FL-D00 ダウンロードの全体設計（WU-1〜8, 10）",
@@ -175,7 +175,7 @@
         {
           "t": "fail ゼロ、partial は PASS か物理操作区分",
           "ok": false,
-          "ev": "wt-p4 統合 67e992e: 公式 45 件の判定表 docs/OLD45_STATUS_2026-11-19.md（PASS 8・物理操作 13・P5 で確認 20・未達 4: K01/K02/K09 借用と U16）。E01/X09/V08 修正、Neon レビュー 4 件を Sol が真偽確定"
+          "ev": "docs/OLD45_STATUS_2026-11-19.md: PASS 9・物理操作 13・P5 で確認 20・未達 3（K01/K02/K09）。U16 は局所 PASS。物理操作の理由と P5 撮影の準備済み"
         }
       ]
     },
@@ -189,7 +189,7 @@
         {
           "t": "全画面の画面証拠と並置比較",
           "ok": false,
-          "ev": "wt-p5 統合 8c3c4fd: 11 画面×2 サイズ×2 テーマ×3 プロファイルの並置 132 組。書体を Noto Sans JP に統一。残り: 一部画面の通常・長文、区分 D の未確認操作、ダウンロード画面の再撮影"
+          "ev": "wt-p5 統合 8c3c4fd: 11 画面×2 サイズ×2 テーマ×3 プロファイルの並置 132 組。書体を Noto Sans JP に統一。残り: 一部画面の通常・長文、区分 D の未確認操作、ダウンロード画面の再撮影。ナビ再編統合後の操作別撮影は docs/OLD45_STATUS_2026-11-19.md"
         }
       ]
     },
@@ -203,7 +203,7 @@
         {
           "t": "D6・D7 を満たす",
           "ok": false,
-          "ev": "wt-p6 統合 20a1f0c: D7 通信 300 箇所を分類・指摘 0、Sol 検証 High0 の Medium3 を修正し Neon 再検証（既知の限界: 再起動で保留中 INVALID 報告が失われる・C ドライブ差分は Temp 1 件の作成元不明）。D6: 2026-11-21 統合 3092a80（Vue 子化・容量更新の遅延・GIF 経路。Neon 3 回独立レビューで High0・Medium0）。合成データ 30 回比較で学習・作者検索・画像送りとも撮影込みで元と同等以上（学習+16ms は許容内）。原受入の匿名化実データ比較は未実施。docs/P6_RESPONSIVENESS_2026-11-19.md、verify/d6e-20261121/"
+          "ev": "D6 は a6014336 のオフライン測定を基に 426de03d でクローズ裁定（5 項目中 2 項目は出荷後改善）。D7 は 164745bc の通信棚卸し 309 箇所・指摘 0、関連 7 passed。C: 全体差分と最終機密検査は残る（verify/closeprep-20261124/OUTCOME.md）"
         }
       ]
     },
@@ -226,12 +226,12 @@
       "name": "クローズ",
       "goal": "記録・引き渡し・最終報告",
       "approval": "事前承認（この計画）",
-      "state": "未着手",
+      "state": "進行中（引き渡し準備済み）",
       "exits": [
         {
           "t": "D8・D10 を満たす",
           "ok": false,
-          "ev": ""
+          "ev": "D10 起動手順と開発設定、D8 進捗更新、OLD45 準備をローカルで記録。共有取得停止状態の S: 配置、監督の起動確認と最終公開が残る（docs/HANDOFF_2026-11-24.md）"
         }
       ]
     }
@@ -542,6 +542,96 @@
       "checker": "未",
       "real": "—",
       "ev": "実装中"
+    },
+    {
+      "phase": "P5",
+      "id": "S1",
+      "title": "収束（中止通知とフォーカス復帰）",
+      "stage": 4,
+      "checker": "凍結前の記録あり",
+      "real": "未",
+      "ev": "fix-notice 第16回で縮小版を凍結（docs/KNOWN_ISSUES_fixnotice_20261123.md）。UI 統合のフォーカス復帰・通知は 9d568351、残課題は凍結文書へ"
+    },
+    {
+      "phase": "P5",
+      "id": "S2",
+      "title": "UI 統合と取得停止通知の baseline 取り込み",
+      "stage": 4,
+      "checker": "統合時の記録あり",
+      "real": "未",
+      "ev": "fedf4ad5。M03/M04 と設定の Tab 順を取り込み。verify/uiinteg-20261122/r8/OUTCOME.md。現候補の全体再検査と本差分の公開は未実施"
+    },
+    {
+      "phase": "P7",
+      "id": "S3",
+      "title": "実機確認 1（COS R8）",
+      "stage": 0,
+      "checker": "監督担当",
+      "real": "今回未確認",
+      "ev": "バックアップと再起動後、フォーカス・Tab 循環・通知優先・取得停止の再確認・よく効くタグ・借用を確認"
+    },
+    {
+      "phase": "P5",
+      "id": "S4",
+      "title": "ナビ再編の実装",
+      "stage": 2,
+      "checker": "設計レビュー済み",
+      "real": "未",
+      "ev": "ui-navimpl 43384b0b で別作業中。10 タブ、マイブックマーク独立、自動処理、狭幅・ズーム時のナビは統合と検証待ち"
+    },
+    {
+      "phase": "P5",
+      "id": "S5",
+      "title": "画像面積・UI 監査と並置撮影",
+      "stage": 2,
+      "checker": "統合候補待ち",
+      "real": "未",
+      "ev": "元との同条件比較、UI 監査 A1〜A17、全画面目視が残る。OLD45 の P5 20 件と D/E 3 件の撮影手順は docs/OLD45_STATUS_2026-11-19.md"
+    },
+    {
+      "phase": "P5",
+      "id": "S6",
+      "title": "本人の UI 確認",
+      "stage": 0,
+      "checker": "—",
+      "real": "本人確認待ち",
+      "ev": "S5 後に監督が対象候補と確認導線を渡す"
+    },
+    {
+      "phase": "P4",
+      "id": "S7",
+      "title": "機能の残りと D6 の扱い",
+      "stage": 3,
+      "checker": "D6 は監督裁定",
+      "real": "借用・物理操作待ち",
+      "ev": "D1 網羅検査は終了 0。OLD45 は PASS 9・物理 13・P5 20・未達 3、借用 K01/K02/K09/Z04 は実機待ち。D6 は a6014336 で測定・426de03d でクローズ。遅い 2 項目は出荷後改善"
+    },
+    {
+      "phase": "P6",
+      "id": "S8",
+      "title": "GPU 視覚嗜好学習",
+      "stage": 4,
+      "checker": "作業 8 は担当試験",
+      "real": "補正有効時の実機待ち",
+      "ev": "フェーズ 2 統合済み、既定 OFF。gpu8（5845dae6、f5dca089）統合。verify/gpu8-20261124/OUTCOME.md。renew 未配線は既知課題"
+    },
+    {
+      "phase": "P7",
+      "id": "S9",
+      "title": "総合検査",
+      "stage": 0,
+      "checker": "監督担当",
+      "real": "監督担当",
+      "ev": "全体 pytest、UI 回帰、実機通し、複製プロファイルでの不可逆操作実証を現候補に紐付ける"
+    },
+    {
+      "phase": "P8",
+      "id": "S10",
+      "title": "クローズ準備と引き渡し",
+      "stage": 3,
+      "checker": "今回の限定検査済み",
+      "real": "本人の通常起動待ち",
+      "ev": "docs/HANDOFF_2026-11-24.md、verify/closeprep-20261124/OUTCOME.md。前後差分・実機・物理操作・記録回収後の公開と最終報告が残る"
     }
   ],
   "decisions": [
@@ -679,9 +769,9 @@
     },
     {
       "k": "【判断】GPU 学習（RTX 5080 16GB）の実装時期",
-      "v": "既存機能の移植が完了し Release 前に本格実装する。それまでは元（Flet 版）の学習の仕組みを踏襲する。設計書 docs/design/GPU_LEARNING_DESIGN_NEON_20261120.md と壁打ち用プロンプトは保管",
+      "v": "フェーズ 2 と gpu8 は統合済み。補正は既定 OFF（シャドー記録のみ）。補正を有効にした実機確認は監督側。renew 未配線は既知課題",
       "by": "本人",
-      "st": "決定（保留・Release 前に実装）"
+      "st": "確定（フェーズ 2、既定 OFF）"
     },
     {
       "k": "【判断】クラッシュ証跡の保存先",
@@ -690,11 +780,6 @@
       "st": "待ち"
     }
   ],
-  "running": [
-    {
-      "who": "実機アプリ（PID 101844）",
-      "what": "COS 確認用に起動中。最新コード a58e2cf 系。確認が終わったら停止する"
-    }
-  ],
-  "stop": "07:59 に強制停止（本人指示）"
+  "running": [],
+  "stop": ""
 }
