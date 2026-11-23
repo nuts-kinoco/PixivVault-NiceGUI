@@ -10,6 +10,8 @@ from types import SimpleNamespace
 
 from nicegui import ui
 
+from .management_dialog import managed_dialog
+
 from ..hidden_works import HideUnavailable, read_hidden, set_hidden
 from ..viewer_metadata import pixiv_url
 from .card_actions import CardActions
@@ -73,7 +75,7 @@ class RankingCardMenus:
             self.undo_button = ui.button('元に戻す', on_click=self.undo_last_hide).props(
                 'flat dense no-caps data-testid=ranking-hide-undo')
             self.undo_button.set_visibility(False)
-        with ui.dialog().props('data-testid=ranking-hidden-dialog') as self.hidden_dialog:
+        with managed_dialog(return_focus=self.manage_button).props('data-testid=ranking-hidden-dialog') as self.hidden_dialog:
             with ui.card().classes('pv-hidden-card').style('min-width:min(520px,90vw)'):
                 with ui.row().classes('items-center w-full'):
                     ui.label('出さない一覧').classes('pv-view-title')

@@ -32,6 +32,7 @@ def page(tmp_path):
                 try { window.Vue = await import(url); } finally { URL.revokeObjectURL(url); }
             }''', (STATIC / 'vue.esm-browser.prod.js').read_text(encoding='utf-8'))
             page.add_script_tag(path=STATIC / 'quasar.umd.prod.js')
+            page.add_script_tag(path=GRID.with_name('focus_recovery.js'))
             page.add_script_tag(content=GRID.read_text(encoding='utf-8').replace(
                 'export default {', 'window.CardGrid = {', 1))
             page.evaluate("""() => {

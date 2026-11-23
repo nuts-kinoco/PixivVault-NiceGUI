@@ -4,7 +4,7 @@ from sqlite3 import Error as SQLiteError
 
 from nicegui import ui
 
-from .action_controls import secondary_button
+from .action_controls import secondary_button, status_label
 from ..following_sync import subscribe_owner_on_loop
 
 
@@ -46,7 +46,10 @@ class SharedLogView:
         with ui.column().classes('pv-shared-log-host w-full gap-0').props('data-testid=shared-log-host') as self.root:
             self.button = secondary_button('ログを折りたたむ', self.toggle, icon='expand_less',
                 testid='shared-log-toggle').props('aria-expanded=true')
-            self.panel = ui.column().classes('pv-queue-log w-full gap-0').props('data-testid=shared-log')
+            self.panel = ui.column().classes('pv-queue-log pv-focus-ring w-full gap-0').props(
+                'data-testid=shared-log role=region aria-label=共有ログ')
+            self.panel.props['tabindex'] = 0
+            self.button.props['aria-controls'] = self.panel.html_id
         self.root.set_visibility(False)
         self.timer = ui.timer(2, self.refresh, immediate=False)
         self._unsubscribe = (subscribe_owner_on_loop(following, self._owner_changed)
@@ -64,7 +67,7 @@ class SharedLogView:
 
     def _scroll(self):
         from nicegui import core
-        if core.loop is not None and self.root.visible and self.expanded:
+        if core.loop is not None and not core.loop.is_closed() and self.root.visible and self.expanded:
             self.client.run_javascript(f"requestAnimationFrame(() => requestAnimationFrame(() => {{ const e=document.getElementById('{self.panel.html_id}'); if(e) e.scrollTop=e.scrollHeight; }}))")
 
     def show_tab(self, tab):
@@ -95,6 +98,9 @@ class SharedLogView:
             return
         self._signature = entries
         render_log_entries(self.panel, entries)
+        if not self.panel.default_slot.children:
+            with self.panel:
+                status_label('ログはまだありません。', classes='pv-log-empty')
         self._scroll()
 
     def close(self):

@@ -4,12 +4,14 @@ api_retry_count is the total number of HTTP tries (original range(count)), not
 additional JobService attempts. Phase10 can suppress retries in a local scope.
 No URL, response, Cookie, or exception text is persisted by this policy.
 """
-from contextlib import contextmanager
+from contextlib import closing, contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
 from functools import wraps
 import math
+from pathlib import Path
 import random
+import sqlite3
 from threading import Lock, RLock
 import time
 
@@ -26,6 +28,138 @@ _LANE=ContextVar('pixivvault_request_lane',default='background')
 # Original rate_coordinator.py MAX_BACKGROUND_DEFER_SECONDS: background yields to a
 # waiting interactive request, but never starves for longer than this.
 MAX_BACKGROUND_DEFER_SECONDS=2.0
+NOTICE_LIFETIME_SECONDS = 10 * 60
+_GATE_NOTICE_CAUSES = {'gate_busy', 'gate_unverified', 'durable_gate'}
+_PINNED_NOTICE_CAUSES = {'durable_gate', 'gate_unverified'}
+_RATE_STOP_CAUSES = {'own_limit', 'shared_limit'}
+# The sealed database has one schema page and one table page, at most 64 KiB each.
+_MAX_NOTICE_GATE_BYTES = 2 * 65536
+
+
+def is_pinned_notice(record):
+    return record.get('stop_cause') in _PINNED_NOTICE_CAUSES
+
+
+def is_rate_stop_notice(record):
+    return (record['phase'] == 'stopped' and record['status'] == 429
+            and (record.get('stop_cause') in _RATE_STOP_CAUSES or record.get('stop_cause') is None))
+
+
+def _gate_notice_key(record):
+    problem = record.get('gate_problem')
+    return (record.get('stop_cause'), record['status'], problem,
+            record.get('gate_owners', ()) if problem == 'storage' else ())
+
+
+@dataclass(frozen=True)
+class GateNoticeState:
+    authority: str
+    state: str
+    status: int | None = None
+    inflight: bool | None = False
+
+
+def check_request_notice_gates(*scopes):
+    """Observe each bound authority, without taking a dispatch lock."""
+    from .managed_network_stop_gate import (
+        ManagedNetworkGateStorageError, _GATE_SCHEMA, _file_identity, _reject_links,
+    )
+    from .managed_network_stop_history_readonly import (
+        _DB_NAME, _SIDECARS, _Unverified, _check_marker, _fingerprint, _read_gate_immutable,
+    )
+    from .managed_network_stop_shared_scope import _file_identity_directory
+    from .native_profile import PROFILE_DB
+
+    owners = tuple(scope for scope in scopes if scope is not None)
+    shared_owners = tuple(getattr(scope, 'shared_owner', None) for scope in owners)
+    owners = tuple(dict.fromkeys(scope for scope in (*owners, *shared_owners) if scope is not None))
+    failures = (ManagedNetworkGateStorageError, _Unverified, OSError, ValueError, sqlite3.Error)
+    observations = []
+
+    def exists(path):
+        _reject_links(path)
+        try:
+            path.lstat()
+        except FileNotFoundError:
+            return False
+        return True
+
+    def observe(authority, path, lock, db_id, lock_id, verify_owner, *, gate=None):
+        marker = getattr(gate, 'inflight_path', None)
+
+        def fingerprint():
+            verify_owner()
+            if any(exists(path.with_name(path.name + suffix)) for suffix in _SIDECARS):
+                raise _Unverified()
+            if _file_identity(path) != db_id or path.stat().st_size > _MAX_NOTICE_GATE_BYTES:
+                raise _Unverified()
+            state = _fingerprint(path)
+            if state[0] != db_id or _file_identity(lock) != lock_id:
+                raise _Unverified()
+            # Windows denies reading the byte while another handle holds its exclusive lock.
+            with lock.open('rb') as stream:
+                try:
+                    token = stream.read(2)
+                except PermissionError:
+                    token = None
+            if token not in (None, b'0'):
+                raise _Unverified()
+            return state, marker is not None and exists(marker), token
+
+        try:
+            before = fingerprint()
+            blocked, status, _ = _read_gate_immutable(path)
+            if gate is not None and gate._observed_stop_status not in (None, status):
+                raise _Unverified()
+            with closing(sqlite3.connect(path.as_uri() + '?mode=ro&immutable=1', uri=True)) as conn:
+                objects = conn.execute('SELECT type,name,tbl_name,sql FROM sqlite_master LIMIT 2').fetchall()
+                if objects != [('table', 'gate', 'gate', _GATE_SCHEMA)]:
+                    raise _Unverified()
+            _, inflight, token = before
+            state = ('busy' if token is None else 'stopped' if blocked
+                     else 'uncertain' if inflight else 'open')
+            return GateNoticeState(authority, state, status, inflight), lambda: fingerprint() == before
+        except failures:
+            return GateNoticeState(authority, 'unverified'), None
+
+    def observe_owner(scope):
+        gate = scope.gate
+        shared = hasattr(gate, 'inflight_path') or scope in shared_owners
+        authority = 'shared' if shared else 'local'
+
+        def verify_owner():
+            if hasattr(gate, 'inflight_path'):
+                scope._check_owner()
+            if hasattr(scope, 'profile_identity'):
+                _check_marker(scope.root, 'native')
+                if _file_identity(scope.root / PROFILE_DB) != scope.profile_identity:
+                    raise _Unverified()
+
+        yield observe(authority, gate.path, gate.lock_path,
+                      gate._database_identity, gate._lock_identity, verify_owner, gate=gate)
+        for name, (kind, root_id, db_id, lock_id) in getattr(scope, '_startup_histories', ()):
+            root = Path(name)
+
+            def verify_history(root=root, kind=kind, root_id=root_id):
+                verify_owner()
+                _check_marker(root, kind)
+                if _file_identity_directory(root) != root_id:
+                    raise _Unverified()
+
+            yield observe(authority, root / _DB_NAME, root / (_DB_NAME + '.lock'),
+                          db_id, lock_id, verify_history)
+
+    measured = [read for scope in owners for read in observe_owner(scope)]
+    # Revalidate after reading both sides so an earlier open read cannot clear
+    # a notice when the other side changed during the same poll.
+    for state, unchanged in measured:
+        try:
+            if unchanged is not None and not unchanged():
+                raise _Unverified()
+        except failures:
+            state = GateNoticeState(state.authority, 'unverified')
+        observations.append(state)
+    return tuple(observations) or (GateNoticeState('both', 'unverified'),)
 
 
 def interactive(function):
@@ -222,23 +356,176 @@ class RequestRetryPolicy:
     to the caller without a shared progress record. The last original
     typed failure escapes when the configured total HTTP tries are exhausted.
     """
-    def __init__(self,settings,*,clock=time.monotonic,sleep=time.sleep,jitter=random.uniform):
+    def __init__(self,settings,*,clock=time.monotonic,sleep=time.sleep,jitter=random.uniform,check_gate=None):
         if not all(callable(x) for x in (settings,clock,sleep,jitter)):raise TypeError('retry inputs must be callable')
         self.settings=settings;self.clock=clock;self.sleep=sleep;self.jitter=jitter
         self._status_lock=RLock();self._serial=0;self._records={};self._rate_stopped=False
+        # Optional local observation of the existing owners. Never used to admit a GET.
+        self._check_gate = check_gate
+        self._gate_notice_generation = 0
+        self._gate_checks_in_progress = 0
+        self._pending_gate_result = None
+        self._earlier_gate_states = set()
+
+    def _is_transient_notice(self, record):
+        cause = record.get('stop_cause')
+        return (record['phase'] in ('cancelled', 'stopped')
+                and not is_pinned_notice(record)
+                and not is_rate_stop_notice(record)
+                and (self._check_gate is None or cause not in _GATE_NOTICE_CAUSES))
 
     def progress_snapshot(self):
         with self._status_lock:
-            return tuple({**value,'remaining_seconds':max(0,math.ceil(value.get('until',0)-self.clock()))}
-                         for value in self._records.values())
+            now = self.clock()
+            self._records = {
+                key: record for key, record in self._records.items()
+                if not self._is_transient_notice(record) or now < record['until'] + NOTICE_LIFETIME_SECONDS
+            }
+            return tuple({**record, 'notice_id': key,
+                          'remaining_seconds': max(0, math.ceil(record['until'] - now))}
+                         for key, record in self._records.items())
 
-    def _publish(self,token,phase,attempt,limit,*,status=None,delay=0,stop_cause=None):
+    def has_gate_notices(self):
+        if self._check_gate is None:
+            return False
         with self._status_lock:
-            self._records[token]=dict(phase=phase,attempt=attempt,limit=limit,status=status,
-                                      wait_seconds=delay,until=self.clock()+delay)
+            return any(record.get('stop_cause') in _GATE_NOTICE_CAUSES for record in self._records.values())
+
+    def recheck_gate_notices(self):
+        from .managed_network_stop_gate import (
+            ManagedNetworkGateBusy, ManagedNetworkGateStorageError, ManagedNetworkStopped,
+        )
+        from .managed_network_stop_shared_scope import SharedGetOutcomeUncertain
+        if self._check_gate is None:
+            return
+        with self._status_lock:
+            pending = {key: record for key, record in self._records.items()
+                       if record.get('stop_cause') in _GATE_NOTICE_CAUSES}
+            if not pending:
+                return
+            # A newer observation supersedes this one even if it leaves the notices unchanged.
+            self._gate_notice_generation += 1
+            generation = self._gate_notice_generation
+            self._gate_checks_in_progress += 1
+        states = (GateNoticeState('both', 'unverified'),)
+        try:
+            states = self._check_gate()
+            if states is None:
+                states = (GateNoticeState('both', 'open'),)
+        except ManagedNetworkStopped as error:
+            states = (GateNoticeState('both', 'stopped', error.status_code, inflight=None),)
+        except ManagedNetworkGateBusy:
+            states = (GateNoticeState('both', 'busy'),)
+        except SharedGetOutcomeUncertain:
+            states = (GateNoticeState('shared', 'uncertain'),)
+        except (ManagedNetworkGateStorageError, OSError):
+            pass
+        finally:
+            self._complete_gate_check(generation, pending, states)
+
+    def _complete_gate_check(self, generation, pending, states):
+        with self._status_lock:
+            self._gate_checks_in_progress -= 1
+            if generation == self._gate_notice_generation:
+                self._pending_gate_result = generation, pending, states
+            else:
+                # Start order can differ from read order. Retain adverse
+                # evidence for its authority, without masking another side.
+                self._earlier_gate_states.update(state for state in states if state.state != 'open')
+            if self._gate_checks_in_progress:
+                return
+            result = self._pending_gate_result
+            self._pending_gate_result = None
+            earlier = self._earlier_gate_states
+            self._earlier_gate_states = set()
+            if result is None or result[0] != self._gate_notice_generation:
+                return
+            _, pending, states = result
+            self._reconcile_gate_notices(pending, states, earlier)
+
+    def _reconcile_gate_notices(self, pending, states, earlier):
+        evidence = (*states, *earlier)
+        kinds = {state.state for state in evidence}
+        stopped = {}
+        for state in states:
+            if state.status is not None:
+                stopped.setdefault(state.status, set()).add(state.authority)
+        unresolved = {'busy', 'uncertain', 'unverified'}
+
+        def verified(owners, *, require_marker_clear=False):
+            observed = [state for state in evidence if not owners or state.authority in owners
+                        or state.authority == 'both']
+            covered = {state.authority for state in observed}
+            return (bool(observed) and (set(owners) <= covered or 'both' in covered)
+                    and all(state.state not in unresolved
+                            and (not require_marker_clear or state.inflight is False) for state in observed))
+
+        for key, record in pending.items():
+            if self._records.get(key) is not record:
+                continue
+            cause = record['stop_cause']
+            if cause == 'durable_gate':
+                known = set(record.get('gate_owners', ()))
+                owners = known | (stopped.get(record['status'], set()) - {'both'})
+                if owners != known:
+                    self._records[key] = {**record, 'gate_owners': tuple(sorted(owners))}
+                resolved = (all(state.status != record['status'] for state in evidence)
+                            and verified(owners))
+            elif cause == 'gate_unverified':
+                owners = ('shared',) if record.get('gate_problem') == 'uncertain' else record.get('gate_owners', ())
+                resolved = verified(owners, require_marker_clear=True)
+            else:
+                if 'busy' in kinds:
+                    resolved = (kinds <= {'open', 'busy'}
+                                and all(state.status is None for state in evidence)
+                                and self.clock() >= record['until'] + NOTICE_LIFETIME_SECONDS)
+                else:
+                    resolved = not earlier or any(state.state != 'open' for state in states)
+            if resolved:
+                del self._records[key]
+
+        pinned = {_gate_notice_key(record) for record in self._records.values() if is_pinned_notice(record)}
+        observed_stops = [('durable_gate', status, None, tuple(sorted(owners - {'both'})))
+                          for status, owners in sorted(stopped.items())]
+        for authority in sorted({state.authority for state in states if state.state == 'unverified'}):
+            observed_stops.append(('gate_unverified', None, 'storage',
+                                   () if authority == 'both' else (authority,)))
+        if any(state.state == 'uncertain' and state.authority in ('shared', 'both') for state in states):
+            observed_stops.append(('gate_unverified', None, 'uncertain', ()))
+        origin = next(iter(pending.values()))
+        for cause, status, problem, owners in observed_stops:
+            if (cause, status, problem, owners if problem == 'storage' else ()) not in pinned:
+                self._serial += 1
+                self._publish(self._serial, 'stopped', origin['attempt'], origin['limit'],
+                              status=status, stop_cause=cause, gate_problem=problem, gate_owners=owners)
+
+    def _finish_success(self, token):
+        with self._status_lock:
+            self._records = {key: record for key, record in self._records.items()
+                             if key != token and not self._is_transient_notice(record)}
+
+    def _publish(self,token,phase,attempt,limit,*,status=None,delay=0,stop_cause=None,
+                 gate_problem=None,gate_owners=()):
+        with self._status_lock:
+            record = dict(phase=phase, attempt=attempt, limit=limit, status=status,
+                          wait_seconds=delay, until=self.clock()+delay)
             if stop_cause is not None:
-                self._records[token]['stop_cause']=stop_cause
-            while len(self._records)>32:self._records.pop(next(iter(self._records)))
+                record['stop_cause'] = stop_cause
+            if gate_problem is not None:
+                record['gate_problem'] = gate_problem
+            if gate_owners:
+                record['gate_owners'] = gate_owners
+            if stop_cause in _GATE_NOTICE_CAUSES:
+                self._gate_notice_generation += 1
+                for key, previous in tuple(self._records.items()):
+                    if _gate_notice_key(previous) == _gate_notice_key(record):
+                        del self._records[key]
+            self._records[token] = record
+            if phase == 'cancelled' and self._is_transient_notice(self._records[token]):
+                cancelled = [key for key, record in self._records.items()
+                             if record['phase'] == 'cancelled' and self._is_transient_notice(record)]
+                if len(cancelled) > 32:
+                    del self._records[cancelled[0]]
 
     def _settings(self):
         value=self.settings();count=value.retry_limit;wait=value.rate_limit_wait_seconds
@@ -251,24 +538,37 @@ class RequestRetryPolicy:
         finally:_BOUNDED_GET_RETRY.reset(token)
 
     def _execute(self,operation,*,deadline):
-        from .pixiv_read_client import HTTPStatusRejected,TransportFailed
+        from .managed_network_stop_gate import (
+            ManagedNetworkGateBusy, ManagedNetworkGateStorageError, ManagedNetworkStopped,
+        )
+        from .managed_network_stop_shared_scope import SharedGetOutcomeUncertain
+        from .pixiv_read_client import HTTPStatusRejected
         if not callable(operation):raise TypeError('operation must be callable')
         request_checkpoint();_check_deadline(deadline,self.clock)
         count,rate_wait=self._settings() if _SCOPE.get().allow_retry else (1,0)
         with self._status_lock:
             if self._rate_stopped:raise HTTPStatusRejected(429)
-            self._records={k:v for k,v in self._records.items() if v['phase'] in ('requesting','waiting')}
+            self._records={k:v for k,v in self._records.items() if v['phase'] != 'failed'}
             self._serial+=1;token=self._serial
         try:return self._attempts(operation,deadline,token,count,rate_wait)
-        except BaseException:
+        except BaseException as error:
             with self._status_lock:
                 value=self._records.get(token)
                 if value and value['phase'] in ('requesting','waiting'):
-                    self._publish(token,'cancelled',value['attempt'],count,status=value['status'])
+                    phase, status, cause = 'cancelled', value['status'], None
+                    problem = None
+                    if isinstance(error, ManagedNetworkStopped):
+                        phase, status, cause = 'stopped', error.status_code, 'durable_gate'
+                    elif isinstance(error, ManagedNetworkGateBusy):
+                        cause = 'gate_busy'
+                    elif isinstance(error, ManagedNetworkGateStorageError):
+                        phase, status, cause = 'stopped', None, 'gate_unverified'
+                        problem = 'uncertain' if isinstance(error, SharedGetOutcomeUncertain) else 'storage'
+                    self._publish(token, phase, value['attempt'], count, status=status,
+                                  stop_cause=cause, gate_problem=problem)
             raise
 
     def _attempts(self,operation,deadline,token,count,rate_wait):
-        from .managed_network_stop_gate import ManagedNetworkStopped
         from .pixiv_read_client import HTTPStatusRejected,TransportFailed,_PooledConnectionLost
         for attempt in range(count):
             request_checkpoint();_check_deadline(deadline,self.clock)
@@ -279,7 +579,7 @@ class RequestRetryPolicy:
             self._publish(token,'requesting',attempt+1,count)
             try:
                 result=operation()
-                with self._status_lock:self._records.pop(token,None)
+                self._finish_success(token)
                 return result
             except _PooledConnectionLost:
                 if attempt+1>=count:
@@ -292,10 +592,6 @@ class RequestRetryPolicy:
                     self._publish(token,'requesting',attempt+2,count)
                 try:
                     result=_recover_on_fresh_connection(operation,deadline,clock=self.clock)
-                except ManagedNetworkStopped as error:
-                    self._publish(token,'stopped',attempt+2,count,status=error.status_code,
-                                  stop_cause='durable_gate')
-                    raise
                 except HTTPStatusRejected as error:
                     if error.status_code==404:
                         with self._status_lock:self._records.pop(token,None)
@@ -305,7 +601,7 @@ class RequestRetryPolicy:
                 except TransportFailed:
                     self._publish(token,'failed',attempt+2,count)
                     raise
-                with self._status_lock:self._records.pop(token,None)
+                self._finish_success(token)
                 return result
             except (HTTPStatusRejected,TransportFailed) as error:
                 if isinstance(error,HTTPStatusRejected):
@@ -334,8 +630,4 @@ class RequestRetryPolicy:
                     if type(noise) not in (int,float) or not math.isfinite(noise) or not 0<=noise<=1:raise ValueError('invalid retry jitter')
                     delay=2**attempt+noise
                 self._publish(token,'waiting',attempt+1,count,status=status,delay=delay)
-                try:_wait(delay,deadline,clock=self.clock,sleep=self.sleep)
-                except BaseException:
-                    self._publish(token,'cancelled',attempt+1,count,status=status);raise
-            except BaseException:
-                self._publish(token,'cancelled',attempt+1,count);raise
+                _wait(delay,deadline,clock=self.clock,sleep=self.sleep)

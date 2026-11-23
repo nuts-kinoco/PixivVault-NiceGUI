@@ -10,6 +10,8 @@ import json
 from uuid import uuid4
 from nicegui import ui
 
+from .management_dialog import focus_after_dialog, managed_dialog
+
 from ..library_filters import LibraryFilters, normalize_tag
 
 
@@ -131,7 +133,7 @@ class LibraryFilterPanel:
             with self.container(testid='library-filter-panel', label='ライブラリの絞り込み') as self.root:
                 with ui.row().classes("items-center justify-between w-full"):
                     ui.label("絞り込み").classes("pv-library-heading")
-                    self.clear_button = ui.button("条件をクリア").props(
+                    self.clear_button = ui.button("条件をクリア").classes('pv-hit28').props(
                         "flat dense no-caps data-testid=library-filter-clear")
                 seats = (
                     ("sort", "01", "並び順", "ここには無い →", "一覧上部の並び替えボタンで指定します"),
@@ -156,16 +158,16 @@ class LibraryFilterPanel:
                             with ui.row():
                                 self.date_buttons=[]
                                 for years,label in [(1,'1年'),(3,'3年'),('custom','期間指定'),(None,'すべて')]:
-                                    button=ui.button(label).props(f'flat dense data-testid=library-date-preset-{years or "all"}')
+                                    button=ui.button(label).classes('pv-hit28').props(f'flat dense data-testid=library-date-preset-{years or "all"}')
                                     self.date_buttons.append((button,years))
                             with ui.row().classes('items-end w-full no-wrap'):
                                 self.date_from=_FilterInput(self,'date_from','開始日',placeholder='YYYY-MM-DD').classes('flex-1 min-w-0').props('outlined dense data-testid=library-date-from')
-                                self.date_from_button=ui.button(icon='calendar_month').props(
-                                    'flat round dense aria-label=開始日のカレンダーを開く data-testid=library-date-from-calendar')
+                                self.date_from_button=ui.button(icon='calendar_month').classes('pv-hit28').props(
+                                    'flat round dense aria-label=開始日のカレンダーを開く… data-testid=library-date-from-calendar')
                             with ui.row().classes('items-end w-full no-wrap'):
                                 self.date_to=_FilterInput(self,'date_to','終了日',placeholder='YYYY-MM-DD').classes('flex-1 min-w-0').props('outlined dense data-testid=library-date-to')
-                                self.date_to_button=ui.button(icon='calendar_month').props(
-                                    'flat round dense aria-label=終了日のカレンダーを開く data-testid=library-date-to-calendar')
+                                self.date_to_button=ui.button(icon='calendar_month').classes('pv-hit28').props(
+                                    'flat round dense aria-label=終了日のカレンダーを開く… data-testid=library-date-to-calendar')
                         elif key == "bookmark":
                             self.bookmark_min=_FilterNumber(self,'bookmark_min','ブクマ数の下限',value=0,min=0,precision=0).props('outlined dense data-testid=library-bookmark-min')
                             self.bookmark_slider=_BookmarkSlider(self).classes('w-full').props(
@@ -176,14 +178,15 @@ class LibraryFilterPanel:
                             self.bookmark_buttons=[]
                             with ui.row():
                                 for value in (0,100,500,1000):
-                                    button=ui.button('指定なし' if value==0 else f'{value:,}+').props(f'flat dense data-testid=library-bookmark-preset-{value}')
+                                    button=ui.button('指定なし' if value==0 else f'{value:,}+').classes('pv-hit28').props(f'flat dense data-testid=library-bookmark-preset-{value}')
                                     self.bookmark_buttons.append((button,value))
                         elif key == "exclude":
                             self.exclude_ai=_FilterCheckbox(self,'exclude_ai','AI作品を除外').props('data-testid=library-exclude-ai')
                 ui.separator()
                 ui.label('作者').classes('pv-library-heading')
                 self.author_input=ui.input(placeholder='作者名の一部を入力').props('outlined dense data-testid=library-author-filter-input maxlength=256')
-                self.author_add=ui.button('作者を追加').props('flat dense data-testid=library-author-filter-add')
+                self.author_input.props['aria-label'] = '作者名の一部を入力'
+                self.author_add=ui.button('作者を追加').classes('pv-hit28').props('flat dense data-testid=library-author-filter-add')
                 self.author_chips=ui.row().classes('w-full')
                 self.author_notice=ui.label().props('role=status data-testid=library-author-filter-notice').classes('pv-subtitle')
                 self.include_r18=_FilterCheckbox(self,'include_r18','R-18 を含める',value=True).props('data-testid=library-include-r18')
@@ -194,11 +197,11 @@ class LibraryFilterPanel:
                         "data-testid=library-tag-controls"):
                     with ui.row().classes("items-center justify-between w-full"):
                         ui.label("タグ").classes("pv-library-heading")
-                        self.mode_button = ui.button("すべて含む").props(
+                        self.mode_button = ui.button("すべて含む").classes('pv-hit28').props(
                             "flat dense no-caps data-testid=library-filter-mode")
                     self.tag_input = ui.input(placeholder="タグを追加").props(
                         "outlined dense data-testid=library-filter-tag-input maxlength=256")
-                    self.add_button = ui.button("追加").props(
+                    self.add_button = ui.button("追加").classes('pv-hit28').props(
                         "flat dense no-caps data-testid=library-filter-tag-add")
                     self.tags = ui.row().classes("pv-library-tag-chips w-full").props(
                         "data-testid=library-filter-tags")
@@ -234,17 +237,21 @@ class LibraryFilterPanel:
             return None
         return parsed
 
-    def _close_calendar(self):
+    def _close_calendar(self, *, restore_focus=False):
         dialog = self.calendar_dialog
+        token = self._calendar_token
         self._calendar_token = None
         self.calendar_dialog = self.calendar_picker = self.calendar_cancel = None
         if dialog is not None and not dialog.is_deleted:
             dialog.close()
             dialog.delete()
+            if restore_focus and token is not None and self.root.client.has_socket_connection:
+                opener = self.date_from_button if token[0] == 'date_from' else self.date_to_button
+                focus_after_dialog(self.root.client, f'#{opener.html_id}')
 
     def _dismiss_calendar(self, token):
         if self._calendar_token == token:
-            self._close_calendar()
+            self._close_calendar(restore_focus=True)
 
     def open_calendar(self, field):
         if field not in ('date_from','date_to') or not self._allowed(needs_panel=True):
@@ -255,9 +262,10 @@ class LibraryFilterPanel:
         initial = self._calendar_date(getattr(self.get_filters(),field))
         today = date.today()
         with self.root:
-            dialog = ui.dialog().props('data-testid=library-date-dialog')
+            dialog = managed_dialog(focus_after_update=True).props('data-testid=library-date-dialog')
+            dialog.props['aria-label'] = '開始日を選択' if field == 'date_from' else '終了日を選択'
         self.calendar_dialog = dialog
-        with dialog, ui.card():
+        with dialog, ui.card() as card:
             ui.label('開始日を選択' if field == 'date_from' else '終了日を選択').classes('text-subtitle1')
             picker = ui.date(initial.isoformat() if initial is not None else None,
                              mask='YYYY-MM-DD').props('data-testid=library-date-picker')
@@ -269,7 +277,7 @@ class LibraryFilterPanel:
                 "value => { const day = String(value).replaceAll('/', '-'); "
                 f"return day >= '2007-01-01' && day <= '{today.isoformat()}'; }}")
             ui.label('2007-01-01 から今日まで選択できます。').classes('pv-library-filter-reason')
-            self.calendar_cancel = ui.button('キャンセル').props('flat data-testid=library-date-cancel')
+            self.calendar_cancel = ui.button('キャンセル').classes('pv-hit28').props('flat autofocus data-testid=library-date-cancel')
         pinned = json.dumps(dict(zip(('field','epoch','nonce'),token)),separators=(',',':'))
         picker.on('update:model-value',
                   lambda message, captured=token:self._calendar_pick(captured,message.args),
@@ -290,7 +298,7 @@ class LibraryFilterPanel:
         if selected is None:
             return
         field = token[0]
-        self._close_calendar()
+        self._close_calendar(restore_focus=True)
         self.change_setting(field,selected.isoformat())
 
     def _bookmark_event_js(self, slider_id):
@@ -526,9 +534,9 @@ class LibraryFilterPanel:
         names=self.get_authors()
         for author in sorted(filters.authors):
             with self.author_chips:
-                ui.button(names.get(author,author)+' ×',on_click=lambda _,a=author,s=session:self.remove_author(a,s)).props('flat dense data-testid=library-author-filter-remove')
+                ui.button(names.get(author,author)+' ×',on_click=lambda _,a=author,s=session:self.remove_author(a,s)).classes('pv-hit28').props('flat dense data-testid=library-author-filter-remove')
             with self.now:
-                ui.button('作者: '+names.get(author,author)+' ×',on_click=lambda _,a=author,s=session:self.remove_author(a,s)).props('flat dense data-testid=library-author-now-chip')
+                ui.button('作者: '+names.get(author,author)+' ×',on_click=lambda _,a=author,s=session:self.remove_author(a,s)).classes('pv-hit28').props('flat dense data-testid=library-author-now-chip')
         with self.now:
             for active,label in [(bool(filters.date_from or filters.date_to),f'投稿日: {filters.date_from or "…"}〜{filters.date_to or "…"}'),
                 (bool(filters.bookmark_min),f'ブクマ: {filters.bookmark_min}+'),(not filters.include_r18,'R-18除外'),
@@ -541,19 +549,19 @@ class LibraryFilterPanel:
                     with ui.row().classes("pv-library-tag-chip" + (" pv-tag-excluded" if excluded else "")) as chip:
                         chip.props["data-tag"] = tag
                         chip.props["data-excluded"] = str(excluded).lower()
-                        ui.button("−" if excluded else "+", on_click=lambda _, t=tag, s=session: self.flip(t, s)).props(
+                        ui.button("−" if excluded else "+", on_click=lambda _, t=tag, s=session: self.flip(t, s)).classes('pv-hit28').props(
                             "flat dense round data-testid=library-filter-tag-flip")
                         ui.label(tag)
-                        remove = ui.button("×", on_click=lambda _, t=tag, s=session: self.remove(t, s)).props(
+                        remove = ui.button("×", on_click=lambda _, t=tag, s=session: self.remove(t, s)).classes('pv-hit28').props(
                             "flat dense round data-testid=library-filter-tag-remove")
                         remove.props["aria-label"] = f"タグ {tag} を解除"
                 with self.now:
-                    button = ui.button(label + " ×", on_click=lambda _, t=tag, s=session: self.remove(t, s)).props(
+                    button = ui.button(label + " ×", on_click=lambda _, t=tag, s=session: self.remove(t, s)).classes('pv-hit28').props(
                         "flat dense no-caps data-testid=library-filter-now-chip")
                     button.props["data-tag"] = tag
         if filters != LibraryFilters():
             with self.now:
-                ui.button("すべて解除", on_click=lambda _, s=session: self.clear(session=s)).props(
+                ui.button("すべて解除", on_click=lambda _, s=session: self.clear(session=s)).classes('pv-hit28').props(
                     "flat dense no-caps data-testid=library-filter-now-clear")
         self.now.set_visibility(filters != LibraryFilters())
         self.now_parent.set_visibility(filters != LibraryFilters())

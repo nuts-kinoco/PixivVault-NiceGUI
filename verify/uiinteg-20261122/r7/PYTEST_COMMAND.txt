@@ -1,0 +1,5 @@
+S:/Projects/PixivVault-NiceGUI/.venv/Scripts/python.exe -B -m pytest -p required_network_guard -k "not dpapi" --tb=short -o cache_dir="S:/Work/_tmp/PV/ui-integ/r7/cache-PYTEST_FULL" --basetemp "S:/Work/_tmp/PV/ui-integ/r7/isolated-pytest-run-PYTEST_FULL"
+
+PYTHONPATH は隔離用 sitecustomize、作業ツリー src と tests。TEMP/TMP、APPDATA/LOCALAPPDATA、NICEGUI_STORAGE_PATH と Known Folder は担当一時領域。PYTHONIOENCODING は未指定。隔離 Chromium、合成データ、所有したループバックを使用。
+
+関連試験は同条件で -v と tests/test_ui_common_browser.py tests/test_ui_fix2_dialogs_browser.py tests/test_ui_fix3_browser.py tests/test_ui_fix4_20261122.py tests/test_r3_fixes_20261120.py tests/test_d6_cardgrid_browser.py tests/test_p6_network.py。実行候補と時刻は STATE_*.txt。RED_MATRIX は土台の focus_recovery.js の Git blob をブラウザーに読み込む試験専用の差し替え。

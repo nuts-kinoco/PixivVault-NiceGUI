@@ -50,8 +50,8 @@ class PersonalRankingView(RankingView):
                 self._render_selected_tags()
                 # 元 ranking_tab.py:2135: 既定 ON。借用検索が使えるときだけ操作できる（availability）。
                 # 元の借用検索は R-18 を API にも結果の絞り込みにも使わないので、切替で結果は変わらない。
-                self.r18=ui.switch('R-18',value=True).classes('pv-filter-switch').props('data-testid=personal-r18');self.r18.tooltip('R-18を含める')
-                self.ai=ui.switch('AI を除外',value=False).classes('pv-filter-switch').props('data-testid=personal-ai')
+                self.r18=ui.switch('R-18',value=True).classes('pv-filter-switch pv-focus-ring').props('data-testid=personal-r18');self.r18.tooltip('R-18を含める')
+                self.ai=ui.switch('AI を除外',value=False).classes('pv-filter-switch pv-focus-ring').props('data-testid=personal-ai')
                 self.fetch_button=refresh_button(self.refresh,label='取得・更新',testid='personal-fetch')
                 self.fetch_button.set_text('取得・更新').props('no-caps')
                 self.fetch_button.props['aria-label'] = '取得・更新'
@@ -172,6 +172,7 @@ class PersonalRankingView(RankingView):
                     ui.label(tag)
                     button = ui.button(icon='close', on_click=lambda _, value=tag: self.remove_tag(value))
                     button.props('flat dense round size=xs data-testid=personal-remove-tag')
+                    button.classes('pv-hit28')
                     button._props['aria-label'] = f'{tag} を解除'
 
     def selected_tags(self):
@@ -334,7 +335,7 @@ class PersonalRankingView(RankingView):
         self.filter_toggle.set_text(f'絞り込み ({len(found)})' if found else '絞り込み')
         with row:
             for key,label in found:
-                with ui.element('div').classes('pv-chip').props('role=button tabindex=0') as chip:
+                with ui.element('div').classes('pv-chip pv-focus-ring').props('role=button tabindex=0') as chip:
                     ui.label(label);ui.label('✕').classes('pv-chip-x')
                 chip._props['data-chip-key']=key;chip._props['aria-label']=f'{label} を解除'
                 chip.on('click',lambda _,k=key:self.remove_condition(k));chip.on('keydown.enter',lambda _,k=key:self.remove_condition(k))

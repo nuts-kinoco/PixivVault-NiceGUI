@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import asyncio
 from collections import Counter
+import json
 import re
 from uuid import uuid4
 
@@ -21,7 +22,8 @@ from ..pixiv_read_client import HTTPStatusRejected, PixivReadError
 from ..request_policy import request_scope
 from ..legacy_retry_batch import retry_batch_scope, RETRY_CAPACITY_WAIT_SECONDS
 from .job_views import _accepted_call
-from .action_controls import retry_button
+from .action_controls import danger_button, retry_button
+from .management_dialog import focus_after_dialog, managed_dialog
 
 
 CSS = """
@@ -34,7 +36,7 @@ CSS = """
 .pv-failure-chip-text {width:100%;text-align:left;white-space:nowrap;}
 .pv-failure-chip-count {display:inline-block;margin-left:6px;border-radius:4px;min-width:26px;padding:1px 4px;text-align:center;background:var(--pv-raised);color:var(--pv-text);}
 .pv-failure-chip[aria-pressed=true] .pv-failure-chip-count {background:var(--pv-surface);color:var(--pv-text);}
-.pv-failure-chip[aria-pressed=true] {background:var(--pv-fill) !important;color:var(--pv-on-fill) !important;}
+.pv-failure-chip[aria-pressed=true] {background:var(--pv-fill) !important;color:var(--pv-action-text) !important;}
 .pv-failure-rows {width:100%;gap:0;}
 .pv-failure-row {width:100%;padding:4px 14px;border-bottom:1px solid #15161c;gap:2px;min-width:0;}
 .pv-failure-row-top {width:100%;gap:8px;align-items:center;flex-wrap:wrap;}
@@ -283,7 +285,9 @@ class FailedRecordsView:
                 with ui.column().classes("pv-failure-row").props("data-testid=failed-record") as row:
                     row.props["data-work-id"] = record.work_id
                     with ui.row().classes("pv-failure-row-top"):
-                        ui.label(f"{record.title or '無題'}（ID: {record.work_id}）").classes("pv-failure-title")
+                        full_title = f"{record.title or '無題'}（ID: {record.work_id}）"
+                        title_label = ui.label(full_title).classes("pv-failure-title")
+                        title_label.props["title"] = full_title
                         category = self._category_labels[classify_reason(record.error_reason)]
                         ui.label(f"{category} ・ リトライ回数: {record.retry_count}").classes("pv-failure-meta")
                         retry = retry_button(testid="failed-row-retry")
@@ -419,22 +423,24 @@ class FailedRecordsView:
         epoch, revision = self._epoch, self._read_revision
         token = self._remove_token = uuid4().hex
         self._remove_busy = True
+        return_work_id = selected[0].work_id if rows is not None and len(selected) == 1 else None
         self.clear_all_item.menu.close()
         self.render()
         background_tasks.create(self._remove_records(
-            self._failure_snapshot, selected, epoch, revision, token))
+            self._failure_snapshot, selected, epoch, revision, token, return_work_id=return_work_id))
 
     async def _confirm_remove(self, count):
         with self.client:
-            with ui.dialog() as dialog, ui.card().props('data-testid=failed-remove-dialog'):
-                ui.label(f'{count} 件の失敗記録を一覧から削除しますか？').props(
+            with managed_dialog(focus_after_update=True).props('transition-duration=150') as dialog, ui.card().props('data-testid=failed-remove-dialog') as card:
+                heading = ui.label(f'{count} 件の失敗記録を一覧から削除しますか？').props(
                     'data-testid=failed-remove-confirm-count')
+                dialog.props['aria-labelledby'] = heading.html_id
                 ui.label('この一覧での削除は取り消せません。元のDB・画像・ZIPと受理済みジョブは変更しません。')
                 with ui.row():
-                    ui.button('キャンセル', on_click=lambda: dialog.submit(False)).props(
-                        'flat data-testid=failed-remove-cancel')
-                    ui.button('一覧から削除', on_click=lambda: dialog.submit(True)).props(
-                        'flat data-testid=failed-remove-confirm')
+                    ui.button('キャンセル', on_click=lambda: dialog.submit(False)).classes('pv-focus-ring').props(
+                        'flat autofocus data-testid=failed-remove-cancel')
+                    danger_button('一覧から削除', lambda: dialog.submit(True), testid='failed-remove-confirm')
+
             self._remove_dialog = dialog
         try:
             return await dialog is True
@@ -444,7 +450,7 @@ class FailedRecordsView:
             if not dialog.is_deleted:
                 dialog.delete()
 
-    async def _remove_records(self, snapshot, selected, epoch, revision, token):
+    async def _remove_records(self, snapshot, selected, epoch, revision, token, *, return_work_id=None):
         def current():
             return (self._allowed() and self._remove_token == token
                     and self._epoch == epoch and self._read_revision == revision
@@ -485,6 +491,11 @@ class FailedRecordsView:
                 self._remove_busy = False
             if not self.closed:
                 self.render()
+                if self.active:
+                    root = f'#{self.root.html_id}'
+                    row = f'{root} [data-testid=failed-record][data-work-id={json.dumps(return_work_id)}]'
+                    focus_after_dialog(self.client, f'{row} [data-testid=failed-row-delete]',
+                                       f'{root} [data-testid=failed-menu]')
 
     def _release_retry_owner(self) -> None:
         if (self.closed and not self._pending_accepts and not self._retry_busy
