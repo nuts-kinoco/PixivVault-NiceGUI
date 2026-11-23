@@ -634,7 +634,20 @@ class ReadonlyLocalMediaCatalog:
             elif not _fresh and key in self._cache:
                 self._cache.move_to_end(key)
                 return self._cache[key]
-            path, member = self._source(work_id, page_no, variant)
+            copy_path = None
+            try:
+                path, member = self._source(work_id, page_no, variant)
+            except MediaAmbiguous:
+                # Two regular files with the same explicit attribution can
+                # render the same page once their contents have been compared.
+                page_key = (work_id, page_no)
+                choices = self._locations.get(page_key, ())
+                if (variant not in {'thumb', 'view'} or page_key in self._ambiguous
+                        or len(choices) != 2 or any(
+                            entry is not None or self._id_from_name(p.name) != work_id
+                            for p, entry in choices)):
+                    raise
+                (path, member), (copy_path, _) = choices
             generation = self._generation
             request_cache=self._shared_cache
         # I/O and decoding are deliberately outside the catalog lock: concurrent
@@ -665,6 +678,10 @@ class ReadonlyLocalMediaCatalog:
                                 data = stream.read(_MAX_FILE + 1)
                 if len(data) > _MAX_FILE:
                     raise MediaUnavailable("image exceeds limits")
+                if copy_path is not None:
+                    with self._checked_open(copy_path) as copy:
+                        if copy.read(len(data) + 1) != data:
+                            raise MediaAmbiguous("multiple images for same work/page")
                 disk_key=("local-thumbnail-v1:"+work_id+":"+str(page_no)+":"+hashlib.sha256(data).hexdigest()) if variant in {"thumb", "cover"} else None
                 cached=request_cache.get(key,disk_key=disk_key) if request_cache is not None and disk_key is not None else None
                 if cached is not None:
@@ -687,6 +704,8 @@ class ReadonlyLocalMediaCatalog:
                                     else "RGB").save(output, format="PNG")
                     png = output.getvalue()
                     blob = ImageBlob(png, "image/png", '"' + hashlib.sha256(png).hexdigest() + '"')
+        except MediaAmbiguous:
+            raise
         except (OSError, BadZipFile, UnidentifiedImageError, Image.DecompressionBombError,
                 ValueError, KeyError, NotImplementedError, zlib.error) as exc:
             raise MediaUnavailable("media read failed") from exc
