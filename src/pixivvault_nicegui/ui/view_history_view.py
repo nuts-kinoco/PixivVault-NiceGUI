@@ -5,7 +5,9 @@ from io import StringIO
 from types import SimpleNamespace
 from nicegui import ui
 
-from .action_controls import dialog_actions, outlined_input, secondary_button
+from .management_dialog import managed_dialog
+
+from .action_controls import dialog_actions, notify_action, outlined_input, secondary_button
 
 LABELS = {'like':'いいね','superLike':'SuperLike','skip':'見送り','hate':'合わない'}
 
@@ -14,7 +16,7 @@ class _NoticeStatus:
 
     @staticmethod
     def set_text(text):
-        ui.notify(text, type='warning')
+        notify_action(text, type='warning')
 
 
 class HeaderHistoryHost:
@@ -55,8 +57,9 @@ class ViewHistoryView:
         self.button = ui.button('閲覧履歴', on_click=self.open).props('flat data-testid=view-history-inner')
         self.button.set_visibility(False)
         self.button.set_enabled(storage is not None)
-        with ui.dialog().props('data-testid=view-history-dialog') as self.dialog, ui.card().classes('pv-tone-b-history-card w-full gap-2'):
-            ui.label('閲覧履歴（学習タブ）').classes('pv-dialog-title text-base font-semibold')
+        with managed_dialog().props('data-testid=view-history-dialog') as self.dialog, ui.card().classes('pv-tone-b-history-card w-full gap-2') as card:
+            heading = ui.label('閲覧履歴（学習タブ）').classes('pv-dialog-title text-base font-semibold')
+            self.dialog.props['aria-labelledby'] = heading.html_id
             ui.label('学習で開いた作品の記録です。判定とは別に回数を記録します。').classes('pv-subtitle')
             self.notice = ui.label().classes('pv-subtitle pv-tone-b-notice').props('role=status data-testid=view-history-status')
             self.body = ui.column().classes('pv-tone-b-history-list pv-tone-b-list w-full gap-2')
@@ -66,12 +69,12 @@ class ViewHistoryView:
                 with ui.row().classes('w-full items-center gap-2'):
                     self.confirm = outlined_input('削除する履歴の件数を入力').props(
                         'inputmode=numeric data-testid=view-history-confirm')
-                    self.clear_button = ui.button('全件削除', on_click=self.clear, color='amber').props(
+                    self.clear_button = ui.button('全件削除', on_click=self.clear, color='amber').classes('pv-hit28').props(
                         'unelevated dense no-caps text-color=black data-testid=view-history-clear')
                     self.confirm.on_value_change(lambda _: self.sync())
             with dialog_actions().classes('justify-end'):
                 secondary_button('CSV出力', self.export, icon='file_download', outline=True, testid='view-history-export')
-                secondary_button('閉じる', self.dialog.close, testid='view-history-close')
+                secondary_button('閉じる', self.dialog.close, testid='view-history-close').props('autofocus')
         self.dialog.on('hide', self.hide)
         from .recommendation_viewer import RecommendationViewer
         self.viewer = RecommendationViewer(parent.services, parent.root, on_close=lambda:None,
@@ -141,10 +144,11 @@ class ViewHistoryView:
                         with picture.add_slot('error'):
                             ui.icon('image_not_supported').classes('pv-subtitle pv-tone-b-history-placeholder')
                     with secondary_button('', lambda _,w=row['work_id']:self.open_work(w)).props('align=left').classes('pv-tone-b-history-title'):
-                        ui.label(row['title']).classes('pv-tone-b-history-title-text')
+                        title = ui.label(row['title']).classes('pv-tone-b-history-title-text')
+                        title.props['title'] = row['title']
                     ui.label(f'開いた回数: {row["open_count"]}　最終: {row["last_opened_at"]}').classes('pv-subtitle pv-tone-b-history-facts')
                     ui.label(LABELS.get(row.get('discovery_verdict'), '')).props('data-testid=view-history-badge').classes('pv-subtitle pv-tone-b-history-badge')
-                    ui.button('Pixivで開く', color=None, on_click=lambda _,w=row['work_id']:ui.navigate.to(f'https://www.pixiv.net/artworks/{w}',new_tab=True)).props('flat dense no-caps').classes('pv-tone-b-history-external')
+                    ui.button('Pixivで開く…', color=None, on_click=lambda _,w=row['work_id']:ui.navigate.to(f'https://www.pixiv.net/artworks/{w}',new_tab=True)).props('flat dense no-caps').classes('pv-tone-b-history-external pv-hit28')
         self.sync()
 
     def load_more(self):

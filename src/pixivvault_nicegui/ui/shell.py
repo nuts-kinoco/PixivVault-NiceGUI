@@ -4,7 +4,10 @@ import asyncio
 
 from nicegui import app, ui
 
+from .management_dialog import dismiss_focus_js, install_focus_recovery, managed_dialog
+
 from ..services import ApplicationServices, get_services
+from .action_controls import notify_action
 from .gallery import GalleryView
 from .grid_layout import MAX_COLUMNS
 from ..auth_status import (BLUE as AUTH_BLUE, CHECKING_TEXT as AUTH_CHECKING_TEXT, GREEN as AUTH_GREEN,
@@ -90,6 +93,7 @@ class DemoShell:
         ui.add_css(CSS)
         ui.colors(primary=TOKENS["accent"])
         self.dark_mode = ui.dark_mode(True)
+        install_focus_recovery(self.client)
         with ui.column().classes("pv-shell") as self.root:
             # 元 gui.py:6126 db_status_banner: ヘッダーより上、最上段に常時表示。
             is_production, db_text = db_status(services)
@@ -97,103 +101,104 @@ class DemoShell:
             self.db_banner.style(
                 'background-color:#d32f2f;color:#fff;font-weight:bold;padding:8px;width:100%' if is_production
                 else 'font-size:11px;color:#9e9e9e;padding:2px 0 0 8px')
-            with ui.element("div").classes("pv-header"):
-                with ui.column().classes("pv-header-main"):
-                    ui.label("PixivVault").classes("pv-title")
-                    # 元 gui.py login_status_text: ロゴの直下に常時表示。
-                    if getattr(services, 'native_profile', None) is not None:
-                        self.auth_label = ui.label(AUTH_CHECKING_TEXT).classes('pv-auth').props(
-                            'role=status aria-live=polite data-testid=auth-status data-tone=primary')
-                    # 元 gui.py app_connection_row の「アプリ: 接続中…」は iOS 連携の接続状態。iOS 連携は作らないため表示ごと除外（2026-11-20 本人指示）。「API切り替え」は残す。
-                    with ui.row().classes('pv-conn-row items-center'):
-                        from .request_status_view import RequestStatusView
-                        from .shared_get_recovery_view import SharedGetRecoveryView, shared_get_scope
-                        if getattr(services,'external_vault',None) is not None:
-                            gate=getattr(services,'premium_authorization',None)
-                            if gate is not None:
-                                from .premium_gate_view import PremiumGateDialog,DEFAULT_UID_PATH
-                                self.borrow_dialog=PremiumGateDialog(gate,on_change=self.sync_borrow,
-                                    default_uid_path=getattr(services,'default_uid_path',DEFAULT_UID_PATH))
-                                # Original gui.py:859: an opened vault takes the fixed UID file at start.
-                                self._reflect_uid_once(self.borrow_dialog)
-                            self.borrow_switch=ui.switch('API切り替え',on_change=self.borrow_changed).props(
-                                'dense data-testid=premium-borrow-toggle')
-                            # .props の文字列は全角括弧を含む値を捨てる（Props.parse）。完全な値を直接代入する。
-                            self.borrow_switch.props['aria-label'] = '借用プレミアム（API切り替え）'
-                            with self.borrow_switch:ui.tooltip('借用プレミアム')
-                            if self.borrow_dialog is not None:
-                                self.borrow_setup_button=ui.button(
-                                    '初期設定を開く',on_click=self.borrow_dialog.request_enable).props(
-                                        'flat dense no-caps data-testid=premium-setup-shell')
-                                # Shown only while a Pixiv result is unconfirmed (the Shaft tab no longer exists).
-                                self.borrow_recovery_button=ui.button('通信結果を確認',on_click=self.borrow_dialog.open_recovery).props(
-                                    'flat dense no-caps data-testid=premium-recovery-shell')
-                            self._borrow_timer=ui.timer(1,self.sync_borrow)
-                            self.sync_borrow()
-                        else:
-                            self.borrow_switch=ui.switch('API切り替え',value=False).props(
-                                'dense data-testid=premium-borrow-toggle')
-                            self.borrow_switch.props['aria-label'] = '借用プレミアム（API切り替え）'
-                            self.borrow_switch.disable()
-                            with self.borrow_switch:ui.tooltip('借用プレミアム: 設定でCookieと保存先を保存し、再起動するとONにできます。')
-                        shared = shared_get_scope(services)
-                        if shared is not None:
-                            self.get_recovery_view = SharedGetRecoveryView(shared)
-                    policy=getattr(self.services,'_request_retry',None)
-                    if policy is not None:
-                        self.request_status_view=RequestStatusView(policy)
-                # 元 gui.py:6125-6136 の右カラム: IconButton 6 個（バックアップ・閲覧履歴・保存フォルダー・テーマ・Pixiv・設定）。
-                with ui.element("div").classes("pv-header-actions"):
-                    history = ui.button(icon='history', color=None, on_click=lambda _: self.show('history')).classes(
-                        'pv-hbtn').props('flat round data-testid=tab-history aria-label=直近のバックアップ')
-                    history_available = self._tab_available('history')
-                    with history:
-                        # 使えないときは理由を出す（タブ側と同じ文言）。
-                        ui.tooltip('直近のバックアップ' if history_available else 'この起動設定では利用できません')
-                    history.set_enabled(history_available)
-                    self.buttons['history'] = history
-                    self.view_history_button = ui.button(icon='visibility', color=None,
-                                                         on_click=self.open_view_history).classes('pv-hbtn').props(
-                        'flat round data-testid=view-history-open aria-label=閲覧履歴')
-                    with self.view_history_button:
-                        self.view_history_badge = ui.badge('').props('floating color=primary')
-                        self.view_history_badge.set_visibility(False)
-                        self.view_history_tooltip = ui.tooltip('閲覧履歴（学習タブ）')
-                    from .saved_folder_button import SavedFolderButton
-                    self.saved_folder_button = SavedFolderButton(services)
-                    self.saved_folder_button.button.classes('pv-hbtn').props('round')
-                    self.theme_button = ui.button(icon='light_mode', color=None, on_click=self.toggle_theme).classes(
-                        'pv-hbtn').props('flat round data-testid=theme-toggle aria-label=ライトモードへ切り替え')
-                    with self.theme_button:
-                        self.theme_tooltip = ui.tooltip('ライトモードへ切り替え')
-                    self.pixiv_home = ui.link('', 'https://www.pixiv.net/', new_tab=True).classes('pv-hbtn').props(
-                        'data-testid=pixiv-home-link aria-label=ブラウザでPixivを開く')
-                    self.pixiv_home.on('click', self._log_pixiv_open)
-                    with self.pixiv_home:
-                        ui.icon('public')
-                        ui.tooltip('ブラウザで Pixiv を開く (ログイン状態確認・自動連携)')
-                    # NiceGUI's .props parser treats whitespace as a separator:
-                    # ``rel=noopener noreferrer`` serializes only ``noopener``.
-                    # Assign the complete HTML rel value as one property instead.
-                    self.pixiv_home.props['rel'] = 'noopener noreferrer'
-                    settings = ui.button(icon='settings', color=None, on_click=self.open_preferences).classes(
-                        'pv-hbtn').props('flat round data-testid=preferences-open aria-label=設定')
-                    with settings:
-                        ui.tooltip('設定')
-                    settings.set_enabled(getattr(services, 'preferences', None) is not None
-                                         or getattr(services, 'native_profile', None) is not None)
-            if self.auth_label is not None:
-                self._build_cookie_banner()
-            with ui.element("nav").classes("pv-nav").props("aria-label=メインナビゲーション"):
-                for key, label in NAVIGATION:
-                    if key=='personal' and getattr(services,'external_vault',None) is None and services.live_client is None:continue
-                    available = self._tab_available(key)
-                    button = ui.button(label, icon=TAB_ICONS[key], color=None, on_click=lambda _, tab=key: self.show(tab))
-                    button.classes("pv-tab").props(f"flat no-caps data-testid=tab-{key}")
-                    button.set_enabled(available)
-                    if not available:
-                        button.tooltip("この起動設定では利用できません")
-                    self.buttons[key] = button
+            with ui.element("div").classes("pv-shell-chrome"):
+                with ui.element("div").classes("pv-header"):
+                    with ui.column().classes("pv-header-main"):
+                        ui.label("PixivVault").classes("pv-title").props("role=heading aria-level=1 data-pv-focus-heading")
+                        # 元 gui.py login_status_text: ロゴの直下に常時表示。
+                        if getattr(services, 'native_profile', None) is not None:
+                            self.auth_label = ui.label(AUTH_CHECKING_TEXT).classes('pv-auth').props(
+                                'role=status aria-live=polite data-testid=auth-status data-tone=primary')
+                        # 元 gui.py app_connection_row の「アプリ: 接続中…」は iOS 連携の接続状態。iOS 連携は作らないため表示ごと除外（2026-11-20 本人指示）。「API切り替え」は残す。
+                        with ui.row().classes('pv-conn-row items-center'):
+                            from .request_status_view import RequestStatusView
+                            from .shared_get_recovery_view import SharedGetRecoveryView, shared_get_scope
+                            if getattr(services,'external_vault',None) is not None:
+                                gate=getattr(services,'premium_authorization',None)
+                                if gate is not None:
+                                    from .premium_gate_view import PremiumGateDialog,DEFAULT_UID_PATH
+                                    self.borrow_dialog=PremiumGateDialog(gate,on_change=self.sync_borrow,
+                                        default_uid_path=getattr(services,'default_uid_path',DEFAULT_UID_PATH))
+                                    # Original gui.py:859: an opened vault takes the fixed UID file at start.
+                                    self._reflect_uid_once(self.borrow_dialog)
+                                self.borrow_switch=ui.switch('API切り替え',on_change=self.borrow_changed).props(
+                                    'dense data-testid=premium-borrow-toggle')
+                                # .props の文字列は全角括弧を含む値を捨てる（Props.parse）。完全な値を直接代入する。
+                                self.borrow_switch.props['aria-label'] = '借用プレミアム（API切り替え）'
+                                with self.borrow_switch:ui.tooltip('借用プレミアム')
+                                if self.borrow_dialog is not None:
+                                    self.borrow_setup_button=ui.button(
+                                        '初期設定を開く',on_click=self.borrow_dialog.request_enable).props(
+                                            'flat dense no-caps data-testid=premium-setup-shell')
+                                    # Shown only while a Pixiv result is unconfirmed (the Shaft tab no longer exists).
+                                    self.borrow_recovery_button=ui.button('通信結果を確認',on_click=self.borrow_dialog.open_recovery).props(
+                                        'flat dense no-caps data-testid=premium-recovery-shell')
+                                self._borrow_timer=ui.timer(1,self.sync_borrow)
+                                self.sync_borrow()
+                            else:
+                                self.borrow_switch=ui.switch('API切り替え',value=False).props(
+                                    'dense data-testid=premium-borrow-toggle')
+                                self.borrow_switch.props['aria-label'] = '借用プレミアム（API切り替え）'
+                                self.borrow_switch.disable()
+                                with self.borrow_switch:ui.tooltip('借用プレミアム: 設定でCookieと保存先を保存し、再起動するとONにできます。')
+                            shared = shared_get_scope(services)
+                            if shared is not None:
+                                self.get_recovery_view = SharedGetRecoveryView(shared)
+                        policy=getattr(self.services,'_request_retry',None)
+                        if policy is not None:
+                            self.request_status_view=RequestStatusView(policy)
+                    # 元 gui.py:6125-6136 の右カラム: IconButton 6 個（バックアップ・閲覧履歴・保存フォルダー・テーマ・Pixiv・設定）。
+                    with ui.element("div").classes("pv-header-actions"):
+                        history = ui.button(icon='history', color=None, on_click=lambda _: self.show('history')).classes(
+                            'pv-hbtn').props('flat round data-testid=tab-history aria-label=直近のバックアップ')
+                        history_available = self._tab_available('history')
+                        with history:
+                            # 使えないときは理由を出す（タブ側と同じ文言）。
+                            ui.tooltip('直近のバックアップ' if history_available else 'この起動設定では利用できません')
+                        history.set_enabled(history_available)
+                        self.buttons['history'] = history
+                        self.view_history_button = ui.button(icon='visibility', color=None,
+                                                             on_click=self.open_view_history).classes('pv-hbtn').props(
+                            'flat round data-testid=view-history-open aria-label=閲覧履歴')
+                        with self.view_history_button:
+                            self.view_history_badge = ui.badge('').props('floating color=primary')
+                            self.view_history_badge.set_visibility(False)
+                            self.view_history_tooltip = ui.tooltip('閲覧履歴（学習タブ）')
+                        from .saved_folder_button import SavedFolderButton
+                        self.saved_folder_button = SavedFolderButton(services)
+                        self.saved_folder_button.button.classes('pv-hbtn').props('round')
+                        self.theme_button = ui.button(icon='light_mode', color=None, on_click=self.toggle_theme).classes(
+                            'pv-hbtn').props('flat round data-testid=theme-toggle aria-label=ライトモードへ切り替え')
+                        with self.theme_button:
+                            self.theme_tooltip = ui.tooltip('ライトモードへ切り替え')
+                        self.pixiv_home = ui.link('', 'https://www.pixiv.net/', new_tab=True).classes('pv-hbtn').props(
+                            'data-testid=pixiv-home-link aria-label=ブラウザでPixivを開く')
+                        self.pixiv_home.on('click', self._log_pixiv_open)
+                        with self.pixiv_home:
+                            ui.icon('public')
+                            ui.tooltip('ブラウザで Pixiv を開く (ログイン状態確認・自動連携)')
+                        # NiceGUI's .props parser treats whitespace as a separator:
+                        # ``rel=noopener noreferrer`` serializes only ``noopener``.
+                        # Assign the complete HTML rel value as one property instead.
+                        self.pixiv_home.props['rel'] = 'noopener noreferrer'
+                        settings = ui.button(icon='settings', color=None, on_click=self.open_preferences).classes(
+                            'pv-hbtn').props('flat round data-testid=preferences-open aria-label=設定')
+                        with settings:
+                            ui.tooltip('設定')
+                        settings.set_enabled(getattr(services, 'preferences', None) is not None
+                                             or getattr(services, 'native_profile', None) is not None)
+                if self.auth_label is not None:
+                    self._build_cookie_banner()
+                with ui.element("nav").classes("pv-nav").props("aria-label=メインナビゲーション"):
+                    for key, label in NAVIGATION:
+                        if key=='personal' and getattr(services,'external_vault',None) is None and services.live_client is None:continue
+                        available = self._tab_available(key)
+                        button = ui.button(label, icon=TAB_ICONS[key], color=None, on_click=lambda _, tab=key: self.show(tab))
+                        button.classes("pv-tab").props(f"flat no-caps data-testid=tab-{key}")
+                        button.set_enabled(available)
+                        if not available:
+                            button.tooltip("この起動設定では利用できません")
+                        self.buttons[key] = button
             with ui.column().classes("pv-content w-full") as self.content:
                 if services.ranking_source is not None:
                     from .ranking_view import RankingView
@@ -244,8 +249,9 @@ class DemoShell:
                 ui.icon('open_in_browser').style('font-size:18px')
                 ui.label('Pixivを開く')
             link.props['rel'] = 'noopener noreferrer'
-            ui.button(icon='close', color=None, on_click=self.close_cookie_banner).classes('pv-hbtn').props(
+            close = ui.button(icon='close', color=None).classes('pv-hbtn pv-hit28').props(
                 'flat round dense aria-label=閉じる data-testid=cookie-banner-close')
+            close.on('click', self.close_cookie_banner, js_handler=dismiss_focus_js(self.cookie_banner))
         self.cookie_banner.set_visibility(False)
 
     def close_cookie_banner(self):
@@ -266,7 +272,7 @@ class DemoShell:
         self.cookie_banner.set_visibility(status.banner and not self._banner_dismissed)
         if notice:
             with self.client:
-                ui.notify(notice, type='positive')
+                notify_action(notice, type='positive')
 
     def _attach_auth_status(self):
         profile = getattr(self.services, 'native_profile', None)
@@ -293,7 +299,7 @@ class DemoShell:
             return
         with self.client:
             if kind == 'notice':
-                ui.notify(payload['text'], type=payload.get('type', 'info'))
+                notify_action(payload['text'], type=payload.get('type', 'info'))
             elif kind == 'account_switch':
                 self._show_account_switch(self._followup.pending)
             elif kind == 'account_switch_closed':
@@ -304,7 +310,7 @@ class DemoShell:
         self._close_account_switch()
         if request is None:
             return
-        with ui.dialog().props('persistent data-testid=account-switch-dialog') as dialog,                 ui.card().style('max-width:480px'):
+        with managed_dialog().props('persistent data-testid=account-switch-dialog') as dialog,                 ui.card().style('max-width:480px'):
             ui.label('別アカウントのCookieを検出しました').style('font-size:16px;font-weight:700')
             ui.label(
                 f'現在保存されているフォロー中データ（お気に入り・ダウンロード状況などを含む）を'
@@ -316,14 +322,17 @@ class DemoShell:
                     'flat no-caps data-testid=account-switch-cancel')
                 ui.button('削除して再取得する', on_click=self._followup.confirm_account_switch).props(
                     'color=negative no-caps data-testid=account-switch-confirm')
+        dialog.on('hide', dialog.delete)
         self.account_switch_dialog = dialog
         dialog.open()
 
     def _close_account_switch(self):
         dialog, self.account_switch_dialog = self.account_switch_dialog, None
-        if dialog is not None:
-            dialog.close()
-            dialog.delete()
+        if dialog is not None and not dialog.is_deleted:
+            if dialog.value:
+                dialog.close()
+            else:
+                dialog.delete()
 
     def open_preferences(self):
         if self.closed:
@@ -374,7 +383,7 @@ class DemoShell:
             return
         view = self.view_history
         if view is None or view.storage is None:
-            ui.notify('閲覧履歴を利用できません。', type='warning')
+            notify_action('閲覧履歴を利用できません。', type='warning')
             return
         await view.open()
 
@@ -421,11 +430,11 @@ class DemoShell:
         if event.value:
             # ON always goes through the password/setup flow. No credentials
             # are copied into the browser and the switch itself sends no HTTP.
-            with self.root: ui.notify('\u501f\u7528\u30d7\u30ec\u30df\u30a2\u30e0\u306e\u8a8d\u8a3c\u3092\u5229\u7528\u3067\u304d\u307e\u305b\u3093\u3002',type='warning')
+            with self.root: notify_action('\u501f\u7528\u30d7\u30ec\u30df\u30a2\u30e0\u306e\u8a8d\u8a3c\u3092\u5229\u7528\u3067\u304d\u307e\u305b\u3093\u3002',type='warning', important=True)
         else:
             import asyncio
             try:await asyncio.to_thread(vault.lock_explicitly)
-            except Exception:ui.notify('ロックの完了を確認できません。設定の借用プレミアムの状態を確認してください。',type='warning')
+            except Exception:notify_action('ロックの完了を確認できません。設定の借用プレミアムの状態を確認してください。',type='warning', important=True)
         self.sync_borrow()
     def open_premium_search(self,word):
         self.show('personal')
@@ -621,7 +630,7 @@ class DemoShell:
     def open_recommended(self, work_id):
         self.show('library')
         if self.library is None or not self.library.open_saved_work(work_id):
-            ui.notify('この作品の保存画像はありません。元のおすすめを再取得したとは扱いません。', type='warning')
+            notify_action('この作品の保存画像はありません。元のおすすめを再取得したとは扱いません。', type='warning')
 
     def toggle_theme(self) -> None:
         if self.closed:
@@ -645,7 +654,7 @@ class DemoShell:
                 if current.values["grid_card_size_mode"] != size:
                     store.update({"grid_card_size_mode": size}, expected_revision=current.revision)
             except Exception:
-                ui.notify("カードサイズを保存できません。再度お試しください。", type="warning")
+                notify_action("カードサイズを保存できません。再度お試しください。", type="warning", important=True)
                 return
         self.card_size = size
         if self.backup_view is not None:self.backup_view.apply_card_size(size)
@@ -669,7 +678,7 @@ class DemoShell:
             message = owner.fallback_message(job)
             if message:
                 with self.client:
-                    ui.notify(message, type='warning')
+                    notify_action(message, type='warning')
 
     def close(self) -> None:
         if self._auth_unsubscribe is not None:

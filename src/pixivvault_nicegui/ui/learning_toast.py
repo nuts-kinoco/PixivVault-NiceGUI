@@ -11,6 +11,9 @@ import time
 
 from nicegui import ui
 
+from .action_controls import notice_role, notify_action
+from .management_dialog import focus_region
+
 UNDO_SECONDS = 4.0     # original discovery_tab.py:1540 _TOAST_SECONDS_UNDO (the original is correct)
 REASON_SECONDS = 6.0   # 元 discovery_tab.py:1539 _TOAST_SECONDS_REASON
 
@@ -23,8 +26,9 @@ _ROW_STYLE = 'display:flex;flex-wrap:wrap;align-items:center;justify-content:cen
 
 
 class LearningToast:
-    def __init__(self, *, clock=time.monotonic, on_expired_undo=None) -> None:
+    def __init__(self, *, clock=time.monotonic, on_expired_undo=None, return_focus=None) -> None:
         self._clock = clock
+        self._return_focus = return_focus
         self.kind: str | None = None
         self.heavy = False
         self.heavy_key: str | None = None
@@ -43,12 +47,17 @@ class LearningToast:
             [data-testid=learning-toast-meter] .q-linear-progress__model {
                 animation: var(--pv-meter-animation, none) var(--pv-meter-duration, 0s) linear forwards;
             }
+            @media (prefers-reduced-motion: reduce) {
+                [data-testid=learning-toast-meter] .q-linear-progress__model { animation:none; }
+            }
         """)
         self.band = ui.element('div').style(_BAND_STYLE).props(
-            'role=status aria-live=polite data-testid=learning-toast')
+            'data-testid=learning-toast')
+        focus_region(self.band, return_focus)
         with self.band:
             self.row = ui.element('div').style(_ROW_STYLE)
             self._undo_row = ui.element('div').style(_ROW_STYLE)
+            self._undo_row.props['role'] = notice_role()
             self.meter = ui.linear_progress(value=1.0, show_value=False, size='2px').props(
                 'rounded data-testid=learning-toast-meter')
         self.band.set_visibility(False)
@@ -56,7 +65,7 @@ class LearningToast:
 
     # ---- 出し入れ -------------------------------------------------------
     def _chip(self, label: str, *, testid: str, on_click=None, js_handler=None):
-        button = ui.button(label, color=None).props(f'flat dense no-caps data-testid={testid}').style(_CHIP_STYLE)
+        button = ui.button(label, color=None).props(f'flat dense no-caps data-testid={testid}').classes('pv-hit28').style(_CHIP_STYLE)
         if on_click is not None:
             if js_handler is not None:
                 button.on('click', on_click, js_handler=js_handler)
@@ -74,6 +83,7 @@ class LearningToast:
         self.reason_active = False
         self.row.clear()
         self.row.set_visibility(kind != 'undo')
+        self.row.props['role'] = 'status' if kind in {'light', 'reason'} else None
         self._undo_row.set_visibility(kind == 'undo')
         if build is not None:
             with self.row:
@@ -134,15 +144,14 @@ class LearningToast:
             return self._show(build_light, timeout=4.0, kind='light')
 
         def build_heavy():
-            with ui.element('div').style('display:flex;flex-direction:column;gap:6px;width:100%;'):
-                with ui.element('div').style('display:flex;align-items:flex-start;gap:8px;'):
-                    ui.icon('warning_amber').style('font-size:15px;color:var(--pv-text);')
-                    ui.label(message).props('data-testid=learning-toast-message').style(
-                        'font-size:11.5px;color:var(--pv-text);flex:1 1 0;min-width:0;')
-                with ui.element('div').style('display:flex;align-items:center;gap:8px;'):
-                    ui.label(recovery).props('data-testid=learning-toast-recovery').style(
-                        'font-size:11px;color:var(--pv-muted);flex:1 1 0;min-width:0;')
-                    self._chip('閉じる', testid='learning-toast-close', on_click=lambda e: self.hide(force=True))
+            alert, message_label, close = notify_action(
+                message, type='negative', within_dialog=self.row, return_focus=self._return_focus,
+                on_dismiss=lambda: self.hide(force=True),
+            )
+            message_label.props('data-testid=learning-toast-message')
+            close.props('data-testid=learning-toast-close')
+            with alert:
+                ui.label(recovery).classes('w-full').props('data-testid=learning-toast-recovery')
         return self._show(build_heavy, timeout=0, heavy=True, key=key, kind='heavy')
 
     def hide(self, force: bool = False) -> bool:

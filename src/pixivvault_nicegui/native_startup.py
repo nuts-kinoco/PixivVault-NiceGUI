@@ -79,7 +79,9 @@ class NativeProfileBinding:
         self._requests = {}
         from .request_policy import RequestRetryPolicy
         from .preferences import RequestPreferences
-        self.auth_retry_policy = RequestRetryPolicy(lambda:RequestPreferences(.6,3,5.0))
+        self.auth_retry_policy = RequestRetryPolicy(
+            lambda: RequestPreferences(.6, 3, 5.0), check_gate=self._check_request_notice_gate,
+        )
         # Explicit native launch wires its stable durable network-stop scope
         # before this binding becomes interactive. Legacy unit fixtures do
         # not acquire network privileges by merely creating a binding.
@@ -115,6 +117,28 @@ class NativeProfileBinding:
         # the 24 hour automatic following sync (same stop gate as the check).
         from .account_followup import AccountFollowup
         self.followup = AccountFollowup(self)
+
+    def _check_request_notice_gate(self):
+        from .managed_network_stop_gate import ManagedNetworkGateStorageError
+        from .request_policy import GateNoticeState, check_request_notice_gates
+
+        with self._reader_lock:
+            local = self.managed_network_stop_scope
+            shared = self.shared_network_stop_scope
+            required = self.auth_stop_required, self.auth_shared_stop_required
+            if self._closed:
+                raise ManagedNetworkGateStorageError()
+        states = check_request_notice_gates(local, shared) if local is not None or shared is not None else ()
+        if required[0] and local is None:
+            states += (GateNoticeState('local', 'unverified'),)
+        if required[1] and shared is None:
+            states += (GateNoticeState('shared', 'unverified'),)
+        with self._reader_lock:
+            if (self._closed or self.managed_network_stop_scope is not local
+                    or self.shared_network_stop_scope is not shared
+                    or required != (self.auth_stop_required, self.auth_shared_stop_required)):
+                raise ManagedNetworkGateStorageError()
+        return states or (GateNoticeState('both', 'unverified'),)
 
     def saved_folder_context(self):
         from .desktop_integration import DesktopActionRejected
