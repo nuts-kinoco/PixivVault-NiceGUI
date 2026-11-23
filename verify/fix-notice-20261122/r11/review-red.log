@@ -1,0 +1,17 @@
+FF                                                                       [100%]
+================================== FAILURES ===================================
+______ test_selected_history_close_keeps_a_peer_out_until_429_is_latched ______
+tests\test_fix_notice_round11_20261122.py:181: in test_selected_history_close_keeps_a_peer_out_until_429_is_latched
+    with pytest.raises(gate.ManagedNetworkGateBusy):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   Failed: DID NOT RAISE <class 'pixivvault_nicegui.managed_network_stop_gate.ManagedNetworkGateBusy'>
+_____ test_same_physical_gate_can_prove_sql_recovery_after_reader_rebind ______
+tests\test_fix_notice_round11_20261122.py:316: in test_same_physical_gate_can_prove_sql_recovery_after_reader_rebind
+    assert not policy.has_gate_notices()
+E   assert not True
+E    +  where True = has_gate_notices()
+E    +    where has_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x0000021C5E061E50>.has_gate_notices
+=========================== short test summary info ===========================
+FAILED tests/test_fix_notice_round11_20261122.py::test_selected_history_close_keeps_a_peer_out_until_429_is_latched
+FAILED tests/test_fix_notice_round11_20261122.py::test_same_physical_gate_can_prove_sql_recovery_after_reader_rebind
+2 failed in 2.71s

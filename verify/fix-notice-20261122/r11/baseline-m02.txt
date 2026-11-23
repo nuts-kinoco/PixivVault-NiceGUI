@@ -1,0 +1,19 @@
+pv-dev-baseline: 9c5b9bf9cfeb086746d7a2b2ba86e96323424c07
+worktree base: 25ddea25545d4a2d29b2777857081e84428d4d63
+383aba03 is an ancestor of pv-dev-baseline
+aaeeacea is an ancestor of pv-dev-baseline
+0d49b74a is an ancestor of pv-dev-baseline
+            owner.reused_dispatch = True
+            connection.request("GET", request.selector, headers=headers)
+            owner.reused_disconnect = owner.reused_dispatch and not owner.response_started
+                        owner.reused_disconnect = False
+        raise TransportFailed() from None
+            if getattr(owner, "response_started", False) or getattr(owner, "reused_dispatch", False):
+            raise TransportFailed() from None
+            raise TransportFailed() from None
+            except PixivReadError as error:
+                if isinstance(error, ManagedNetworkGateStorageError):
+                    # A failed STOP write or uncertain shared ownership is
+                    # never evidence that this GET completed harmlessly.
+                    raise
+                self._finish_inflight(identity)

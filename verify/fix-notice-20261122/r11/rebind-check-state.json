@@ -1,0 +1,14 @@
+{
+  "head": "25ddea25545d4a2d29b2777857081e84428d4d63",
+  "launcher": 129196,
+  "pytest": 128312,
+  "started": "2026-11-23T12:04:32.198603+09:00",
+  "basetemp": "S:\\Work\\_tmp\\PV\\fix-notice-r11-20261122-uvodn77o",
+  "quiet": false,
+  "targets": [
+    "tests/test_fix_notice_round11_20261122.py::test_same_physical_gate_can_prove_sql_recovery_after_reader_rebind"
+  ],
+  "exit": 1,
+  "finished": "2026-11-23T12:04:35.645468+09:00",
+  "test_directory_remaining": false
+}

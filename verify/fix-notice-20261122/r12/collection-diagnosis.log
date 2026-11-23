@@ -1,0 +1,20 @@
+Collection-only excerpt used to identify failures before the stopped run could print its summary.
+No tests run by the collection command.
+Source collection log sha256: 29604bff52c4c5f11b27cdd860ec72c1c7342fc0b4b26982b9dba49c9fc41084
+Collected 5394 runnable nodes (5397 total, 3 DPAPI deselected).
+2027: tests/test_fix_notice_round7_20261122.py::test_other_owner_recurrence_during_diagnostic_recheck[verify_fingerprint-before-local-1]
+2028: tests/test_fix_notice_round7_20261122.py::test_other_owner_recurrence_during_diagnostic_recheck[verify_fingerprint-before-local-2]
+2029: tests/test_fix_notice_round7_20261122.py::test_other_owner_recurrence_during_diagnostic_recheck[verify_fingerprint-before-local-3]
+2030: tests/test_fix_notice_round7_20261122.py::test_other_owner_recurrence_during_diagnostic_recheck[verify_fingerprint-before-shared-1]
+2031: tests/test_fix_notice_round7_20261122.py::test_other_owner_recurrence_during_diagnostic_recheck[verify_fingerprint-before-shared-2]
+2032: tests/test_fix_notice_round7_20261122.py::test_other_owner_recurrence_during_diagnostic_recheck[verify_fingerprint-before-shared-3]
+2033: tests/test_fix_notice_round7_20261122.py::test_other_owner_recurrence_during_diagnostic_recheck[verify_fingerprint-after-local-1]
+2034: tests/test_fix_notice_round7_20261122.py::test_other_owner_recurrence_during_diagnostic_recheck[verify_fingerprint-after-local-2]
+2035: tests/test_fix_notice_round7_20261122.py::test_other_owner_recurrence_during_diagnostic_recheck[verify_fingerprint-after-local-3]
+2036: tests/test_fix_notice_round7_20261122.py::test_other_owner_recurrence_during_diagnostic_recheck[verify_fingerprint-after-shared-1]
+2037: tests/test_fix_notice_round7_20261122.py::test_other_owner_recurrence_during_diagnostic_recheck[verify_fingerprint-after-shared-2]
+2038: tests/test_fix_notice_round7_20261122.py::test_other_owner_recurrence_during_diagnostic_recheck[verify_fingerprint-after-shared-3]
+2124: tests/test_fix_notice_round9_20261122.py::test_sqlite_close_fault_recurs_during_opposite_gate_diagnosis[verify_fingerprint-before-local]
+2125: tests/test_fix_notice_round9_20261122.py::test_sqlite_close_fault_recurs_during_opposite_gate_diagnosis[verify_fingerprint-before-shared]
+2126: tests/test_fix_notice_round9_20261122.py::test_sqlite_close_fault_recurs_during_opposite_gate_diagnosis[verify_fingerprint-after-local]
+2127: tests/test_fix_notice_round9_20261122.py::test_sqlite_close_fault_recurs_during_opposite_gate_diagnosis[verify_fingerprint-after-shared]

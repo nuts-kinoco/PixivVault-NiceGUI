@@ -1,0 +1,73 @@
+FFFFFFFFFFF                                                              [100%]
+================================== FAILURES ===================================
+_________ test_late_old_reader_after_response_cookie_adoption[False] __________
+tests\test_fix_notice_round12_20261122.py:78: in test_late_old_reader_after_response_cookie_adoption
+    assert current._retry_policy_binding[1] is not initial_generation
+E   assert <object object at 0x00000129AB711FE0> is not <object object at 0x00000129AB711FE0>
+__________ test_late_old_reader_after_response_cookie_adoption[True] __________
+tests\test_fix_notice_round12_20261122.py:75: in test_late_old_reader_after_response_cookie_adoption
+    assert confirm()
+E   assert False
+E    +  where False = <function test_late_old_reader_after_response_cookie_adoption.<locals>.<lambda> at 0x00000129B1D15440>()
+___ test_draft_auth_after_settings_change_uses_saved_route_evidence[False] ____
+tests\test_fix_notice_round12_20261122.py:128: in test_draft_auth_after_settings_change_uses_saved_route_evidence
+    assert policy._selection_generation is not before
+E   assert <object object at 0x00000129AB713C80> is not <object object at 0x00000129AB713C80>
+E    +  where <object object at 0x00000129AB713C80> = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x00000129B1D47250>._selection_generation
+____ test_draft_auth_after_settings_change_uses_saved_route_evidence[True] ____
+tests\test_fix_notice_round12_20261122.py:124: in test_draft_auth_after_settings_change_uses_saved_route_evidence
+    assert getattr(policy, 'confirm_gate_notices', lambda: False)()
+E   AssertionError: assert False
+E    +  where False = <function test_draft_auth_after_settings_change_uses_saved_route_evidence.<locals>.<lambda> at 0x00000129B1E67740>()
+E    +    where <function test_draft_auth_after_settings_change_uses_saved_route_evidence.<locals>.<lambda> at 0x00000129B1E67740> = getattr(<pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x00000129B1D23E10>, 'confirm_gate_notices', <function test_draft_auth_after_settings_change_uses_saved_route_evidence.<locals>.<lambda> at 0x00000129B1E67740>)
+_ test_gate_exchange_resets_confirmation_streak_for_every_reader_kind[plain] __
+tests\test_fix_notice_round12_20261122.py:177: in test_gate_exchange_resets_confirmation_streak_for_every_reader_kind
+    assert policy.has_gate_notices()
+E   assert False
+E    +  where False = has_gate_notices()
+E    +    where has_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x00000129B1FA08A0>.has_gate_notices
+_ test_gate_exchange_resets_confirmation_streak_for_every_reader_kind[sealed] _
+tests\test_fix_notice_round12_20261122.py:177: in test_gate_exchange_resets_confirmation_streak_for_every_reader_kind
+    assert policy.has_gate_notices()
+E   assert False
+E    +  where False = has_gate_notices()
+E    +    where has_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x00000129B1E1B410>.has_gate_notices
+_ test_gate_exchange_resets_confirmation_streak_for_every_reader_kind[draft] __
+tests\test_fix_notice_round12_20261122.py:177: in test_gate_exchange_resets_confirmation_streak_for_every_reader_kind
+    assert policy.has_gate_notices()
+E   assert False
+E    +  where False = has_gate_notices()
+E    +    where has_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x00000129B1E31D00>.has_gate_notices
+__ test_explicit_confirmation_cannot_clear_current_acquisition_refusal[stop] __
+tests\test_fix_notice_round12_20261122.py:209: in test_explicit_confirmation_cannot_clear_current_acquisition_refusal
+    assert hasattr(policy, 'confirm_gate_notices')
+E   AssertionError: assert False
+E    +  where False = hasattr(<pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x00000129B1E32470>, 'confirm_gate_notices')
+_ test_explicit_confirmation_cannot_clear_current_acquisition_refusal[intent] _
+tests\test_fix_notice_round12_20261122.py:209: in test_explicit_confirmation_cannot_clear_current_acquisition_refusal
+    assert hasattr(policy, 'confirm_gate_notices')
+E   AssertionError: assert False
+E    +  where False = hasattr(<pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x00000129B1F9C450>, 'confirm_gate_notices')
+__ test_explicit_confirmation_cannot_clear_current_acquisition_refusal[sql] ___
+tests\test_fix_notice_round12_20261122.py:209: in test_explicit_confirmation_cannot_clear_current_acquisition_refusal
+    assert hasattr(policy, 'confirm_gate_notices')
+E   AssertionError: assert False
+E    +  where False = hasattr(<pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x00000129B1F9CB50>, 'confirm_gate_notices')
+__ test_explicit_confirmation_cannot_clear_current_acquisition_refusal[rate] __
+tests\test_fix_notice_round12_20261122.py:209: in test_explicit_confirmation_cannot_clear_current_acquisition_refusal
+    assert hasattr(policy, 'confirm_gate_notices')
+E   AssertionError: assert False
+E    +  where False = hasattr(<pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x00000129B1E63890>, 'confirm_gate_notices')
+=========================== short test summary info ===========================
+FAILED tests/test_fix_notice_round12_20261122.py::test_late_old_reader_after_response_cookie_adoption[False]
+FAILED tests/test_fix_notice_round12_20261122.py::test_late_old_reader_after_response_cookie_adoption[True]
+FAILED tests/test_fix_notice_round12_20261122.py::test_draft_auth_after_settings_change_uses_saved_route_evidence[False]
+FAILED tests/test_fix_notice_round12_20261122.py::test_draft_auth_after_settings_change_uses_saved_route_evidence[True]
+FAILED tests/test_fix_notice_round12_20261122.py::test_gate_exchange_resets_confirmation_streak_for_every_reader_kind[plain]
+FAILED tests/test_fix_notice_round12_20261122.py::test_gate_exchange_resets_confirmation_streak_for_every_reader_kind[sealed]
+FAILED tests/test_fix_notice_round12_20261122.py::test_gate_exchange_resets_confirmation_streak_for_every_reader_kind[draft]
+FAILED tests/test_fix_notice_round12_20261122.py::test_explicit_confirmation_cannot_clear_current_acquisition_refusal[stop]
+FAILED tests/test_fix_notice_round12_20261122.py::test_explicit_confirmation_cannot_clear_current_acquisition_refusal[intent]
+FAILED tests/test_fix_notice_round12_20261122.py::test_explicit_confirmation_cannot_clear_current_acquisition_refusal[sql]
+FAILED tests/test_fix_notice_round12_20261122.py::test_explicit_confirmation_cannot_clear_current_acquisition_refusal[rate]
+11 failed in 5.38s

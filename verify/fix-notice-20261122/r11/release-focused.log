@@ -1,0 +1,29 @@
+............F........................................................... [  9%]
+........................................................................ [ 18%]
+........................................................................ [ 27%]
+........................................................................ [ 36%]
+........................................................................ [ 45%]
+.....................................................................F.. [ 54%]
+........................................................................ [ 63%]
+........................................................................ [ 72%]
+........................................................................ [ 81%]
+........................................................................ [ 90%]
+........................................................................ [ 99%]
+......                                                                   [100%]
+================================== FAILURES ===================================
+_____ test_same_physical_gate_can_prove_sql_recovery_after_reader_rebind ______
+tests\test_fix_notice_round11_20261122.py:311: in test_same_physical_gate_can_prove_sql_recovery_after_reader_rebind
+    assert policy.has_gate_notices()
+E   assert False
+E    +  where False = has_gate_notices()
+E    +    where has_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x0000016943228130>.has_gate_notices
+_ test_database_exclusive_lock_preserves_storage_notice_without_probe_locking _
+tests\test_fix_notice_round4_20261122.py:334: in test_database_exclusive_lock_preserves_storage_notice_without_probe_locking
+    assert not policy.has_gate_notices()
+E   assert not True
+E    +  where True = has_gate_notices()
+E    +    where has_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x000001694061BAF0>.has_gate_notices
+=========================== short test summary info ===========================
+FAILED tests/test_fix_notice_round11_20261122.py::test_same_physical_gate_can_prove_sql_recovery_after_reader_rebind
+FAILED tests/test_fix_notice_round4_20261122.py::test_database_exclusive_lock_preserves_storage_notice_without_probe_locking
+2 failed, 796 passed in 171.68s (0:02:51)

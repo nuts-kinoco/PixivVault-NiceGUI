@@ -1,0 +1,14 @@
+{
+  "head": "6182ec7690bf5c92d98cd840f7550c5ca5aeb79a",
+  "launcher": 11980,
+  "pytest": 133188,
+  "started": "2026-11-23T13:11:14.529022+09:00",
+  "basetemp": "S:\\Work\\_tmp\\PV\\fix-notice-r12-20261122-0icenmat",
+  "quiet": false,
+  "targets": [
+    "tests/test_fix_notice_round12_20261122.py::test_fresh_observed_intent_fences_reconfirmation_of_the_same_notice"
+  ],
+  "exit": 1,
+  "finished": "2026-11-23T13:11:18.005108+09:00",
+  "test_directory_remaining": false
+}

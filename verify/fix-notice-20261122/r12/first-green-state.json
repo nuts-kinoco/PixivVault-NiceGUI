@@ -1,0 +1,19 @@
+{
+  "head": "6182ec7690bf5c92d98cd840f7550c5ca5aeb79a",
+  "launcher": 123056,
+  "pytest": 844,
+  "started": "2026-11-23T12:58:50.748287+09:00",
+  "basetemp": "S:\\Work\\_tmp\\PV\\fix-notice-r12-20261122-_prumnng",
+  "quiet": false,
+  "targets": [
+    "tests/test_fix_notice_round12_20261122.py",
+    "tests/test_fix_notice_round10_20261122.py",
+    "tests/test_fix_notice_round9_20261122.py",
+    "tests/test_fix_notice_round7_20261122.py",
+    "tests/test_fix_notice_round6_20261122.py",
+    "tests/test_ag_z04_20261119.py"
+  ],
+  "exit": 1,
+  "finished": "2026-11-23T13:00:35.580019+09:00",
+  "test_directory_remaining": false
+}

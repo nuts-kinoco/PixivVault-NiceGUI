@@ -1,0 +1,14 @@
+{
+  "head": "f74c66569a113d510542fc15e5b1e4bc55165168",
+  "launcher": 64520,
+  "pytest": 133452,
+  "started": "2026-11-23T12:41:32.580798+09:00",
+  "basetemp": "S:\\Work\\_tmp\\PV\\fix-notice-r11-20261122-bi5xy5jn",
+  "quiet": false,
+  "targets": [
+    "tests/test_visual_preference_browser.py::test_visual_settings_dialog_keyboard_and_contrast"
+  ],
+  "exit": 0,
+  "finished": "2026-11-23T12:41:42.423907+09:00",
+  "test_directory_remaining": false
+}

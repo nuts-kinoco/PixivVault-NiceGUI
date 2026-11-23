@@ -1,0 +1,12 @@
+{
+  "head": "4bcbfc83a05b838e026d2e7f168b24b1750dbfc5",
+  "launcher": 125368,
+  "pytest": 38476,
+  "started": "2026-11-23T13:50:02.289590+09:00",
+  "basetemp": "S:\\Work\\_tmp\\PV\\fix-notice-r12-20261122-ja6k80_w",
+  "quiet": false,
+  "targets": [],
+  "exit": 1,
+  "finished": "2026-11-23T14:16:35.600605+09:00",
+  "test_directory_remaining": false
+}

@@ -1,0 +1,12 @@
+{
+  "head": "f74c66569a113d510542fc15e5b1e4bc55165168",
+  "launcher": 129764,
+  "pytest": 132616,
+  "started": "2026-11-23T12:08:35.490693+09:00",
+  "basetemp": "S:\\Work\\_tmp\\PV\\fix-notice-r11-20261122-gvxmj_k9",
+  "quiet": false,
+  "targets": [],
+  "exit": 1,
+  "finished": "2026-11-23T12:41:08.803167+09:00",
+  "test_directory_remaining": false
+}

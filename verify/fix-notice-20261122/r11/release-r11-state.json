@@ -1,0 +1,15 @@
+{
+  "head": "25ddea25545d4a2d29b2777857081e84428d4d63",
+  "launcher": 132700,
+  "pytest": 136068,
+  "started": "2026-11-23T12:05:50.695984+09:00",
+  "basetemp": "S:\\Work\\_tmp\\PV\\fix-notice-r11-20261122-6ru5cdij",
+  "quiet": false,
+  "targets": [
+    "tests/test_fix_notice_round11_20261122.py",
+    "tests/test_p6_network.py"
+  ],
+  "exit": 0,
+  "finished": "2026-11-23T12:06:09.789882+09:00",
+  "test_directory_remaining": false
+}

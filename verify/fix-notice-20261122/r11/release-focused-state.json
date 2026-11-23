@@ -1,0 +1,24 @@
+{
+  "head": "25ddea25545d4a2d29b2777857081e84428d4d63",
+  "launcher": 145816,
+  "pytest": 132444,
+  "started": "2026-11-23T12:03:44.914865+09:00",
+  "basetemp": "S:\\Work\\_tmp\\PV\\fix-notice-r11-20261122-ixgpy93i",
+  "quiet": false,
+  "targets": [
+    "tests/test_fix_notice_round11_20261122.py",
+    "tests/test_fix_notice_round10_20261122.py",
+    "tests/test_fix_notice_round9_20261122.py",
+    "tests/test_fix_notice_round8_20261122.py",
+    "tests/test_fix_notice_round8_known_outcomes_20261122.py",
+    "tests/test_fix_notice_round7_20261122.py",
+    "tests/test_fix_notice_round6_20261122.py",
+    "tests/test_fix_notice_round5_20261122.py",
+    "tests/test_fix_notice_round4_20261122.py",
+    "tests/test_display_recovery_batch.py",
+    "tests/test_p6_network.py"
+  ],
+  "exit": 1,
+  "finished": "2026-11-23T12:06:40.332308+09:00",
+  "test_directory_remaining": false
+}

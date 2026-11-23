@@ -1,0 +1,17 @@
+{
+  "head": "f37644d3a7a3cc9e6d2da4ed03e245fce336ad41",
+  "launcher": 138124,
+  "pytest": 145128,
+  "started": "2026-11-23T13:45:41.788341+09:00",
+  "basetemp": "S:\\Work\\_tmp\\PV\\fix-notice-r12-20261122-nuanz4op",
+  "quiet": false,
+  "targets": [
+    "tests/test_fix_notice_round7_20261122.py::test_other_owner_recurrence_during_diagnostic_recheck",
+    "tests/test_fix_notice_round9_20261122.py::test_sqlite_close_fault_recurs_during_opposite_gate_diagnosis",
+    "-k",
+    "verify_fingerprint"
+  ],
+  "exit": 0,
+  "finished": "2026-11-23T13:45:47.463671+09:00",
+  "test_directory_remaining": false
+}

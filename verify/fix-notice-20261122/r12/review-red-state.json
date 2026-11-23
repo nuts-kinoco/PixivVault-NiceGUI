@@ -1,0 +1,15 @@
+{
+  "head": "6182ec7690bf5c92d98cd840f7550c5ca5aeb79a",
+  "launcher": 86772,
+  "pytest": 135840,
+  "started": "2026-11-23T13:01:18.050048+09:00",
+  "basetemp": "S:\\Work\\_tmp\\PV\\fix-notice-r12-20261122-ser200vg",
+  "quiet": false,
+  "targets": [
+    "tests/test_fix_notice_round12_20261122.py::test_native_reconfirmation_does_not_transfer_local_stop_to_shared",
+    "tests/test_fix_notice_round12_20261122.py::test_confirming_an_independent_reader_keeps_the_unrepaired_gate"
+  ],
+  "exit": 1,
+  "finished": "2026-11-23T13:01:21.559319+09:00",
+  "test_directory_remaining": false
+}

@@ -1,0 +1,11 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+_____ test_fresh_observed_intent_fences_reconfirmation_of_the_same_notice _____
+tests\test_fix_notice_round12_20261122.py:488: in test_fresh_observed_intent_fences_reconfirmation_of_the_same_notice
+    assert not policy.confirm_gate_notices()
+E   assert not True
+E    +  where True = confirm_gate_notices()
+E    +    where confirm_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x0000019191EFC2F0>.confirm_gate_notices
+=========================== short test summary info ===========================
+FAILED tests/test_fix_notice_round12_20261122.py::test_fresh_observed_intent_fences_reconfirmation_of_the_same_notice
+1 failed in 2.29s

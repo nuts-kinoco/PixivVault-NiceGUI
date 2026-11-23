@@ -1,0 +1,20 @@
+FF                                                                       [100%]
+================================== FAILURES ===================================
+______ test_native_reconfirmation_does_not_transfer_local_stop_to_shared ______
+tests\test_fix_notice_round12_20261122.py:238: in test_native_reconfirmation_does_not_transfer_local_stop_to_shared
+    assert not shared.gate.snapshot().blocked
+E   assert not True
+E    +  where True = NetworkStopState(blocked=True, status_code=401, revision=1).blocked
+E    +    where NetworkStopState(blocked=True, status_code=401, revision=1) = snapshot()
+E    +      where snapshot = <pixivvault_nicegui.managed_network_stop_shared_scope.ManagedUserNetworkStopGate object at 0x000001C86393FCB0>.snapshot
+E    +        where <pixivvault_nicegui.managed_network_stop_shared_scope.ManagedUserNetworkStopGate object at 0x000001C86393FCB0> = <pixivvault_nicegui.managed_network_stop_shared_scope.ManagedUserNetworkStopScope object at 0x000001C86393F380>.gate
+_______ test_confirming_an_independent_reader_keeps_the_unrepaired_gate _______
+tests\test_fix_notice_round12_20261122.py:271: in test_confirming_an_independent_reader_keeps_the_unrepaired_gate
+    assert policy.has_gate_notices()
+E   assert False
+E    +  where False = has_gate_notices()
+E    +    where has_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x000001C863A51450>.has_gate_notices
+=========================== short test summary info ===========================
+FAILED tests/test_fix_notice_round12_20261122.py::test_native_reconfirmation_does_not_transfer_local_stop_to_shared
+FAILED tests/test_fix_notice_round12_20261122.py::test_confirming_an_independent_reader_keeps_the_unrepaired_gate
+2 failed in 2.31s

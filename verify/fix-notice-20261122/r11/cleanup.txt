@@ -1,0 +1,10 @@
+checked: 2026-11-23T12:42:06.8997760+09:00
+owned namespace: S:\Work\_tmp\PV\fix-notice-r11-20261122-*
+receipts checked: 10
+owned temporary directories: 0
+owned temporary files: 0
+owned temporary bytes: 0
+owned remaining processes: 0
+unfinished receipts or receipt folders remaining: 0
+P6 temporary index was removed by its scoped TemporaryDirectory.
+Other rounds, existing worktree metadata, and committed evidence are outside the cleanup scope.

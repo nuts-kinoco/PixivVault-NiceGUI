@@ -1,0 +1,25 @@
+..FFF                                                                    [100%]
+================================== FAILURES ===================================
+_ test_observed_permission_denial_invalidates_an_earlier_reconfirmation[lock-access] _
+tests\test_fix_notice_round12_20261122.py:546: in test_observed_permission_denial_invalidates_an_earlier_reconfirmation
+    assert not policy.confirm_gate_notices()
+E   assert not True
+E    +  where True = confirm_gate_notices()
+E    +    where confirm_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x000001FDF9643750>.confirm_gate_notices
+_ test_observed_permission_denial_invalidates_an_earlier_reconfirmation[db-handle] _
+tests\test_fix_notice_round12_20261122.py:546: in test_observed_permission_denial_invalidates_an_earlier_reconfirmation
+    assert not policy.confirm_gate_notices()
+E   assert not True
+E    +  where True = confirm_gate_notices()
+E    +    where confirm_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x000001FDF9671CD0>.confirm_gate_notices
+_ test_observed_permission_denial_invalidates_an_earlier_reconfirmation[owner] _
+tests\test_fix_notice_round12_20261122.py:546: in test_observed_permission_denial_invalidates_an_earlier_reconfirmation
+    assert not policy.confirm_gate_notices()
+E   assert not True
+E    +  where True = confirm_gate_notices()
+E    +    where confirm_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x000001FDF96E8C30>.confirm_gate_notices
+=========================== short test summary info ===========================
+FAILED tests/test_fix_notice_round12_20261122.py::test_observed_permission_denial_invalidates_an_earlier_reconfirmation[lock-access]
+FAILED tests/test_fix_notice_round12_20261122.py::test_observed_permission_denial_invalidates_an_earlier_reconfirmation[db-handle]
+FAILED tests/test_fix_notice_round12_20261122.py::test_observed_permission_denial_invalidates_an_earlier_reconfirmation[owner]
+3 failed, 2 passed in 3.39s

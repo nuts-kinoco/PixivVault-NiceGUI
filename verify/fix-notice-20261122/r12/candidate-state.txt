@@ -1,0 +1,16 @@
+branch: fix-notice
+base: 6182ec76
+R11 equivalent product candidate: f74c6656
+superseded initial implementation: ac9af7034a63399e565574bd94d906007aed4a33
+superseded abandoned full run receipt: superseded-full-state.json
+superseded phase-regression candidate: f37644d3a7a3cc9e6d2da4ed03e245fce336ad41
+its aborted full receipt: phase-regression-full-state.json
+R12 final product/test/P6 candidate: 4bcbfc83a05b838e026d2e7f168b24b1750dbfc5
+original failed-fingerprint recheck phase preserved while carrying actual refusal
+related verification: final-related-state.json
+worktree: S:\Work\PV\fix-notice-20261122
+write owner: current parent Codex implementation turn only
+full run owner, test PID, launch time: full-state.json
+temporary area: S:\Work\_tmp\PV\fix-notice-r12-20261122-*
+external job runners: 0
+next: finish the guarded full pytest on the final commit, solo reruns if necessary, cleanup audit, evidence commit

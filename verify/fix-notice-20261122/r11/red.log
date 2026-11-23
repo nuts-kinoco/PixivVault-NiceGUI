@@ -1,0 +1,88 @@
+FFFFFFFFFFFFF                                                            [100%]
+================================== FAILURES ===================================
+_____ test_terminal_429_is_latched_before_releasing_both_get_gates[False] _____
+tests\test_fix_notice_round11_20261122.py:129: in test_terminal_429_is_latched_before_releasing_both_get_gates
+    with pytest.raises(reads.HTTPStatusRejected) as denied:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   Failed: DID NOT RAISE <class 'pixivvault_nicegui.pixiv_read_client.HTTPStatusRejected'>
+_____ test_terminal_429_is_latched_before_releasing_both_get_gates[True] ______
+tests\test_fix_notice_round11_20261122.py:129: in test_terminal_429_is_latched_before_releasing_both_get_gates
+    with pytest.raises(reads.HTTPStatusRejected) as denied:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   Failed: DID NOT RAISE <class 'pixivvault_nicegui.pixiv_read_client.HTTPStatusRejected'>
+_________ test_sendall_rechecks_429_after_the_stdlib_http_audit_event _________
+tests\test_fix_notice_round11_20261122.py:159: in test_sendall_rechecks_429_after_the_stdlib_http_audit_event
+    with pytest.raises(reads.HTTPStatusRejected) as denied:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   Failed: DID NOT RAISE <class 'pixivvault_nicegui.pixiv_read_client.HTTPStatusRejected'>
+_ test_physical_rw_sql_failure_needs_acquisition_success_to_clear[PRAGMA synchronous=FULL-local] _
+tests\test_fix_notice_round11_20261122.py:207: in test_physical_rw_sql_failure_needs_acquisition_success_to_clear
+    assert policy.has_gate_notices()
+E   assert False
+E    +  where False = has_gate_notices()
+E    +    where has_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x00000191B08E2D70>.has_gate_notices
+_ test_physical_rw_sql_failure_needs_acquisition_success_to_clear[PRAGMA synchronous=FULL-shared] _
+tests\test_fix_notice_round11_20261122.py:207: in test_physical_rw_sql_failure_needs_acquisition_success_to_clear
+    assert policy.has_gate_notices()
+E   assert False
+E    +  where False = has_gate_notices()
+E    +    where has_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x00000191B08E36F0>.has_gate_notices
+_ test_physical_rw_sql_failure_needs_acquisition_success_to_clear[FROM sqlite_master-local] _
+tests\test_fix_notice_round11_20261122.py:207: in test_physical_rw_sql_failure_needs_acquisition_success_to_clear
+    assert policy.has_gate_notices()
+E   assert False
+E    +  where False = has_gate_notices()
+E    +    where has_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x00000191B08F2C30>.has_gate_notices
+_ test_physical_rw_sql_failure_needs_acquisition_success_to_clear[FROM sqlite_master-shared] _
+tests\test_fix_notice_round11_20261122.py:207: in test_physical_rw_sql_failure_needs_acquisition_success_to_clear
+    assert policy.has_gate_notices()
+E   assert False
+E    +  where False = has_gate_notices()
+E    +    where has_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x00000191B0760380>.has_gate_notices
+_ test_physical_rw_sql_failure_needs_acquisition_success_to_clear[FROM gate LIMIT-local] _
+tests\test_fix_notice_round11_20261122.py:207: in test_physical_rw_sql_failure_needs_acquisition_success_to_clear
+    assert policy.has_gate_notices()
+E   assert False
+E    +  where False = has_gate_notices()
+E    +    where has_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x00000191B0760E20>.has_gate_notices
+_ test_physical_rw_sql_failure_needs_acquisition_success_to_clear[FROM gate LIMIT-shared] _
+tests\test_fix_notice_round11_20261122.py:207: in test_physical_rw_sql_failure_needs_acquisition_success_to_clear
+    assert policy.has_gate_notices()
+E   assert False
+E    +  where False = has_gate_notices()
+E    +    where has_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x00000191B07D2A50>.has_gate_notices
+______ test_last_fingerprint_publishes_first_known_shared_stop[stopped] _______
+tests\test_fix_notice_round11_20261122.py:261: in test_last_fingerprint_publishes_first_known_shared_stop
+    assert any(row.get('stop_cause') == 'durable_gate' and row['status'] == 401 for row in rows)
+E   assert False
+E    +  where False = any(<generator object test_last_fingerprint_publishes_first_known_shared_stop.<locals>.<genexpr> at 0x00000191B04BE9B0>)
+_____ test_last_fingerprint_publishes_first_known_shared_stop[uncertain] ______
+tests\test_fix_notice_round11_20261122.py:263: in test_last_fingerprint_publishes_first_known_shared_stop
+    assert any(row.get('gate_problem') == 'uncertain' for row in rows)
+E   assert False
+E    +  where False = any(<generator object test_last_fingerprint_publishes_first_known_shared_stop.<locals>.<genexpr> at 0x00000191B06E3D30>)
+___ test_old_owner_marker_close_failure_is_reported_with_its_primary[False] ___
+tests\test_fix_notice_round11_20261122.py:303: in test_old_owner_marker_close_failure_is_reported_with_its_primary
+    cleanup, = getattr(error.value, 'gate_cleanup_errors', ())
+    ^^^^^^^^
+E   ValueError: not enough values to unpack (expected 1, got 0)
+___ test_old_owner_marker_close_failure_is_reported_with_its_primary[True] ____
+tests\test_fix_notice_round11_20261122.py:303: in test_old_owner_marker_close_failure_is_reported_with_its_primary
+    cleanup, = getattr(error.value, 'gate_cleanup_errors', ())
+    ^^^^^^^^
+E   ValueError: not enough values to unpack (expected 1, got 0)
+=========================== short test summary info ===========================
+FAILED tests/test_fix_notice_round11_20261122.py::test_terminal_429_is_latched_before_releasing_both_get_gates[False]
+FAILED tests/test_fix_notice_round11_20261122.py::test_terminal_429_is_latched_before_releasing_both_get_gates[True]
+FAILED tests/test_fix_notice_round11_20261122.py::test_sendall_rechecks_429_after_the_stdlib_http_audit_event
+FAILED tests/test_fix_notice_round11_20261122.py::test_physical_rw_sql_failure_needs_acquisition_success_to_clear[PRAGMA synchronous=FULL-local]
+FAILED tests/test_fix_notice_round11_20261122.py::test_physical_rw_sql_failure_needs_acquisition_success_to_clear[PRAGMA synchronous=FULL-shared]
+FAILED tests/test_fix_notice_round11_20261122.py::test_physical_rw_sql_failure_needs_acquisition_success_to_clear[FROM sqlite_master-local]
+FAILED tests/test_fix_notice_round11_20261122.py::test_physical_rw_sql_failure_needs_acquisition_success_to_clear[FROM sqlite_master-shared]
+FAILED tests/test_fix_notice_round11_20261122.py::test_physical_rw_sql_failure_needs_acquisition_success_to_clear[FROM gate LIMIT-local]
+FAILED tests/test_fix_notice_round11_20261122.py::test_physical_rw_sql_failure_needs_acquisition_success_to_clear[FROM gate LIMIT-shared]
+FAILED tests/test_fix_notice_round11_20261122.py::test_last_fingerprint_publishes_first_known_shared_stop[stopped]
+FAILED tests/test_fix_notice_round11_20261122.py::test_last_fingerprint_publishes_first_known_shared_stop[uncertain]
+FAILED tests/test_fix_notice_round11_20261122.py::test_old_owner_marker_close_failure_is_reported_with_its_primary[False]
+FAILED tests/test_fix_notice_round11_20261122.py::test_old_owner_marker_close_failure_is_reported_with_its_primary[True]
+13 failed in 5.47s

@@ -12,6 +12,7 @@ import http.client
 from select import select
 import socket
 import ssl
+import sys
 from threading import Event, RLock, Thread, Timer, current_thread
 import time
 from urllib.request import HTTPSHandler
@@ -42,6 +43,7 @@ class HTTPSOwner:
         self.timeout, self.deadline = timeout, deadline
         self.host, self.port = host, port
         self._http_status_observer = None
+        self._before_send = None
         self.keep_alive = False
         self.reused_dispatch = False
         self.reused_disconnect = False
@@ -271,6 +273,23 @@ class OwnedHTTPSConnection(http.client.HTTPSConnection):
         self.sock.do_handshake()
         owner.check()
 
+    def send(self, data):
+        before_send = self.owner._before_send
+        if before_send is None:
+            return super().send(data)
+        # Prepared GETs have no body. http.client supplies an assembled bytes
+        # header block, so only the checked GET needs this direct send path.
+        if not isinstance(data, bytes):
+            raise TypeError('checked GET requires HTTP header bytes')
+        if self.sock is None:
+            if not self.auto_open:
+                return super().send(data)
+            self.connect()
+        sendall = self.sock.sendall
+        sys.audit("http.client.send", self, data)
+        before_send()
+        return sendall(data)
+
     def getresponse(self):
         self.owner.check()
         if self.sock is not None:
@@ -378,13 +397,35 @@ class OwnedHTTPSPool:
                 self._poisoned = self._poisoned or any(owner.fence.revocation_unverified
                                                       for owner in owners)
 
-    def _discard_idle(self, owner):
+    def _retire_owner(self, owner):
+        failed = True
         try:
             owner.cleanup()
-        except TimeoutError:
+            failed = False
+        finally:
             with self._lock:
-                self._poisoned = True
-                self._retained.add(owner)
+                self._owners.discard(owner)
+                if failed or owner.fence.revocation_unverified:
+                    self._poisoned = True
+                    self._retained.add(owner)
+        if owner.fence.revocation_unverified:
+            raise TimeoutError('HTTPS cleanup unverified')
+
+    def _discard_idle(self, owner):
+        from .managed_network_stop_gate import ManagedNetworkGateStorageError, _run_gate_cleanup
+        try:
+            _run_gate_cleanup(lambda: self._retire_owner(owner),
+                              'owned HTTPS cleanup failed', recheckable=False)
+        except ManagedNetworkGateStorageError:
+            # The pool is poisoned. The next checkout reports that refusal.
+            pass
+
+    def _require_checkout(self):
+        if self._closed:
+            raise TimeoutError('HTTPS request interrupted')
+        if self.revocation_unverified:
+            from .managed_network_stop_gate import _gate_cleanup_failure
+            raise _gate_cleanup_failure('owned HTTPS cleanup unverified', recheckable=False)
 
     def _arm_expiry(self, deadline):
         timer = Timer(max(0, deadline - time.monotonic()), self._expire_idle)
@@ -413,8 +454,7 @@ class OwnedHTTPSPool:
         with self._checkout_lock:
             owner = None
             with self._lock:
-                if self._closed or self.revocation_unverified:
-                    raise TimeoutError('HTTPS request interrupted')
+                self._require_checkout()
                 if (keep_alive and self._idle is not None
                         and (self._idle.host, self._idle.port) == (host, port)):
                     owner, self._idle = self._idle, None
@@ -436,9 +476,15 @@ class OwnedHTTPSPool:
             if not healthy:
                 if owner is not None:
                     self._discard_idle(owner)
-                raise TimeoutError('HTTPS request interrupted')
+                self._require_checkout()
+        from .managed_network_stop_gate import _gate_cleanup
         parked = False
-        try:
+
+        def retire_owner():
+            if not parked:
+                self._retire_owner(owner)
+
+        with _gate_cleanup(retire_owner, 'owned HTTPS cleanup failed', recheckable=False):
             owner.start()
             yield owner
             owner.stop_timer()
@@ -455,14 +501,5 @@ class OwnedHTTPSPool:
                     # when it wakes, so a warm GET need not start a new thread.
                     if self._expiry_timer is None:
                         self._arm_expiry(owner.idle_until)
-        finally:
-            if not parked:
-                try:
-                    owner.cleanup()
-                    owner.check()
-                finally:
-                    with self._lock:
-                        self._owners.discard(owner)
-                        if owner.fence.revocation_unverified:
-                            self._poisoned = True
-                            self._retained.add(owner)
+        if not parked:
+            owner.check()

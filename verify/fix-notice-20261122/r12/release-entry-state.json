@@ -1,0 +1,14 @@
+{
+  "head": "6182ec7690bf5c92d98cd840f7550c5ca5aeb79a",
+  "launcher": 134940,
+  "pytest": 33660,
+  "started": "2026-11-23T13:06:03.986674+09:00",
+  "basetemp": "S:\\Work\\_tmp\\PV\\fix-notice-r12-20261122-2zjdmc1f",
+  "quiet": false,
+  "targets": [
+    "tests/test_fix_notice_round12_20261122.py"
+  ],
+  "exit": 0,
+  "finished": "2026-11-23T13:06:13.017026+09:00",
+  "test_directory_remaining": false
+}

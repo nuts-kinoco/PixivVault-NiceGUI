@@ -1,0 +1,14 @@
+{
+  "head": "ac9af7034a63399e565574bd94d906007aed4a33",
+  "launcher": 137416,
+  "pytest": 131312,
+  "started": "2026-11-23T13:29:22.742573+09:00",
+  "basetemp": "S:\\Work\\_tmp\\PV\\fix-notice-r12-20261122-jkcu7vpn",
+  "quiet": false,
+  "targets": [
+    "tests/test_fix_notice_round12_20261122.py::test_observed_permission_denial_invalidates_an_earlier_reconfirmation[sqlite-exclusive]"
+  ],
+  "exit": 1,
+  "finished": "2026-11-23T13:29:26.809223+09:00",
+  "test_directory_remaining": false
+}

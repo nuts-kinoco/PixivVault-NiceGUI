@@ -1,0 +1,18 @@
+FF                                                                       [100%]
+================================== FAILURES ===================================
+_ test_observed_permission_denial_invalidates_an_earlier_reconfirmation[intent-parent] _
+tests\test_fix_notice_round12_20261122.py:537: in test_observed_permission_denial_invalidates_an_earlier_reconfirmation
+    assert not policy.confirm_gate_notices()
+E   assert not True
+E    +  where True = confirm_gate_notices()
+E    +    where confirm_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x00000284AD178590>.confirm_gate_notices
+_ test_observed_permission_denial_invalidates_an_earlier_reconfirmation[physical-rw] _
+tests\test_fix_notice_round12_20261122.py:537: in test_observed_permission_denial_invalidates_an_earlier_reconfirmation
+    assert not policy.confirm_gate_notices()
+E   assert not True
+E    +  where True = confirm_gate_notices()
+E    +    where confirm_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x00000284AD07F750>.confirm_gate_notices
+=========================== short test summary info ===========================
+FAILED tests/test_fix_notice_round12_20261122.py::test_observed_permission_denial_invalidates_an_earlier_reconfirmation[intent-parent]
+FAILED tests/test_fix_notice_round12_20261122.py::test_observed_permission_denial_invalidates_an_earlier_reconfirmation[physical-rw]
+2 failed in 2.55s

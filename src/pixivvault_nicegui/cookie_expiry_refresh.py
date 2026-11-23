@@ -297,6 +297,7 @@ class CookieExpiryCoordinator:
                         item._cookies, item._cookie_user_id = fresh, user_id
                         if isinstance(item._transport, _ProfileBoundTransport):
                             item._transport.cookie_path = result.cookie_file
+                            item.set_retry_policy(item._retry_policy)
         except (CookieSyncBusy, CookieSyncCapacityExceeded):
             if not attempted:
                 return

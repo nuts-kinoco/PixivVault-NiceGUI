@@ -1,0 +1,9 @@
+branch: fix-notice
+base: 25ddea25545d4a2d29b2777857081e84428d4d63
+product/test/P6 candidate: f74c66569a113d510542fc15e5b1e4bc55165168
+worktree: S:\Work\PV\fix-notice-20261122
+write owner: current Codex implementation turn only
+full run owner and process IDs: full-state.json
+temporary area: S:\Work\_tmp\PV\fix-notice-r11-20261122-*
+external job runners: 0
+real profile and external Pixiv: unused

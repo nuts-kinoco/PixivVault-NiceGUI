@@ -1,0 +1,92 @@
+FFFFFFFFFFFFFFFF                                                         [100%]
+================================== FAILURES ===================================
+_ test_other_owner_recurrence_during_diagnostic_recheck[verify_fingerprint-before-local-1] _
+tests\test_fix_notice_round7_20261122.py:669: in test_other_owner_recurrence_during_diagnostic_recheck
+    assert injected
+E   assert False
+_ test_other_owner_recurrence_during_diagnostic_recheck[verify_fingerprint-before-local-2] _
+tests\test_fix_notice_round7_20261122.py:669: in test_other_owner_recurrence_during_diagnostic_recheck
+    assert injected
+E   assert False
+_ test_other_owner_recurrence_during_diagnostic_recheck[verify_fingerprint-before-local-3] _
+tests\test_fix_notice_round7_20261122.py:669: in test_other_owner_recurrence_during_diagnostic_recheck
+    assert injected
+E   assert False
+_ test_other_owner_recurrence_during_diagnostic_recheck[verify_fingerprint-before-shared-1] _
+tests\test_fix_notice_round7_20261122.py:669: in test_other_owner_recurrence_during_diagnostic_recheck
+    assert injected
+E   assert False
+_ test_other_owner_recurrence_during_diagnostic_recheck[verify_fingerprint-before-shared-2] _
+tests\test_fix_notice_round7_20261122.py:669: in test_other_owner_recurrence_during_diagnostic_recheck
+    assert injected
+E   assert False
+_ test_other_owner_recurrence_during_diagnostic_recheck[verify_fingerprint-before-shared-3] _
+tests\test_fix_notice_round7_20261122.py:669: in test_other_owner_recurrence_during_diagnostic_recheck
+    assert injected
+E   assert False
+_ test_other_owner_recurrence_during_diagnostic_recheck[verify_fingerprint-after-local-1] _
+tests\test_fix_notice_round7_20261122.py:669: in test_other_owner_recurrence_during_diagnostic_recheck
+    assert injected
+E   assert False
+_ test_other_owner_recurrence_during_diagnostic_recheck[verify_fingerprint-after-local-2] _
+tests\test_fix_notice_round7_20261122.py:669: in test_other_owner_recurrence_during_diagnostic_recheck
+    assert injected
+E   assert False
+_ test_other_owner_recurrence_during_diagnostic_recheck[verify_fingerprint-after-local-3] _
+tests\test_fix_notice_round7_20261122.py:669: in test_other_owner_recurrence_during_diagnostic_recheck
+    assert injected
+E   assert False
+_ test_other_owner_recurrence_during_diagnostic_recheck[verify_fingerprint-after-shared-1] _
+tests\test_fix_notice_round7_20261122.py:669: in test_other_owner_recurrence_during_diagnostic_recheck
+    assert injected
+E   assert False
+_ test_other_owner_recurrence_during_diagnostic_recheck[verify_fingerprint-after-shared-2] _
+tests\test_fix_notice_round7_20261122.py:669: in test_other_owner_recurrence_during_diagnostic_recheck
+    assert injected
+E   assert False
+_ test_other_owner_recurrence_during_diagnostic_recheck[verify_fingerprint-after-shared-3] _
+tests\test_fix_notice_round7_20261122.py:669: in test_other_owner_recurrence_during_diagnostic_recheck
+    assert injected
+E   assert False
+_ test_sqlite_close_fault_recurs_during_opposite_gate_diagnosis[verify_fingerprint-before-local] _
+tests\test_fix_notice_round9_20261122.py:243: in test_sqlite_close_fault_recurs_during_opposite_gate_diagnosis
+    assert_sqlite_recurrence_is_detected(tmp_path, monkeypatch, authority, (phase, other, when), diagnostic=True)
+tests\test_fix_notice_round9_20261122.py:293: in assert_sqlite_recurrence_is_detected
+    assert recurrence and not sent
+E   assert (False)
+_ test_sqlite_close_fault_recurs_during_opposite_gate_diagnosis[verify_fingerprint-before-shared] _
+tests\test_fix_notice_round9_20261122.py:243: in test_sqlite_close_fault_recurs_during_opposite_gate_diagnosis
+    assert_sqlite_recurrence_is_detected(tmp_path, monkeypatch, authority, (phase, other, when), diagnostic=True)
+tests\test_fix_notice_round9_20261122.py:293: in assert_sqlite_recurrence_is_detected
+    assert recurrence and not sent
+E   assert (False)
+_ test_sqlite_close_fault_recurs_during_opposite_gate_diagnosis[verify_fingerprint-after-local] _
+tests\test_fix_notice_round9_20261122.py:243: in test_sqlite_close_fault_recurs_during_opposite_gate_diagnosis
+    assert_sqlite_recurrence_is_detected(tmp_path, monkeypatch, authority, (phase, other, when), diagnostic=True)
+tests\test_fix_notice_round9_20261122.py:293: in assert_sqlite_recurrence_is_detected
+    assert recurrence and not sent
+E   assert (False)
+_ test_sqlite_close_fault_recurs_during_opposite_gate_diagnosis[verify_fingerprint-after-shared] _
+tests\test_fix_notice_round9_20261122.py:243: in test_sqlite_close_fault_recurs_during_opposite_gate_diagnosis
+    assert_sqlite_recurrence_is_detected(tmp_path, monkeypatch, authority, (phase, other, when), diagnostic=True)
+tests\test_fix_notice_round9_20261122.py:293: in assert_sqlite_recurrence_is_detected
+    assert recurrence and not sent
+E   assert (False)
+=========================== short test summary info ===========================
+FAILED tests/test_fix_notice_round7_20261122.py::test_other_owner_recurrence_during_diagnostic_recheck[verify_fingerprint-before-local-1]
+FAILED tests/test_fix_notice_round7_20261122.py::test_other_owner_recurrence_during_diagnostic_recheck[verify_fingerprint-before-local-2]
+FAILED tests/test_fix_notice_round7_20261122.py::test_other_owner_recurrence_during_diagnostic_recheck[verify_fingerprint-before-local-3]
+FAILED tests/test_fix_notice_round7_20261122.py::test_other_owner_recurrence_during_diagnostic_recheck[verify_fingerprint-before-shared-1]
+FAILED tests/test_fix_notice_round7_20261122.py::test_other_owner_recurrence_during_diagnostic_recheck[verify_fingerprint-before-shared-2]
+FAILED tests/test_fix_notice_round7_20261122.py::test_other_owner_recurrence_during_diagnostic_recheck[verify_fingerprint-before-shared-3]
+FAILED tests/test_fix_notice_round7_20261122.py::test_other_owner_recurrence_during_diagnostic_recheck[verify_fingerprint-after-local-1]
+FAILED tests/test_fix_notice_round7_20261122.py::test_other_owner_recurrence_during_diagnostic_recheck[verify_fingerprint-after-local-2]
+FAILED tests/test_fix_notice_round7_20261122.py::test_other_owner_recurrence_during_diagnostic_recheck[verify_fingerprint-after-local-3]
+FAILED tests/test_fix_notice_round7_20261122.py::test_other_owner_recurrence_during_diagnostic_recheck[verify_fingerprint-after-shared-1]
+FAILED tests/test_fix_notice_round7_20261122.py::test_other_owner_recurrence_during_diagnostic_recheck[verify_fingerprint-after-shared-2]
+FAILED tests/test_fix_notice_round7_20261122.py::test_other_owner_recurrence_during_diagnostic_recheck[verify_fingerprint-after-shared-3]
+FAILED tests/test_fix_notice_round9_20261122.py::test_sqlite_close_fault_recurs_during_opposite_gate_diagnosis[verify_fingerprint-before-local]
+FAILED tests/test_fix_notice_round9_20261122.py::test_sqlite_close_fault_recurs_during_opposite_gate_diagnosis[verify_fingerprint-before-shared]
+FAILED tests/test_fix_notice_round9_20261122.py::test_sqlite_close_fault_recurs_during_opposite_gate_diagnosis[verify_fingerprint-after-local]
+FAILED tests/test_fix_notice_round9_20261122.py::test_sqlite_close_fault_recurs_during_opposite_gate_diagnosis[verify_fingerprint-after-shared]
+16 failed, 16 deselected in 4.65s

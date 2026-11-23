@@ -1,0 +1,17 @@
+{
+  "head": "f37644d3a7a3cc9e6d2da4ed03e245fce336ad41",
+  "launcher": 136732,
+  "pytest": 132692,
+  "started": "2026-11-23T13:44:49.788328+09:00",
+  "basetemp": "S:\\Work\\_tmp\\PV\\fix-notice-r12-20261122-05i_rxw9",
+  "quiet": false,
+  "targets": [
+    "tests/test_fix_notice_round7_20261122.py::test_other_owner_recurrence_during_diagnostic_recheck",
+    "tests/test_fix_notice_round9_20261122.py::test_sqlite_close_fault_recurs_during_opposite_gate_diagnosis",
+    "-k",
+    "verify_fingerprint"
+  ],
+  "exit": 1,
+  "finished": "2026-11-23T13:44:55.614049+09:00",
+  "test_directory_remaining": false
+}

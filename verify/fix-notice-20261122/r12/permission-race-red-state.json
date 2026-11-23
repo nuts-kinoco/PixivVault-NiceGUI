@@ -1,0 +1,14 @@
+{
+  "head": "ac9af7034a63399e565574bd94d906007aed4a33",
+  "launcher": 138380,
+  "pytest": 114996,
+  "started": "2026-11-23T13:18:45.085567+09:00",
+  "basetemp": "S:\\Work\\_tmp\\PV\\fix-notice-r12-20261122-jjcn3z7i",
+  "quiet": false,
+  "targets": [
+    "tests/test_fix_notice_round12_20261122.py::test_observed_permission_denial_invalidates_an_earlier_reconfirmation"
+  ],
+  "exit": 1,
+  "finished": "2026-11-23T13:18:48.888696+09:00",
+  "test_directory_remaining": false
+}

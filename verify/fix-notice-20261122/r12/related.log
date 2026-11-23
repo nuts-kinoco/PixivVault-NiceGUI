@@ -1,0 +1,63 @@
+........................................................................ [  5%]
+........................................................................ [ 11%]
+........................................................................ [ 16%]
+........................................................................ [ 22%]
+........................................................................ [ 27%]
+........................................................................ [ 33%]
+........................................................................ [ 38%]
+........................................................................ [ 44%]
+........................................................................ [ 49%]
+........................................................................ [ 55%]
+........................................................................ [ 61%]
+........................................................................ [ 66%]
+........................................................................ [ 72%]
+.........................FF............................................. [ 77%]
+...............s........................................................ [ 83%]
+........................................................................ [ 88%]
+........................................................................ [ 94%]
+.....F.................................................................. [ 99%]
+..                                                                       [100%]
+================================== FAILURES ===================================
+______ test_rw_sqlite_close_failure_stays_pinned_until_rechecked[local] _______
+tests\test_fix_notice_round8_20261122.py:73: in test_rw_sqlite_close_failure_stays_pinned_until_rechecked
+    assert not policy.has_gate_notices()
+E   assert not True
+E    +  where True = has_gate_notices()
+E    +    where has_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x0000024CFB6CA7B0>.has_gate_notices
+______ test_rw_sqlite_close_failure_stays_pinned_until_rechecked[shared] ______
+tests\test_fix_notice_round8_20261122.py:73: in test_rw_sqlite_close_failure_stays_pinned_until_rechecked
+    assert not policy.has_gate_notices()
+E   assert not True
+E    +  where True = has_gate_notices()
+E    +    where has_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x0000024CF8168D70>.has_gate_notices
+_______ test_stop_migration_recovery_creates_no_authentication_callback _______
+tests\test_stage5_r1_native_auth_stop_boundary.py:105: in test_stop_migration_recovery_creates_no_authentication_callback
+    view = binding.create_view(allow_auth=False)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\native_startup.py:219: in create_view
+    def create_view(self, *, allow_auth=True):
+src\pixivvault_nicegui\ui\native_profile_view.py:39: in __init__
+    self.dialog = ui.dialog().props('persistent data-testid=native-profile-dialog')
+                  ^^^^^^^^^^^
+S:\Projects\PixivVault-NiceGUI\.venv\Lib\site-packages\nicegui\element.py:142: in init
+    (own_init or super(cls, type(self)).__init__)(self, *args, **kwargs)
+S:\Projects\PixivVault-NiceGUI\.venv\Lib\site-packages\nicegui\defaults.py:64: in decorated
+    return original_func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+S:\Projects\PixivVault-NiceGUI\.venv\Lib\site-packages\nicegui\elements\dialog.py:33: in __init__
+    with context.client.layout:
+         ^^^^^^^^^^^^^^
+S:\Projects\PixivVault-NiceGUI\.venv\Lib\site-packages\nicegui\context.py:41: in client
+    return self.slot.parent.client
+           ^^^^^^^^^
+S:\Projects\PixivVault-NiceGUI\.venv\Lib\site-packages\nicegui\context.py:33: in slot
+    raise RuntimeError('The current slot cannot be determined because the slot stack for this task is empty.\n'
+E   RuntimeError: The current slot cannot be determined because the slot stack for this task is empty.
+E   This may happen if you try to create UI from a background task.
+E   To fix this, enter the target slot explicitly using `with container_element:`.
+=========================== short test summary info ===========================
+SKIPPED [1] tests\test_managed_network_stop_gate.py:263: symlink unavailable
+FAILED tests/test_fix_notice_round8_20261122.py::test_rw_sqlite_close_failure_stays_pinned_until_rechecked[local]
+FAILED tests/test_fix_notice_round8_20261122.py::test_rw_sqlite_close_failure_stays_pinned_until_rechecked[shared]
+FAILED tests/test_stage5_r1_native_auth_stop_boundary.py::test_stop_migration_recovery_creates_no_authentication_callback
+3 failed, 1294 passed, 1 skipped in 272.48s (0:04:32)

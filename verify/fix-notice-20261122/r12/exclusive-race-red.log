@@ -1,0 +1,11 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+_ test_observed_permission_denial_invalidates_an_earlier_reconfirmation[sqlite-exclusive] _
+tests\test_fix_notice_round12_20261122.py:552: in test_observed_permission_denial_invalidates_an_earlier_reconfirmation
+    assert not policy.confirm_gate_notices()
+E   assert not True
+E    +  where True = confirm_gate_notices()
+E    +    where confirm_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x0000018319CCC440>.confirm_gate_notices
+=========================== short test summary info ===========================
+FAILED tests/test_fix_notice_round12_20261122.py::test_observed_permission_denial_invalidates_an_earlier_reconfirmation[sqlite-exclusive]
+1 failed in 2.62s

@@ -1,0 +1,11 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+_____ test_same_physical_gate_can_prove_sql_recovery_after_reader_rebind ______
+tests\test_fix_notice_round11_20261122.py:311: in test_same_physical_gate_can_prove_sql_recovery_after_reader_rebind
+    assert policy.has_gate_notices()
+E   assert False
+E    +  where False = has_gate_notices()
+E    +    where has_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x00000282A39AAF90>.has_gate_notices
+=========================== short test summary info ===========================
+FAILED tests/test_fix_notice_round11_20261122.py::test_same_physical_gate_can_prove_sql_recovery_after_reader_rebind
+1 failed in 2.14s

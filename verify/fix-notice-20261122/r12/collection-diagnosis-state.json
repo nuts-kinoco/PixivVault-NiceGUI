@@ -1,0 +1,14 @@
+{
+  "head": "f37644d3a7a3cc9e6d2da4ed03e245fce336ad41",
+  "launcher": 111628,
+  "pytest": 145580,
+  "started": "2026-11-23T13:43:32.054680+09:00",
+  "basetemp": "S:\\Work\\_tmp\\PV\\fix-notice-r12-20261122-n2kx9c4k",
+  "quiet": false,
+  "targets": [
+    "--collect-only"
+  ],
+  "exit": 0,
+  "finished": "2026-11-23T13:43:49.323571+09:00",
+  "test_directory_remaining": false
+}

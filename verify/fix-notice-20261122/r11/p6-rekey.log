@@ -1,0 +1,5 @@
+UNMAPPED pixivvault_nicegui/managed_network_stop_gate.py:ManagedNetworkStopGate.request:gate.request-implementation:9c68aba1f292ce9d:9c68aba1f292ce9d:1
+UNMAPPED pixivvault_nicegui/owned_https.py:OwnedHTTPSConnection.send:self.sock.sendall:2f8f3654479ba4f9:1156ae0161e20fb6:1
+mapped 5 removed stale 6
+issues after: 2
+Final removed/added keys: (6, 7); gate implementation synthetic key preserved; explicit owned GET sendall: gated; issues after manual mapping: 0; LF.

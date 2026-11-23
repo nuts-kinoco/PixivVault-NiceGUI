@@ -1,0 +1,22 @@
+{
+  "head": "ac9af7034a63399e565574bd94d906007aed4a33",
+  "launcher": 129276,
+  "pytest": 24264,
+  "started": "2026-11-23T13:24:56.672178+09:00",
+  "basetemp": "S:\\Work\\_tmp\\PV\\fix-notice-r12-20261122-l7nr_hzf",
+  "quiet": false,
+  "targets": [
+    "tests/test_fix_notice_round12_20261122.py",
+    "tests/test_fix_notice_round4_20261122.py",
+    "tests/test_fix_notice_round5_20261122.py",
+    "tests/test_fix_notice_round8_20261122.py",
+    "tests/test_fix_notice_round8_known_outcomes_20261122.py",
+    "tests/test_fix_notice_round10_20261122.py",
+    "tests/test_fix_notice_round11_20261122.py",
+    "tests/test_stage5_r1_native_auth_stop_boundary.py",
+    "tests/test_p6_network.py"
+  ],
+  "exit": 0,
+  "finished": "2026-11-23T13:26:41.660135+09:00",
+  "test_directory_remaining": false
+}

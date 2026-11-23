@@ -1,0 +1,17 @@
+{
+  "head": "ac9af7034a63399e565574bd94d906007aed4a33",
+  "launcher": 136408,
+  "pytest": 139456,
+  "started": "2026-11-23T13:30:06.152272+09:00",
+  "basetemp": "S:\\Work\\_tmp\\PV\\fix-notice-r12-20261122-kl7e374r",
+  "quiet": false,
+  "targets": [
+    "tests/test_fix_notice_round12_20261122.py",
+    "tests/test_fix_notice_round4_20261122.py::test_database_exclusive_lock_preserves_storage_notice_without_probe_locking",
+    "tests/test_fix_notice_round4_20261122.py::test_database_reserved_lock_allows_open_observation",
+    "tests/test_p6_network.py"
+  ],
+  "exit": 0,
+  "finished": "2026-11-23T13:30:22.332288+09:00",
+  "test_directory_remaining": false
+}

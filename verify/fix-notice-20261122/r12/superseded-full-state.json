@@ -1,0 +1,12 @@
+{
+  "head": "ac9af7034a63399e565574bd94d906007aed4a33",
+  "launcher": 143764,
+  "pytest": 120336,
+  "started": "2026-11-23T13:15:08.074013+09:00",
+  "basetemp": "S:\\Work\\_tmp\\PV\\fix-notice-r12-20261122-omlzduyq",
+  "quiet": false,
+  "targets": [],
+  "exit": 4294967295,
+  "finished": "2026-11-23T13:17:26.547330+09:00",
+  "test_directory_remaining": false
+}

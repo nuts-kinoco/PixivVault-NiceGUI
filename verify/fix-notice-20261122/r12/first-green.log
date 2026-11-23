@@ -1,0 +1,65 @@
+...................FFFF.....F........................................... [ 18%]
+........................................................................ [ 37%]
+........................................................................ [ 56%]
+........................................................................ [ 75%]
+.........................................FFF............................ [ 93%]
+........................                                                 [100%]
+================================== FAILURES ===================================
+______ test_reader_replacement_retires_old_selection_proof[False-False] _______
+tests\test_fix_notice_round10_20261122.py:180: in test_reader_replacement_retires_old_selection_proof
+    assert not policy.has_gate_notices()
+E   assert not True
+E    +  where True = has_gate_notices()
+E    +    where has_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x000002824BCC2C60>.has_gate_notices
+_______ test_reader_replacement_retires_old_selection_proof[False-True] _______
+tests\test_fix_notice_round10_20261122.py:180: in test_reader_replacement_retires_old_selection_proof
+    assert not policy.has_gate_notices()
+E   assert not True
+E    +  where True = has_gate_notices()
+E    +    where has_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x000002824BCAA4E0>.has_gate_notices
+_______ test_reader_replacement_retires_old_selection_proof[True-False] _______
+tests\test_fix_notice_round10_20261122.py:180: in test_reader_replacement_retires_old_selection_proof
+    assert not policy.has_gate_notices()
+E   assert not True
+E    +  where True = has_gate_notices()
+E    +    where has_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x000002824BCA96D0>.has_gate_notices
+_______ test_reader_replacement_retires_old_selection_proof[True-True] ________
+tests\test_fix_notice_round10_20261122.py:180: in test_reader_replacement_retires_old_selection_proof
+    assert not policy.has_gate_notices()
+E   assert not True
+E    +  where True = has_gate_notices()
+E    +    where has_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x000002824BCC2B70>.has_gate_notices
+______________ test_clear_streak_does_not_cross_a_replaced_gate _______________
+tests\test_fix_notice_round10_20261122.py:340: in test_clear_streak_does_not_cross_a_replaced_gate
+    assert not policy.has_gate_notices()
+E   assert not True
+E    +  where True = has_gate_notices()
+E    +    where has_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x000002824BD448C0>.has_gate_notices
+_ test_fixed_profile_storage_notice_stays_until_its_own_problem_is_repaired[journal] _
+tests\test_fix_notice_round6_20261122.py:332: in test_fixed_profile_storage_notice_stays_until_its_own_problem_is_repaired
+    assert not policy.has_gate_notices()
+E   assert not True
+E    +  where True = has_gate_notices()
+E    +    where has_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x000002824BEE9130>.has_gate_notices
+_ test_fixed_profile_storage_notice_stays_until_its_own_problem_is_repaired[sqlite-read] _
+tests\test_fix_notice_round6_20261122.py:332: in test_fixed_profile_storage_notice_stays_until_its_own_problem_is_repaired
+    assert not policy.has_gate_notices()
+E   assert not True
+E    +  where True = has_gate_notices()
+E    +    where has_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x000002824BCC35C0>.has_gate_notices
+_ test_observing_healthy_storage_does_not_clear_notice_for_a_stale_reader_binding _
+tests\test_fix_notice_round6_20261122.py:368: in test_observing_healthy_storage_does_not_clear_notice_for_a_stale_reader_binding
+    assert not policy.has_gate_notices()
+E   assert not True
+E    +  where True = has_gate_notices()
+E    +    where has_gate_notices = <pixivvault_nicegui.request_policy.RequestRetryPolicy object at 0x000002824BCC3B60>.has_gate_notices
+=========================== short test summary info ===========================
+FAILED tests/test_fix_notice_round10_20261122.py::test_reader_replacement_retires_old_selection_proof[False-False]
+FAILED tests/test_fix_notice_round10_20261122.py::test_reader_replacement_retires_old_selection_proof[False-True]
+FAILED tests/test_fix_notice_round10_20261122.py::test_reader_replacement_retires_old_selection_proof[True-False]
+FAILED tests/test_fix_notice_round10_20261122.py::test_reader_replacement_retires_old_selection_proof[True-True]
+FAILED tests/test_fix_notice_round10_20261122.py::test_clear_streak_does_not_cross_a_replaced_gate
+FAILED tests/test_fix_notice_round6_20261122.py::test_fixed_profile_storage_notice_stays_until_its_own_problem_is_repaired[journal]
+FAILED tests/test_fix_notice_round6_20261122.py::test_fixed_profile_storage_notice_stays_until_its_own_problem_is_repaired[sqlite-read]
+FAILED tests/test_fix_notice_round6_20261122.py::test_observing_healthy_storage_does_not_clear_notice_for_a_stale_reader_binding
+8 failed, 376 passed in 102.01s (0:01:42)
