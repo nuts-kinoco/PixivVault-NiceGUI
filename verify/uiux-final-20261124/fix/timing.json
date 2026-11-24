@@ -1,0 +1,20 @@
+{
+    "seconds":  {
+                    "red-browser":  50.6,
+                    "red-startup":  15.33,
+                    "green-browser":  134.78,
+                    "green-reset-debug":  44.86,
+                    "green-reset":  27.97,
+                    "final-browser":  98.21,
+                    "final-learning-focus":  13.12,
+                    "learning-tab-debug":  12.93,
+                    "accepted-learning":  46.99,
+                    "learning-candidate":  37.48,
+                    "browser-fixture-preflight":  7.56,
+                    "pytest.log":  27.46,
+                    "pytest-final.log":  31.83,
+                    "pytest-learning-final.log":  12.71,
+                    "pytest-candidate.log":  15.1
+                },
+    "total_seconds":  576.93
+}
