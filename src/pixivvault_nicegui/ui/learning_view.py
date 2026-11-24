@@ -304,8 +304,8 @@ class LearningView:
                         ui.label('探索の設定').classes('pv-subtitle').style('flex:1 1 auto;text-align:left')
                         self.settings_arrow=ui.icon('keyboard_arrow_right').style('font-size:15px;color:var(--pv-muted)')
                         ui.tooltip('どのくらい知らないものを見るかを変えます')
-                    with ui.card().classes('gap-2 pv-discovery-settings-panel').props(
-                            'role=region aria-label=探索の設定 data-testid=discovery-settings-panel') as self.settings_panel:
+                    with ui.card().classes('gap-2 pv-discovery-settings-panel pv-focus-ring').props(
+                            'role=region aria-label=探索の設定 tabindex=0 data-testid=discovery-settings-panel') as self.settings_panel:
                         self.settings_subject,self.settings_subject_text=self._explore_slider('知らないジャンルを見る割合','discovery-settings-subject')
                         self.settings_style,self.settings_style_text=self._explore_slider('知らない絵柄を見る割合','discovery-settings-style')
                         self.settings_mode=ui.select({'all':'すべて','safe':'全年齢','r18':'R-18'},value='all',label='検索対象',
@@ -1364,7 +1364,9 @@ class LearningView:
         self.reload_button.set_visibility(self.storage is not None)
         self.reload_button.set_enabled(self.active and not self.state.closed and not self.services.closing and not self._storage_busy and not self.state.saving and not self._review_mutating)
         if self.discovery is not None:
-            self.settings_button.set_enabled(available and not self._managed_busy)
+            # Keep the trigger focused while the open panel loads or saves.
+            settings_busy_open = self.active and self._settings_open and self._settings_busy
+            self.settings_button.set_enabled((available and not self._managed_busy) or settings_busy_open)
             self.fetch_button.set_enabled(available and not self._managed_busy and (self._initial_task is None or self._initial_task.done()))
             self.candidate_status_retry.set_enabled(self.fetch_button.enabled and not self._refill.running)
             self.managed_button.props(props)
@@ -2067,6 +2069,8 @@ class LearningView:
         self.settings_arrow.props(f"name={'keyboard_arrow_down' if self._settings_open else 'keyboard_arrow_right'}")
 
     async def toggle_discovery_settings(self):
+        if self._settings_busy:
+            return
         if self._settings_open:
             self._close_settings()
         else:
