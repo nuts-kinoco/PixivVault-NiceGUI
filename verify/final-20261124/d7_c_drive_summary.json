@@ -1,0 +1,25 @@
+{
+ "pytest_exit_first_run": 1,
+ "new_files_total": 123,
+ "new_files_matching_PV": 0,
+ "new_files_by_top_dir": {
+  "C:\\ProgramData\\USOShared": 1,
+  "C:\\Users\\nat": 118,
+  "C:\\Windows\\Logs": 3,
+  "C:\\Windows\\Temp": 1
+ },
+ "python_write_audit": null,
+ "test_output_pattern_matches": [],
+ "note": "C: new files are from other applications (Windows, Chrome, Claude, Codex, Gemini); none match PV paths. Full test run: 5673 passed, 1 failed (p6 review fingerprint; fixed by re-keying one entry, then test_p6_network 7 passed), 3 skipped, 3 deselected (dpapi).",
+ "secret_scan": {
+  "tool": "tools/p6_secrets.py",
+  "scope": "git history + working tree artifacts",
+  "findings_total": 242,
+  "kinds": {
+   "token": 175,
+   "cookie": 59,
+   "development-password": 8
+  },
+  "triage": "development-password 8 are synthetic test strings (generated-password, synthetic-..., example-only-<digits>); no real values. The fixed dev password does not appear in any commit (git log --all pickaxe: 0)."
+ }
+}
