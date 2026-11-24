@@ -52,3 +52,10 @@
 - 起動したプロセスは終了済み。対象パスで照合した Python の残存は 0。証拠は Git に記録し、push は行っていない。
 - 後始末の実行要求はホストのポリシーにより開始前に拒否された。複製と同じ親フォルダーに pytest の `pytest-*` 6 ディレクトリーと作業用 `.py`・`.json` 8 ファイルが残る。監督は証拠の回収後に削除対象を確認できる。
 - 次は監督による隔離証拠の確認。D5 全体の受入は承認済みの実機担当による主要導線・再起動・前後照合が必要。D9 の残件は静止画の候補がなかった 38 作品の保存実体照合と一般設定の確認範囲の確定。
+
+
+## 実機データの前後照合（2026-11-24、COS R8b の実機操作後。監督）
+実機プロファイル（S:\Projects\COS-PV433-STARTUP-20261116-r1。temp・native-images を除く）の SQLite 10 本を `mode=ro` で開いて照合した。退避は backupealprofile-20261124-r10（再起動前に取得）。
+- `PRAGMA integrity_check` は、実機側 10 本・退避側 10 本とも ok。
+- 件数の差は 2 か所のみ: 設定（profile-native-startup-preferences\preferences.sqlite3）の preferences_values 2→3、視覚嗜好学習のシャドー記録（…isual_preference.sqlite3）の ranking_events 60→71。どちらも COS 操作・通常利用に伴う正当な増加（補正は既定 OFF）。他の 8 本は件数差なし。
+- 作品・判定履歴・保存フォルダーを含む移植版プロファイル（profile.sqlite3）の件数は退避と一致。

@@ -82,10 +82,10 @@ if ($IsolatedWorkspace) {
     }
     $launchArgs = @('-B', '-u', $testEntry, '--test-workspace', $IsolatedWorkspace, '--')
 } else {
-    # 共有取得停止状態は Windows ユーザー単位の封印済みオーナー（LocalAppData 配下。製品が Known Folder から開く。
-    # 環境変数や引数では差し替えられない安全境界）。S: 上なら従来どおり承認済み配置、S: 外（通常は C:）なら、
-    # **既存の封印済みオーナーが実在する場合に限り**起動してよい（新規作成はしない）。プロファイル・ログ・TEMP などの
-    # 全書き込み先は引き続き S: に強制する（Get-SPath）。
+    # The shared acquisition stop state is a sealed per-Windows-user owner under LocalAppData (opened by the product
+    # from the Known Folder; it cannot be redirected by environment variables or arguments). On S: it stays as approved.
+    # Outside S: (normally C:) launch is allowed ONLY when that sealed owner already exists (nothing new is created).
+    # Every write location we control (profile, logs, TEMP) is still forced to S: by Get-SPath.
     $local = [Environment]::GetFolderPath([Environment+SpecialFolder]::LocalApplicationData)
     $stopRoot = Join-Path $local 'PixivVault-NiceGUI\managed-pixiv-get-stop-v1'
     if ($local -match '^[sS]:[\/]') {
