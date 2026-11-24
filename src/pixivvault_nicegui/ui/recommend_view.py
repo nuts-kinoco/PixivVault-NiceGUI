@@ -66,7 +66,7 @@ class RecommendView:
                 title='表示・棚の設定')
             with display_settings:
                 self.empty_shelves = ui.column().classes('w-full gap-1')
-            self.notice=ui.label().classes('pv-subtitle').props('role=status tabindex=0 data-testid=recommend-notice')
+            self.notice=ui.label().classes('pv-subtitle pv-focus-ring').props('role=status tabindex=0 data-testid=recommend-notice')
             self.busy_notice=ui.label('処理中…').classes('pv-subtitle').props('role=status data-testid=recommend-busy-status')
             self.busy_notice.set_visibility(False)
             self.undo_button=ui.button('出さないを取り消す',on_click=self.undo_hide).props('flat dense no-caps data-testid=recommend-undo')
