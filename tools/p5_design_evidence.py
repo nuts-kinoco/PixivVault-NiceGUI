@@ -322,7 +322,7 @@ def serve_original(port):
     main.main()
 
 
-def serve_port(port, nonce):
+def serve_port(port, nonce, *, fixed_queue=True, configure_services=None):
     from pixivvault_nicegui import bootstrap
     from pixivvault_nicegui import services
     from pixivvault_nicegui.bookmark_cache_store import BookmarkCacheStore
@@ -382,10 +382,11 @@ def serve_port(port, nonce):
             from pixivvault_nicegui.metadata_auto import MetadataStatus
 
             instance.managed_metadata_status = lambda: MetadataStatus(1, 3, 1, 1)
-        instance.jobs.snapshot = lambda: tuple(
-            JobSnapshot(row["jobId"], "pixiv-illust", row["id"], row["author_name"],
-                        state=row["state"], done=row["done"], total=row["total"])
-            for row in ranking.queue_rows())
+        if fixed_queue:
+            instance.jobs.snapshot = lambda: tuple(
+                JobSnapshot(row["jobId"], "pixiv-illust", row["id"], row["author_name"],
+                            state=row["state"], done=row["done"], total=row["total"])
+                for row in ranking.queue_rows())
         discovery = instance.discovery
         if discovery is not None:
             def seed_candidates():
@@ -407,6 +408,8 @@ def serve_port(port, nonce):
             instance.ranking_source = RankingSource(ranking)
             instance.acquire_ranking_images = lambda records: instance.images.acquire_catalog(
                 RemoteBookmarkImages(ranking, tuple(records)))
+        if configure_services is not None:
+            configure_services(instance)
         return instance
 
     services.get_services = get_fixture_services
