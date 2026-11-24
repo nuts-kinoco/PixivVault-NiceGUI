@@ -21,5 +21,12 @@
    "development-password": 8
   },
   "triage": "development-password 8 are synthetic test strings (generated-password, synthetic-..., example-only-<digits>); no real values. The fixed dev password does not appear in any commit (git log --all pickaxe: 0)."
+ },
+ "final_after_uiux_fixes": {
+  "baseline": "bd98f04f",
+  "pytest": "5678 passed, 3 skipped, 3 deselected (dpapi), exit 0, 35:59",
+  "c_drive_new_files": 1450,
+  "matching_PV_paths": 0,
+  "note": "1372 of the C: files are pytest-of-nat directories created by other projects pytest runs (comfy/safetensors tests) that ran concurrently; none match PV paths."
  }
 }
