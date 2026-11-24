@@ -70,10 +70,14 @@ class LearningResetView:
         self.export_button.set_enabled(not self.busy)
         self.close_button.set_enabled(not self.busy)
 
+    def _can_open(self):
+        p = self.parent
+        return (not self.closed and not self.busy and self.is_open()
+                and not p.state.closed and not p.services.closing)
+
     def _available(self):
         p = self.parent
-        return (not self.closed and not self.busy and self.is_open() and not p.state.closed
-                and not p.services.closing and p._storage_ready and not p._storage_busy
+        return (self._can_open() and p._storage_ready and not p._storage_busy
                 and not p.state.saving and not p._review_busy and not getattr(p, '_review_mutating', False))
 
     async def refresh(self):
@@ -93,10 +97,12 @@ class LearningResetView:
         return judged
 
     async def open(self):
-        if not self._available():
+        # The count and CSV are available while the inactive Learning view
+        # is still restoring its session. Execution still requires that session.
+        if not self._can_open():
             return
         judged = await self.refresh()
-        if judged <= 0 or not self._available():
+        if judged <= 0 or not self._can_open():
             return
         self.notice.set_text('')
         self.title.set_text(f'学習状況のリセット（判定 {judged}枚）')
