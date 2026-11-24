@@ -1,0 +1,40 @@
+FF.                                                                      [100%]
+================================== FAILURES ===================================
+_ test_native_profile_save_schedules_auth_only_when_allowed[protected-open-gates] _
+tests\test_stage5_r1_native_auth_stop_boundary.py:172: in test_native_profile_save_schedules_auth_only_when_allowed
+    asyncio.run(save())
+C:\Users\nat\miniconda3\envs\stenv\Lib\asyncio\runners.py:195: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\asyncio\runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\asyncio\base_events.py:725: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+tests\test_stage5_r1_native_auth_stop_boundary.py:166: in save
+    assert len(gets) == int(allow_auth)
+E   AssertionError: assert 1 == 0
+E    +  where 1 = len(['GET'])
+E    +  and   0 = int(False)
+_ test_native_profile_save_schedules_auth_only_when_allowed[protected-local-401] _
+tests\test_stage5_r1_native_auth_stop_boundary.py:172: in test_native_profile_save_schedules_auth_only_when_allowed
+    asyncio.run(save())
+C:\Users\nat\miniconda3\envs\stenv\Lib\asyncio\runners.py:195: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\asyncio\runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\asyncio\base_events.py:725: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+tests\test_stage5_r1_native_auth_stop_boundary.py:167: in save
+    assert len(scheduled) == int(allow_auth)
+E   AssertionError: assert 1 == 0
+E    +  where 1 = len((<Task finished name='Task-6' coro=<NativeProfileBinding.refresh_auth_status() done, defined at S:\Work\PV\startrecover-20261124\src\pixivvault_nicegui\native_startup.py:492> result=None>,))
+E    +  and   0 = int(False)
+=========================== short test summary info ===========================
+FAILED tests/test_stage5_r1_native_auth_stop_boundary.py::test_native_profile_save_schedules_auth_only_when_allowed[protected-open-gates]
+FAILED tests/test_stage5_r1_native_auth_stop_boundary.py::test_native_profile_save_schedules_auth_only_when_allowed[protected-local-401]
+2 failed, 1 passed, 6 deselected in 3.56s

@@ -1,0 +1,2 @@
+refs-null exit 0 registered 1 modes ['synthetic'] recovery [] GET 0
+refs-restored exit 0 registered 1 modes ['pixiv-readonly'] recovery [] GET 0

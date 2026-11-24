@@ -1,0 +1,11 @@
+{
+    "blocked":  {
+
+                },
+    "blocked_sites":  {
+
+                      },
+    "subprocess_events":  {
+                              "subprocess.Popen":  1
+                          }
+}

@@ -1,0 +1,18 @@
+..................................                                       [100%]
+============================== warnings summary ===============================
+..\..\..\Projects\PixivVault-NiceGUI\.venv\Lib\site-packages\_pytest\config\__init__.py:812
+  S:\Projects\PixivVault-NiceGUI\.venv\Lib\site-packages\_pytest\config\__init__.py:812: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; p6_c_write_audit
+    self.import_plugin(arg, consider_entry_points=True)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+34 passed, 1 warning in 12.76s
+tests/test_stage5_r1_native_storage_binding.py::test_existing_empty_marked_base_cannot_be_silently_adopted os.mkdir real STOP managed-pixiv-get-stop-v1 1
+tests/test_stage5_r1_native_storage_binding.py::test_existing_empty_marked_base_cannot_be_silently_adopted sqlite3.connect other C: .pixivvault-user-stop.sqlite3 1
+tests/test_stage5_r1_native_storage_binding.py::test_existing_nonempty_unbound_native_base_requires_reviewed_migration os.mkdir real STOP managed-pixiv-get-stop-v1 1
+tests/test_stage5_r1_native_storage_binding.py::test_existing_nonempty_unbound_native_base_requires_reviewed_migration sqlite3.connect other C: .pixivvault-user-stop.sqlite3 1
+tests/test_stage5_r1_native_storage_binding.py::test_interrupted_first_use_binding_is_recovered_only_by_original_profile os.mkdir real STOP managed-pixiv-get-stop-v1 2
+tests/test_stage5_r1_native_storage_binding.py::test_interrupted_first_use_binding_is_recovered_only_by_original_profile sqlite3.connect other C: .pixivvault-user-stop.sqlite3 2
+tests/test_stage5_r1_native_storage_binding.py::test_real_native_bootstrap_save_parent_before_cookie_can_then_add_cookie os.mkdir real STOP managed-pixiv-get-stop-v1 1
+tests/test_stage5_r1_native_storage_binding.py::test_real_native_bootstrap_save_parent_before_cookie_can_then_add_cookie sqlite3.connect other C: .pixivvault-user-stop.sqlite3 1
+tests/test_stage5_r1_native_storage_binding.py::test_storage_parent_stays_associated_to_original_profile os.mkdir real STOP managed-pixiv-get-stop-v1 1
+tests/test_stage5_r1_native_storage_binding.py::test_storage_parent_stays_associated_to_original_profile sqlite3.connect other C: .pixivvault-user-stop.sqlite3 1

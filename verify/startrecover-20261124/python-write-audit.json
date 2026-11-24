@@ -1,0 +1,13 @@
+{
+    "blocked":  {
+                    "os.mkdir":  6,
+                    "sqlite3.connect":  6
+                },
+    "blocked_sites":  {
+                          "os.mkdir src/pixivvault_nicegui/managed_network_stop_gate.py:454":  6,
+                          "sqlite3.connect src/pixivvault_nicegui/managed_network_stop_gate.py:392":  6
+                      },
+    "subprocess_events":  {
+
+                          }
+}

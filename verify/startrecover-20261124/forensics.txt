@@ -1,0 +1,58 @@
+Preserved SQLite read (JST times; paths omitted)
+morning-profile 2026-11-22T19:32:24.032163 32768 sidecars 0
+integrity True
+profile [(28, 0, 0, 1, 1)]
+adoption revisions [(21, 21, 0), (22, 22, 0), (23, 23, 0), (24, 24, 0), (25, 25, 0), (26, 26, 0), (27, 27, 0), (28, 28, 1)]
+broken-profile 2026-11-24T21:32:39.612304 32768 sidecars 0
+integrity True
+profile [(38, 1, 1, 1, 1)]
+adoption revisions [(30, 30, None), (31, 31, None), (32, 32, None), (33, 33, None), (34, 34, None), (35, 35, None), (36, 36, None), (37, 37, None)]
+local 2026-11-24T20:28:36.384722 8192 sidecars 0
+integrity True
+shared 2026-11-24T20:28:36.372398 8192 sidecars 0
+integrity True
+old-local 2026-11-16T18:20:05.460064 8192 sidecars 0
+integrity True
+.pixivvault-user-stop.sqlite3 byte-identical False
+.pixivvault-user-stop-startup.v1.json byte-identical True
+startup-record.json byte-identical True
+
+Subsequent source copies into S: scratch; mode=ro&immutable=1
+profile stable stat True sidecar presence False same as preserved snapshot False mtime 2026-11-24T22:55:09.180230
+[(39, 0, 0)]
+local stable stat True sidecar presence False same as preserved snapshot True mtime 2026-11-24T20:28:36.384722
+[(1, 401, 1)]
+shared stable stat True sidecar presence False same as preserved snapshot True mtime 2026-11-24T20:28:36.372398
+[(1, 401, 1)]
+root 2026-11-24T20:28:36.375707 4096
+anchor absent
+record absent
+seal 2026-11-08T02:12:58.756579 319
+gate-lock 2026-11-08T02:12:58.738356 1
+migration-record 2026-11-08T02:12:58.749629 9828
+
+Seal and migration proof comparisons
+preserved pixivvault-managed-get-user-owner-v1 anchor matches False startup proof matches False migration proof matches True
+migration summary 8 [] 0 2026-11-07T17:12:58.748684+00:00
+historical pixivvault-managed-get-user-owner-v1 anchor matches False startup proof matches False migration proof matches True
+migration summary 8 [] 0 2026-11-07T17:12:58.748684+00:00
+live seal byte identical to preserved True preserved seal identical to historical True
+managed-pixiv-get-stop-v1 2026-11-24T20:28:36.375707 2026-11-08T02:12:58.526543
+managed-pixiv-get-stop-v1 2026-11-24T20:28:36.375707 2026-11-24T22:23:10.190174
+removed-from-real-20261117 2026-11-17T02:05:59.530466 2026-11-17T02:05:59.525026
+
+Read-only product provenance check on the OS Known Folder; no gate was opened
+Known folder equals expected True
+given pixivvault-managed-get-user-owner-v1 root/db/lock match [True, True, True]
+given actual provenance check passed
+given inflight 2026-11-24T20:28:36.132316 38
+
+Schema and 401 intent check on preserved copies; attribute booleans and generations
+current save parent equals r10 True current cookie equals last retained adopted generation True current adoption rows unchanged from revision 38 True
+r10 adoptions at current path [(21, 21, None), (22, 22, None), (23, 23, None), (24, 24, None), (25, 25, None), (26, 26, None), (27, 27, None), (28, 28, None)]
+r38 adoptions at current path [(30, 30, '2026-11-24T06:31:18'), (31, 31, '2026-11-24T06:33:20'), (32, 32, '2026-11-24T06:35:21'), (33, 33, '2026-11-24T06:37:24'), (34, 34, '2026-11-24T07:48:36'), (35, 35, '2026-11-24T07:50:49'), (36, 36, '2026-11-24T07:55:53'), (37, 37, '2026-11-24T19:14:58')]
+local production schema and row valid NetworkStopState(blocked=True, status_code=401, revision=1)
+shared production schema and row valid NetworkStopState(blocked=True, status_code=401, revision=1)
+inflight standard bytes and identical live True mtime 2026-11-24T20:28:36.132316
+pre_snapshot.json stamp 2026-11-24 19:29:34 db shape dict mapping
+post_snapshot_20261124.json stamp 2026-11-24 21:08:43 db shape dict mapping
