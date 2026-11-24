@@ -1,0 +1,430 @@
+{
+  "metadata": {
+    "product_revision": "807d3ab3375e199fa82408352c42c385731201cb",
+    "product_tree": "b3d1aa85a480249f3aaf2f2366513169dfad841d",
+    "original_revision": "3ac3aa0d47a64785251593bcb09bb2d5f6df374b",
+    "zoom_method": "Chromium browser zoom, verified inner width and DPR",
+    "dom_sha256": "2349f88795a8fd036481e5c6f1818ebef005a7d42183646f991e563dfecac056",
+    "fingerprint": "16a759f28d468772bd037a22faf563d61dada199c470fc68da5f458884866944",
+    "network": {
+      "normal/100": {
+        "server_denials": 0,
+        "fake_call_types": [
+          "transport"
+        ],
+        "blocked_host_count": 0
+      },
+      "error/100": {
+        "server_denials": 0,
+        "fake_call_types": [
+          "transport"
+        ],
+        "blocked_host_count": 0
+      }
+    }
+  },
+  "counts": {
+    "planned": 10,
+    "missing": 0,
+    "captured": 10,
+    "inapplicable": 0
+  },
+  "captures": {
+    "normal/1280x800-light-100/settings": {
+      "observed_viewport": [
+        1280,
+        800
+      ],
+      "device_scale": 1,
+      "product": "normal/1280x800-light-100/settings/port.png",
+      "state_proven": true,
+      "measured": true,
+      "filled_buttons": 2,
+      "dom": "normal/1280x800-light-100/settings/dom.json",
+      "items_observed": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5",
+        "A6",
+        "A7",
+        "A8",
+        "A9",
+        "A10",
+        "A12",
+        "A13",
+        "A15",
+        "A14"
+      ],
+      "group_images": [
+        "normal/1280x800-light-100/settings/port-all-groups.png",
+        "normal/1280x800-light-100/settings/group-01.png",
+        "normal/1280x800-light-100/settings/group-02.png",
+        "normal/1280x800-light-100/settings/group-03.png",
+        "normal/1280x800-light-100/settings/group-04.png",
+        "normal/1280x800-light-100/settings/group-05.png",
+        "normal/1280x800-light-100/settings/group-06.png",
+        "normal/1280x800-light-100/settings/group-07.png",
+        "normal/1280x800-light-100/settings/group-08.png",
+        "normal/1280x800-light-100/settings/group-09.png",
+        "normal/1280x800-light-100/settings/group-10.png",
+        "normal/1280x800-light-100/settings/group-11.png",
+        "normal/1280x800-light-100/settings/group-12.png",
+        "normal/1280x800-light-100/settings/group-13.png",
+        "normal/1280x800-light-100/settings/group-14.png"
+      ],
+      "group_titles": {
+        "group-01.png": "アカウント",
+        "group-02.png": "フォロー中リストの同期",
+        "group-03.png": "保存ポリシー・通知",
+        "group-04.png": "作品メタデータ",
+        "group-05.png": "絵柄・構図の推論",
+        "group-06.png": "視覚学習の操作",
+        "group-07.png": "自動処理",
+        "group-08.png": "エクスポート",
+        "group-09.png": "詳細設定",
+        "group-10.png": "ブラウザ拡張機能",
+        "group-11.png": "キャッシュ",
+        "group-12.png": "画像キャッシュ",
+        "group-13.png": "ローカルタグ補完モデル（任意）",
+        "group-14.png": "借用プレミアムの状態"
+      },
+      "motion": {
+        "normal": 3,
+        "reduced": 0,
+        "toasts": []
+      },
+      "hover_groups_sampled": 8,
+      "tab_cycle_observed": true,
+      "enter_opens_settings": true
+    },
+    "normal/1280x800-light-100/scheduler": {
+      "observed_viewport": [
+        1280,
+        800
+      ],
+      "device_scale": 1,
+      "product": "normal/1280x800-light-100/scheduler/port.png",
+      "state_proven": true,
+      "measured": true,
+      "filled_buttons": 1,
+      "dom": "normal/1280x800-light-100/scheduler/dom.json",
+      "items_observed": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5",
+        "A6",
+        "A7",
+        "A8",
+        "A9",
+        "A10",
+        "A12",
+        "A13",
+        "A15",
+        "A14"
+      ],
+      "motion": {
+        "normal": 1,
+        "reduced": 0,
+        "toasts": []
+      },
+      "hover_groups_sampled": 8,
+      "tab_cycle_observed": true
+    },
+    "normal/1280x800-light-100/borrow-on": {
+      "observed_viewport": [
+        1280,
+        800
+      ],
+      "device_scale": 1,
+      "product": "normal/1280x800-light-100/borrow-on/port.png",
+      "state_proven": true,
+      "measured": true,
+      "filled_buttons": 1,
+      "dom": "normal/1280x800-light-100/borrow-on/dom.json",
+      "items_observed": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5",
+        "A6",
+        "A7",
+        "A8",
+        "A9",
+        "A10",
+        "A12",
+        "A13",
+        "A15",
+        "A14"
+      ],
+      "motion": {
+        "normal": 2,
+        "reduced": 2,
+        "toasts": []
+      },
+      "hover_groups_sampled": 6,
+      "tab_cycle_observed": true
+    },
+    "normal/1280x800-light-100/communication-result": {
+      "observed_viewport": [
+        1280,
+        800
+      ],
+      "device_scale": 1,
+      "product": "normal/1280x800-light-100/communication-result/port.png",
+      "state_proven": true,
+      "measured": true,
+      "filled_buttons": 0,
+      "dom": "normal/1280x800-light-100/communication-result/dom.json",
+      "items_observed": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5",
+        "A6",
+        "A7",
+        "A8",
+        "A9",
+        "A10",
+        "A12",
+        "A13",
+        "A15",
+        "A14"
+      ],
+      "motion": {
+        "normal": 2,
+        "reduced": 0,
+        "toasts": []
+      },
+      "hover_groups_sampled": 6,
+      "tab_cycle_observed": true
+    },
+    "normal/1280x800-light-100/extension-confirm": {
+      "observed_viewport": [
+        1280,
+        800
+      ],
+      "device_scale": 1,
+      "product": "normal/1280x800-light-100/extension-confirm/port.png",
+      "state_proven": true,
+      "measured": true,
+      "filled_buttons": 1,
+      "dom": "normal/1280x800-light-100/extension-confirm/dom.json",
+      "items_observed": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5",
+        "A6",
+        "A7",
+        "A8",
+        "A9",
+        "A10",
+        "A12",
+        "A13",
+        "A15",
+        "A14"
+      ],
+      "motion": {
+        "normal": 4,
+        "reduced": 2,
+        "toasts": []
+      },
+      "hover_groups_sampled": 2,
+      "tab_cycle_observed": true
+    },
+    "normal/1280x800-light-100/stop-migration-dialog": {
+      "observed_viewport": [
+        1280,
+        800
+      ],
+      "device_scale": 1,
+      "product": "normal/1280x800-light-100/stop-migration-dialog/port.png",
+      "state_proven": true,
+      "measured": true,
+      "filled_buttons": 1,
+      "dom": "normal/1280x800-light-100/stop-migration-dialog/dom.json",
+      "items_observed": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5",
+        "A6",
+        "A7",
+        "A8",
+        "A9",
+        "A10",
+        "A12",
+        "A13",
+        "A15",
+        "A14"
+      ],
+      "motion": {
+        "normal": 2,
+        "reduced": 0,
+        "toasts": []
+      },
+      "hover_groups_sampled": 8,
+      "tab_cycle_observed": true
+    },
+    "normal/1280x800-light-100/view-history": {
+      "observed_viewport": [
+        1280,
+        800
+      ],
+      "device_scale": 1,
+      "product": "normal/1280x800-light-100/view-history/port.png",
+      "state_proven": true,
+      "measured": true,
+      "filled_buttons": 0,
+      "dom": "normal/1280x800-light-100/view-history/dom.json",
+      "items_observed": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5",
+        "A6",
+        "A7",
+        "A8",
+        "A9",
+        "A10",
+        "A12",
+        "A13",
+        "A15",
+        "A14"
+      ],
+      "motion": {
+        "normal": 5,
+        "reduced": 0,
+        "toasts": []
+      },
+      "hover_groups_sampled": 3,
+      "tab_cycle_observed": true
+    },
+    "normal/1280x800-light-100/view-history-delete": {
+      "observed_viewport": [
+        1280,
+        800
+      ],
+      "device_scale": 1,
+      "product": "normal/1280x800-light-100/view-history-delete/port.png",
+      "state_proven": true,
+      "measured": true,
+      "filled_buttons": 0,
+      "dom": "normal/1280x800-light-100/view-history-delete/dom.json",
+      "items_observed": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5",
+        "A6",
+        "A7",
+        "A8",
+        "A9",
+        "A10",
+        "A12",
+        "A13",
+        "A15",
+        "A14"
+      ],
+      "motion": {
+        "normal": 2,
+        "reduced": 0,
+        "toasts": []
+      },
+      "hover_groups_sampled": 5,
+      "tab_cycle_observed": true
+    },
+    "error/1280x800-light-100/stop-recovery": {
+      "observed_viewport": [
+        1280,
+        800
+      ],
+      "device_scale": 1,
+      "product": "error/1280x800-light-100/stop-recovery/port.png",
+      "state_proven": true,
+      "measured": true,
+      "filled_buttons": 0,
+      "dom": "error/1280x800-light-100/stop-recovery/dom.json",
+      "items_observed": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5",
+        "A6",
+        "A7",
+        "A8",
+        "A9",
+        "A10",
+        "A12",
+        "A13",
+        "A15",
+        "A14"
+      ],
+      "motion": {
+        "normal": 2,
+        "reduced": 0,
+        "toasts": []
+      },
+      "hover_groups_sampled": 4,
+      "tab_cycle_observed": true
+    },
+    "error/1280x800-light-100/stop-history-guide": {
+      "observed_viewport": [
+        1280,
+        800
+      ],
+      "device_scale": 1,
+      "product": "error/1280x800-light-100/stop-history-guide/port.png",
+      "state_proven": true,
+      "measured": true,
+      "filled_buttons": 1,
+      "dom": "error/1280x800-light-100/stop-history-guide/dom.json",
+      "items_observed": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5",
+        "A6",
+        "A7",
+        "A8",
+        "A9",
+        "A10",
+        "A12",
+        "A13",
+        "A15",
+        "A14"
+      ],
+      "motion": {
+        "normal": 2,
+        "reduced": 0,
+        "toasts": []
+      },
+      "hover_groups_sampled": 3,
+      "tab_cycle_observed": true
+    }
+  },
+  "plan": [
+    {"screen":"settings","state":"normal","theme":"light","width":1280,"height":800,"zoom":100,"original":null,"unsupported":"","condition":"1280x800/light/normal/100%","key":"normal/1280x800-light-100/settings"},
+    {"screen":"scheduler","state":"normal","theme":"light","width":1280,"height":800,"zoom":100,"original":null,"unsupported":"","condition":"1280x800/light/normal/100%","key":"normal/1280x800-light-100/scheduler"},
+    {"screen":"borrow-on","state":"normal","theme":"light","width":1280,"height":800,"zoom":100,"original":null,"unsupported":"","condition":"1280x800/light/normal/100%","key":"normal/1280x800-light-100/borrow-on"},
+    {"screen":"communication-result","state":"normal","theme":"light","width":1280,"height":800,"zoom":100,"original":null,"unsupported":"","condition":"1280x800/light/normal/100%","key":"normal/1280x800-light-100/communication-result"},
+    {"screen":"extension-confirm","state":"normal","theme":"light","width":1280,"height":800,"zoom":100,"original":null,"unsupported":"","condition":"1280x800/light/normal/100%","key":"normal/1280x800-light-100/extension-confirm"},
+    {"screen":"stop-migration-dialog","state":"normal","theme":"light","width":1280,"height":800,"zoom":100,"original":null,"unsupported":"","condition":"1280x800/light/normal/100%","key":"normal/1280x800-light-100/stop-migration-dialog"},
+    {"screen":"view-history","state":"normal","theme":"light","width":1280,"height":800,"zoom":100,"original":null,"unsupported":"","condition":"1280x800/light/normal/100%","key":"normal/1280x800-light-100/view-history"},
+    {"screen":"view-history-delete","state":"normal","theme":"light","width":1280,"height":800,"zoom":100,"original":null,"unsupported":"","condition":"1280x800/light/normal/100%","key":"normal/1280x800-light-100/view-history-delete"},
+    {"screen":"stop-recovery","state":"error","theme":"light","width":1280,"height":800,"zoom":100,"original":null,"unsupported":"","condition":"1280x800/light/error/100%","key":"error/1280x800-light-100/stop-recovery"},
+    {"screen":"stop-history-guide","state":"error","theme":"light","width":1280,"height":800,"zoom":100,"original":null,"unsupported":"","condition":"1280x800/light/error/100%","key":"error/1280x800-light-100/stop-history-guide"}
+  ]
+}

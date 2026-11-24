@@ -1,0 +1,3220 @@
+{
+  "baseline_revision": "b0a3cdf0a4384ddbd721d15697eb067d84439446",
+  "remeasured_revisions": {
+    "remeasured": "807d3ab3375e199fa82408352c42c385731201cb"
+  },
+  "pair_revisions": {
+    "original": "3ac3aa0d47a64785251593bcb09bb2d5f6df374b",
+    "port": "0e5327b688d63a33900883d444ef04fa1c9f9a89"
+  },
+  "product": [
+    {
+      "sheet": "nicegui-01.jpg",
+      "width": 2400,
+      "height": 3268,
+      "cells": [
+        {
+          "label": "キュー　1280×800　ライト　通常",
+          "source": "baseline/normal/1280x800-light-100/queue/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "失敗リスト　1280×800　ライト　通常",
+          "source": "baseline/normal/1280x800-light-100/failed/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "重複整理　1280×800　ライト　通常",
+          "source": "baseline/normal/1280x800-light-100/dedup/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "学習　1280×800　ライト　通常",
+          "source": "baseline/normal/1280x800-light-100/learning/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "ランキング　1280×800　ライト　通常",
+          "source": "baseline/normal/1280x800-light-100/ranking/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "ライブラリ　1280×800　ライト　通常",
+          "source": "baseline/normal/1280x800-light-100/library/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "マイブックマーク　1280×800　ライト　通常",
+          "source": "baseline/normal/1280x800-light-100/bookmarks/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "おすすめ　1280×800　ライト　通常",
+          "source": "remeasured/normal/1280x800-light-100/recommend/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        }
+      ]
+    },
+    {
+      "sheet": "nicegui-02.jpg",
+      "width": 2400,
+      "height": 3268,
+      "cells": [
+        {
+          "label": "直近のバックアップ　1280×800　ライト　通常",
+          "source": "baseline/normal/1280x800-light-100/history/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "設定　1280×800　ライト　通常",
+          "source": "baseline/normal/1280x800-light-100/settings/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "カスタムランキング　1280×800　ライト　通常",
+          "source": "baseline/normal/1280x800-light-100/personal/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "定期チェック　1280×800　ライト　通常",
+          "source": "baseline/normal/1280x800-light-100/scheduler/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "メタデータ補完　1280×800　ライト　通常",
+          "source": "remeasured/normal/1280x800-light-100/metadata/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "ダウンロード　1280×800　ライト　通常",
+          "source": "baseline/normal/1280x800-light-100/download/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "閲覧履歴　1280×800　ライト　通常",
+          "source": "baseline/normal/1280x800-light-100/view-history/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "起動と保存先　1280×800　ライト　通常",
+          "source": "baseline/normal/1280x800-light-100/startup-and-storage/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        }
+      ]
+    },
+    {
+      "sheet": "nicegui-03.jpg",
+      "width": 2400,
+      "height": 3268,
+      "cells": [
+        {
+          "label": "停止履歴の移行　1280×800　ライト　通常",
+          "source": "baseline/normal/1280x800-light-100/stop-migration-dialog/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "借用プレミアムを有効にする　1280×800　ライト　通常",
+          "source": "baseline/normal/1280x800-light-100/borrow-on/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "借用プレミアムの回復　1280×800　ライト　通常",
+          "source": "baseline/normal/1280x800-light-100/premium-recovery/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "通信結果の確認　1280×800　ライト　通常",
+          "source": "baseline/normal/1280x800-light-100/communication-result/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "共有ログ　1280×800　ライト　通常",
+          "source": "baseline/normal/1280x800-light-100/shared-log/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "共有ログ（折りたたみ）　1280×800　ライト　通常",
+          "source": "baseline/normal/1280x800-light-100/shared-log-collapsed/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "メタデータ台帳の詳細　1280×800　ライト　通常",
+          "source": "remeasured/normal/1280x800-light-100/metadata-ledger/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "ブラウザー拡張機能　1280×800　ライト　通常",
+          "source": "baseline/normal/1280x800-light-100/extension/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        }
+      ]
+    },
+    {
+      "sheet": "nicegui-04.jpg",
+      "width": 2400,
+      "height": 3268,
+      "cells": [
+        {
+          "label": "ブラウザー拡張機能の確認　1280×800　ライト　通常",
+          "source": "baseline/normal/1280x800-light-100/extension-confirm/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "成功通知　1280×800　ライト　通常",
+          "source": "baseline/normal/1280x800-light-100/toast-success/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "ランキングの日付選択　1280×800　ライト　通常",
+          "source": "baseline/normal/1280x800-light-100/ranking-date/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "カスタムランキングの絞り込み　1280×800　ライト　通常",
+          "source": "baseline/normal/1280x800-light-100/personal-filters/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "重複整理のごみ箱　1280×800　ライト　通常",
+          "source": "baseline/normal/1280x800-light-100/dedup-trash/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "学習の設定　1280×800　ライト　通常",
+          "source": "baseline/normal/1280x800-light-100/learning-settings/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "学習の保留一覧　1280×800　ライト　通常",
+          "source": "baseline/normal/1280x800-light-100/learning-review/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "学習判定の消去確認　1280×800　ライト　通常",
+          "source": "remeasured/normal/1280x800-light-100/learning-reset/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        }
+      ]
+    },
+    {
+      "sheet": "nicegui-05.jpg",
+      "width": 2400,
+      "height": 3268,
+      "cells": [
+        {
+          "label": "ダウンロードの詳細　1280×800　ライト　通常",
+          "source": "baseline/normal/1280x800-light-100/download-details/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "作品ビューア　1280×800　ライト　通常",
+          "source": "baseline/normal/1280x800-light-100/viewer/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "キューの削除確認　1280×800　ライト　通常",
+          "source": "baseline/normal/1280x800-light-100/queue-delete-confirm/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "失敗リストの削除確認　1280×800　ライト　通常",
+          "source": "baseline/normal/1280x800-light-100/failed-delete-confirm/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "閲覧履歴の削除確認　1280×800　ライト　通常",
+          "source": "baseline/normal/1280x800-light-100/view-history-delete/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "起動：保存先の参照　1280×800　ライト　エラー",
+          "source": "baseline/error/1280x800-light-100/startup-reference/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "起動：ログイン確認　1280×800　ライト　エラー",
+          "source": "baseline/error/1280x800-light-100/startup-cookie-rejected/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "起動：保存先の使用中　1280×800　ライト　エラー",
+          "source": "baseline/error/1280x800-light-100/startup-lock-busy/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        }
+      ]
+    },
+    {
+      "sheet": "nicegui-06.jpg",
+      "width": 2400,
+      "height": 3268,
+      "cells": [
+        {
+          "label": "起動：旧データの確認　1280×800　ライト　エラー",
+          "source": "baseline/error/1280x800-light-100/startup-legacy-uncertain/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "起動：コピー失敗　1280×800　ライト　エラー",
+          "source": "baseline/error/1280x800-light-100/startup-legacy-copy-error/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "起動：停止履歴の移行　1280×800　ライト　エラー",
+          "source": "baseline/error/1280x800-light-100/startup-stop-migration/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "停止履歴の確認　1280×800　ライト　エラー",
+          "source": "baseline/error/1280x800-light-100/stop-history-guide/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "取得停止の確認・回復　1280×800　ライト　エラー",
+          "source": "baseline/error/1280x800-light-100/stop-recovery/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "取得停止状態の確認　1280×800　ライト　エラー",
+          "source": "baseline/error/1280x800-light-100/stop-uncertain/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "通信制限　1280×800　ライト　エラー",
+          "source": "baseline/error/1280x800-light-100/request-limit/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "エラー通知　1280×800　ライト　エラー",
+          "source": "baseline/error/1280x800-light-100/toast-error/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        }
+      ]
+    },
+    {
+      "sheet": "nicegui-07.jpg",
+      "width": 2400,
+      "height": 3268,
+      "cells": [
+        {
+          "label": "通信の再試行待ち　1280×800　ライト　待機",
+          "source": "baseline/loading/1280x800-light-100/request-wait/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "キュー　1280×800　ダーク　通常",
+          "source": "baseline/normal/1280x800-dark-100/queue/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "失敗リスト　1280×800　ダーク　通常",
+          "source": "baseline/normal/1280x800-dark-100/failed/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "重複整理　1280×800　ダーク　通常",
+          "source": "baseline/normal/1280x800-dark-100/dedup/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "学習　1280×800　ダーク　通常",
+          "source": "baseline/normal/1280x800-dark-100/learning/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "ランキング　1280×800　ダーク　通常",
+          "source": "baseline/normal/1280x800-dark-100/ranking/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "ライブラリ　1280×800　ダーク　通常",
+          "source": "baseline/normal/1280x800-dark-100/library/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "マイブックマーク　1280×800　ダーク　通常",
+          "source": "baseline/normal/1280x800-dark-100/bookmarks/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        }
+      ]
+    },
+    {
+      "sheet": "nicegui-08.jpg",
+      "width": 2400,
+      "height": 3268,
+      "cells": [
+        {
+          "label": "おすすめ　1280×800　ダーク　通常",
+          "source": "remeasured/normal/1280x800-dark-100/recommend/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "直近のバックアップ　1280×800　ダーク　通常",
+          "source": "baseline/normal/1280x800-dark-100/history/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "設定　1280×800　ダーク　通常",
+          "source": "baseline/normal/1280x800-dark-100/settings/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "カスタムランキング　1280×800　ダーク　通常",
+          "source": "baseline/normal/1280x800-dark-100/personal/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "定期チェック　1280×800　ダーク　通常",
+          "source": "baseline/normal/1280x800-dark-100/scheduler/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "メタデータ補完　1280×800　ダーク　通常",
+          "source": "remeasured/normal/1280x800-dark-100/metadata/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "ダウンロード　1280×800　ダーク　通常",
+          "source": "baseline/normal/1280x800-dark-100/download/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "閲覧履歴　1280×800　ダーク　通常",
+          "source": "baseline/normal/1280x800-dark-100/view-history/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        }
+      ]
+    },
+    {
+      "sheet": "nicegui-09.jpg",
+      "width": 2400,
+      "height": 3268,
+      "cells": [
+        {
+          "label": "起動と保存先　1280×800　ダーク　通常",
+          "source": "baseline/normal/1280x800-dark-100/startup-and-storage/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "停止履歴の移行　1280×800　ダーク　通常",
+          "source": "baseline/normal/1280x800-dark-100/stop-migration-dialog/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "借用プレミアムを有効にする　1280×800　ダーク　通常",
+          "source": "baseline/normal/1280x800-dark-100/borrow-on/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "借用プレミアムの回復　1280×800　ダーク　通常",
+          "source": "baseline/normal/1280x800-dark-100/premium-recovery/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "通信結果の確認　1280×800　ダーク　通常",
+          "source": "baseline/normal/1280x800-dark-100/communication-result/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "共有ログ　1280×800　ダーク　通常",
+          "source": "baseline/normal/1280x800-dark-100/shared-log/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "共有ログ（折りたたみ）　1280×800　ダーク　通常",
+          "source": "baseline/normal/1280x800-dark-100/shared-log-collapsed/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "メタデータ台帳の詳細　1280×800　ダーク　通常",
+          "source": "remeasured/normal/1280x800-dark-100/metadata-ledger/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        }
+      ]
+    },
+    {
+      "sheet": "nicegui-10.jpg",
+      "width": 2400,
+      "height": 3268,
+      "cells": [
+        {
+          "label": "ブラウザー拡張機能　1280×800　ダーク　通常",
+          "source": "baseline/normal/1280x800-dark-100/extension/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "ブラウザー拡張機能の確認　1280×800　ダーク　通常",
+          "source": "baseline/normal/1280x800-dark-100/extension-confirm/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "成功通知　1280×800　ダーク　通常",
+          "source": "baseline/normal/1280x800-dark-100/toast-success/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "ランキングの日付選択　1280×800　ダーク　通常",
+          "source": "baseline/normal/1280x800-dark-100/ranking-date/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "カスタムランキングの絞り込み　1280×800　ダーク　通常",
+          "source": "baseline/normal/1280x800-dark-100/personal-filters/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "重複整理のごみ箱　1280×800　ダーク　通常",
+          "source": "baseline/normal/1280x800-dark-100/dedup-trash/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "学習の設定　1280×800　ダーク　通常",
+          "source": "baseline/normal/1280x800-dark-100/learning-settings/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "学習の保留一覧　1280×800　ダーク　通常",
+          "source": "baseline/normal/1280x800-dark-100/learning-review/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        }
+      ]
+    },
+    {
+      "sheet": "nicegui-11.jpg",
+      "width": 2400,
+      "height": 3268,
+      "cells": [
+        {
+          "label": "学習判定の消去確認　1280×800　ダーク　通常",
+          "source": "remeasured/normal/1280x800-dark-100/learning-reset/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "ダウンロードの詳細　1280×800　ダーク　通常",
+          "source": "baseline/normal/1280x800-dark-100/download-details/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "作品ビューア　1280×800　ダーク　通常",
+          "source": "baseline/normal/1280x800-dark-100/viewer/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "キューの削除確認　1280×800　ダーク　通常",
+          "source": "baseline/normal/1280x800-dark-100/queue-delete-confirm/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "失敗リストの削除確認　1280×800　ダーク　通常",
+          "source": "baseline/normal/1280x800-dark-100/failed-delete-confirm/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "閲覧履歴の削除確認　1280×800　ダーク　通常",
+          "source": "baseline/normal/1280x800-dark-100/view-history-delete/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "起動：保存先の参照　1280×800　ダーク　エラー",
+          "source": "baseline/error/1280x800-dark-100/startup-reference/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "起動：ログイン確認　1280×800　ダーク　エラー",
+          "source": "baseline/error/1280x800-dark-100/startup-cookie-rejected/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        }
+      ]
+    },
+    {
+      "sheet": "nicegui-12.jpg",
+      "width": 2400,
+      "height": 3268,
+      "cells": [
+        {
+          "label": "起動：保存先の使用中　1280×800　ダーク　エラー",
+          "source": "baseline/error/1280x800-dark-100/startup-lock-busy/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "起動：旧データの確認　1280×800　ダーク　エラー",
+          "source": "baseline/error/1280x800-dark-100/startup-legacy-uncertain/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "起動：コピー失敗　1280×800　ダーク　エラー",
+          "source": "baseline/error/1280x800-dark-100/startup-legacy-copy-error/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "起動：停止履歴の移行　1280×800　ダーク　エラー",
+          "source": "baseline/error/1280x800-dark-100/startup-stop-migration/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "停止履歴の確認　1280×800　ダーク　エラー",
+          "source": "baseline/error/1280x800-dark-100/stop-history-guide/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "取得停止の確認・回復　1280×800　ダーク　エラー",
+          "source": "baseline/error/1280x800-dark-100/stop-recovery/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "取得停止状態の確認　1280×800　ダーク　エラー",
+          "source": "baseline/error/1280x800-dark-100/stop-uncertain/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "通信制限　1280×800　ダーク　エラー",
+          "source": "baseline/error/1280x800-dark-100/request-limit/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        }
+      ]
+    },
+    {
+      "sheet": "nicegui-13.jpg",
+      "width": 2400,
+      "height": 3268,
+      "cells": [
+        {
+          "label": "エラー通知　1280×800　ダーク　エラー",
+          "source": "baseline/error/1280x800-dark-100/toast-error/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "通信の再試行待ち　1280×800　ダーク　待機",
+          "source": "baseline/loading/1280x800-dark-100/request-wait/port.png",
+          "size": [
+            1280,
+            800
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "キュー　1920×1080　ライト　通常",
+          "source": "baseline/normal/1920x1080-light-100/queue/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "失敗リスト　1920×1080　ライト　通常",
+          "source": "baseline/normal/1920x1080-light-100/failed/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "重複整理　1920×1080　ライト　通常",
+          "source": "baseline/normal/1920x1080-light-100/dedup/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "学習　1920×1080　ライト　通常",
+          "source": "baseline/normal/1920x1080-light-100/learning/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "ランキング　1920×1080　ライト　通常",
+          "source": "baseline/normal/1920x1080-light-100/ranking/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "ライブラリ　1920×1080　ライト　通常",
+          "source": "baseline/normal/1920x1080-light-100/library/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        }
+      ]
+    },
+    {
+      "sheet": "nicegui-14.jpg",
+      "width": 2400,
+      "height": 3268,
+      "cells": [
+        {
+          "label": "マイブックマーク　1920×1080　ライト　通常",
+          "source": "baseline/normal/1920x1080-light-100/bookmarks/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "おすすめ　1920×1080　ライト　通常",
+          "source": "remeasured/normal/1920x1080-light-100/recommend/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "直近のバックアップ　1920×1080　ライト　通常",
+          "source": "baseline/normal/1920x1080-light-100/history/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "設定　1920×1080　ライト　通常",
+          "source": "baseline/normal/1920x1080-light-100/settings/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "カスタムランキング　1920×1080　ライト　通常",
+          "source": "baseline/normal/1920x1080-light-100/personal/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "定期チェック　1920×1080　ライト　通常",
+          "source": "baseline/normal/1920x1080-light-100/scheduler/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "メタデータ補完　1920×1080　ライト　通常",
+          "source": "remeasured/normal/1920x1080-light-100/metadata/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "ダウンロード　1920×1080　ライト　通常",
+          "source": "baseline/normal/1920x1080-light-100/download/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        }
+      ]
+    },
+    {
+      "sheet": "nicegui-15.jpg",
+      "width": 2400,
+      "height": 3268,
+      "cells": [
+        {
+          "label": "閲覧履歴　1920×1080　ライト　通常",
+          "source": "baseline/normal/1920x1080-light-100/view-history/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "起動と保存先　1920×1080　ライト　通常",
+          "source": "baseline/normal/1920x1080-light-100/startup-and-storage/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "停止履歴の移行　1920×1080　ライト　通常",
+          "source": "baseline/normal/1920x1080-light-100/stop-migration-dialog/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "借用プレミアムを有効にする　1920×1080　ライト　通常",
+          "source": "baseline/normal/1920x1080-light-100/borrow-on/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "借用プレミアムの回復　1920×1080　ライト　通常",
+          "source": "baseline/normal/1920x1080-light-100/premium-recovery/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "通信結果の確認　1920×1080　ライト　通常",
+          "source": "baseline/normal/1920x1080-light-100/communication-result/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "共有ログ　1920×1080　ライト　通常",
+          "source": "baseline/normal/1920x1080-light-100/shared-log/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "共有ログ（折りたたみ）　1920×1080　ライト　通常",
+          "source": "baseline/normal/1920x1080-light-100/shared-log-collapsed/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        }
+      ]
+    },
+    {
+      "sheet": "nicegui-16.jpg",
+      "width": 2400,
+      "height": 3268,
+      "cells": [
+        {
+          "label": "メタデータ台帳の詳細　1920×1080　ライト　通常",
+          "source": "remeasured/normal/1920x1080-light-100/metadata-ledger/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "ブラウザー拡張機能　1920×1080　ライト　通常",
+          "source": "baseline/normal/1920x1080-light-100/extension/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "ブラウザー拡張機能の確認　1920×1080　ライト　通常",
+          "source": "baseline/normal/1920x1080-light-100/extension-confirm/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "成功通知　1920×1080　ライト　通常",
+          "source": "baseline/normal/1920x1080-light-100/toast-success/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "ランキングの日付選択　1920×1080　ライト　通常",
+          "source": "baseline/normal/1920x1080-light-100/ranking-date/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "カスタムランキングの絞り込み　1920×1080　ライト　通常",
+          "source": "baseline/normal/1920x1080-light-100/personal-filters/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "重複整理のごみ箱　1920×1080　ライト　通常",
+          "source": "baseline/normal/1920x1080-light-100/dedup-trash/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "学習の設定　1920×1080　ライト　通常",
+          "source": "baseline/normal/1920x1080-light-100/learning-settings/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        }
+      ]
+    },
+    {
+      "sheet": "nicegui-17.jpg",
+      "width": 2400,
+      "height": 3268,
+      "cells": [
+        {
+          "label": "学習の保留一覧　1920×1080　ライト　通常",
+          "source": "baseline/normal/1920x1080-light-100/learning-review/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "学習判定の消去確認　1920×1080　ライト　通常",
+          "source": "remeasured/normal/1920x1080-light-100/learning-reset/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "ダウンロードの詳細　1920×1080　ライト　通常",
+          "source": "baseline/normal/1920x1080-light-100/download-details/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "作品ビューア　1920×1080　ライト　通常",
+          "source": "baseline/normal/1920x1080-light-100/viewer/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "キューの削除確認　1920×1080　ライト　通常",
+          "source": "baseline/normal/1920x1080-light-100/queue-delete-confirm/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "失敗リストの削除確認　1920×1080　ライト　通常",
+          "source": "baseline/normal/1920x1080-light-100/failed-delete-confirm/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "閲覧履歴の削除確認　1920×1080　ライト　通常",
+          "source": "baseline/normal/1920x1080-light-100/view-history-delete/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "起動：保存先の参照　1920×1080　ライト　エラー",
+          "source": "baseline/error/1920x1080-light-100/startup-reference/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        }
+      ]
+    },
+    {
+      "sheet": "nicegui-18.jpg",
+      "width": 2400,
+      "height": 3268,
+      "cells": [
+        {
+          "label": "起動：ログイン確認　1920×1080　ライト　エラー",
+          "source": "baseline/error/1920x1080-light-100/startup-cookie-rejected/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "起動：保存先の使用中　1920×1080　ライト　エラー",
+          "source": "baseline/error/1920x1080-light-100/startup-lock-busy/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "起動：旧データの確認　1920×1080　ライト　エラー",
+          "source": "baseline/error/1920x1080-light-100/startup-legacy-uncertain/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "起動：コピー失敗　1920×1080　ライト　エラー",
+          "source": "baseline/error/1920x1080-light-100/startup-legacy-copy-error/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "起動：停止履歴の移行　1920×1080　ライト　エラー",
+          "source": "baseline/error/1920x1080-light-100/startup-stop-migration/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "停止履歴の確認　1920×1080　ライト　エラー",
+          "source": "baseline/error/1920x1080-light-100/stop-history-guide/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "取得停止の確認・回復　1920×1080　ライト　エラー",
+          "source": "baseline/error/1920x1080-light-100/stop-recovery/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "取得停止状態の確認　1920×1080　ライト　エラー",
+          "source": "baseline/error/1920x1080-light-100/stop-uncertain/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        }
+      ]
+    },
+    {
+      "sheet": "nicegui-19.jpg",
+      "width": 2400,
+      "height": 3268,
+      "cells": [
+        {
+          "label": "通信制限　1920×1080　ライト　エラー",
+          "source": "baseline/error/1920x1080-light-100/request-limit/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "エラー通知　1920×1080　ライト　エラー",
+          "source": "baseline/error/1920x1080-light-100/toast-error/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "通信の再試行待ち　1920×1080　ライト　待機",
+          "source": "baseline/loading/1920x1080-light-100/request-wait/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "キュー　1920×1080　ダーク　通常",
+          "source": "baseline/normal/1920x1080-dark-100/queue/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "失敗リスト　1920×1080　ダーク　通常",
+          "source": "baseline/normal/1920x1080-dark-100/failed/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "重複整理　1920×1080　ダーク　通常",
+          "source": "baseline/normal/1920x1080-dark-100/dedup/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "学習　1920×1080　ダーク　通常",
+          "source": "baseline/normal/1920x1080-dark-100/learning/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "ランキング　1920×1080　ダーク　通常",
+          "source": "baseline/normal/1920x1080-dark-100/ranking/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        }
+      ]
+    },
+    {
+      "sheet": "nicegui-20.jpg",
+      "width": 2400,
+      "height": 3268,
+      "cells": [
+        {
+          "label": "ライブラリ　1920×1080　ダーク　通常",
+          "source": "baseline/normal/1920x1080-dark-100/library/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "マイブックマーク　1920×1080　ダーク　通常",
+          "source": "baseline/normal/1920x1080-dark-100/bookmarks/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "おすすめ　1920×1080　ダーク　通常",
+          "source": "remeasured/normal/1920x1080-dark-100/recommend/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "直近のバックアップ　1920×1080　ダーク　通常",
+          "source": "baseline/normal/1920x1080-dark-100/history/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "設定　1920×1080　ダーク　通常",
+          "source": "baseline/normal/1920x1080-dark-100/settings/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "カスタムランキング　1920×1080　ダーク　通常",
+          "source": "baseline/normal/1920x1080-dark-100/personal/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "定期チェック　1920×1080　ダーク　通常",
+          "source": "baseline/normal/1920x1080-dark-100/scheduler/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "メタデータ補完　1920×1080　ダーク　通常",
+          "source": "remeasured/normal/1920x1080-dark-100/metadata/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        }
+      ]
+    },
+    {
+      "sheet": "nicegui-21.jpg",
+      "width": 2400,
+      "height": 3268,
+      "cells": [
+        {
+          "label": "ダウンロード　1920×1080　ダーク　通常",
+          "source": "baseline/normal/1920x1080-dark-100/download/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "閲覧履歴　1920×1080　ダーク　通常",
+          "source": "baseline/normal/1920x1080-dark-100/view-history/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "起動と保存先　1920×1080　ダーク　通常",
+          "source": "baseline/normal/1920x1080-dark-100/startup-and-storage/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "停止履歴の移行　1920×1080　ダーク　通常",
+          "source": "baseline/normal/1920x1080-dark-100/stop-migration-dialog/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "借用プレミアムを有効にする　1920×1080　ダーク　通常",
+          "source": "baseline/normal/1920x1080-dark-100/borrow-on/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "借用プレミアムの回復　1920×1080　ダーク　通常",
+          "source": "baseline/normal/1920x1080-dark-100/premium-recovery/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "通信結果の確認　1920×1080　ダーク　通常",
+          "source": "baseline/normal/1920x1080-dark-100/communication-result/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "共有ログ　1920×1080　ダーク　通常",
+          "source": "baseline/normal/1920x1080-dark-100/shared-log/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        }
+      ]
+    },
+    {
+      "sheet": "nicegui-22.jpg",
+      "width": 2400,
+      "height": 3268,
+      "cells": [
+        {
+          "label": "共有ログ（折りたたみ）　1920×1080　ダーク　通常",
+          "source": "baseline/normal/1920x1080-dark-100/shared-log-collapsed/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "メタデータ台帳の詳細　1920×1080　ダーク　通常",
+          "source": "remeasured/normal/1920x1080-dark-100/metadata-ledger/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "ブラウザー拡張機能　1920×1080　ダーク　通常",
+          "source": "baseline/normal/1920x1080-dark-100/extension/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "ブラウザー拡張機能の確認　1920×1080　ダーク　通常",
+          "source": "baseline/normal/1920x1080-dark-100/extension-confirm/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "成功通知　1920×1080　ダーク　通常",
+          "source": "baseline/normal/1920x1080-dark-100/toast-success/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "ランキングの日付選択　1920×1080　ダーク　通常",
+          "source": "baseline/normal/1920x1080-dark-100/ranking-date/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "カスタムランキングの絞り込み　1920×1080　ダーク　通常",
+          "source": "baseline/normal/1920x1080-dark-100/personal-filters/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "重複整理のごみ箱　1920×1080　ダーク　通常",
+          "source": "baseline/normal/1920x1080-dark-100/dedup-trash/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        }
+      ]
+    },
+    {
+      "sheet": "nicegui-23.jpg",
+      "width": 2400,
+      "height": 3268,
+      "cells": [
+        {
+          "label": "学習の設定　1920×1080　ダーク　通常",
+          "source": "baseline/normal/1920x1080-dark-100/learning-settings/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "学習の保留一覧　1920×1080　ダーク　通常",
+          "source": "baseline/normal/1920x1080-dark-100/learning-review/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "学習判定の消去確認　1920×1080　ダーク　通常",
+          "source": "remeasured/normal/1920x1080-dark-100/learning-reset/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "ダウンロードの詳細　1920×1080　ダーク　通常",
+          "source": "baseline/normal/1920x1080-dark-100/download-details/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "作品ビューア　1920×1080　ダーク　通常",
+          "source": "baseline/normal/1920x1080-dark-100/viewer/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "キューの削除確認　1920×1080　ダーク　通常",
+          "source": "baseline/normal/1920x1080-dark-100/queue-delete-confirm/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "失敗リストの削除確認　1920×1080　ダーク　通常",
+          "source": "baseline/normal/1920x1080-dark-100/failed-delete-confirm/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "閲覧履歴の削除確認　1920×1080　ダーク　通常",
+          "source": "baseline/normal/1920x1080-dark-100/view-history-delete/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        }
+      ]
+    },
+    {
+      "sheet": "nicegui-24.jpg",
+      "width": 2400,
+      "height": 3268,
+      "cells": [
+        {
+          "label": "起動：保存先の参照　1920×1080　ダーク　エラー",
+          "source": "baseline/error/1920x1080-dark-100/startup-reference/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "起動：ログイン確認　1920×1080　ダーク　エラー",
+          "source": "baseline/error/1920x1080-dark-100/startup-cookie-rejected/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "起動：保存先の使用中　1920×1080　ダーク　エラー",
+          "source": "baseline/error/1920x1080-dark-100/startup-lock-busy/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "起動：旧データの確認　1920×1080　ダーク　エラー",
+          "source": "baseline/error/1920x1080-dark-100/startup-legacy-uncertain/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "起動：コピー失敗　1920×1080　ダーク　エラー",
+          "source": "baseline/error/1920x1080-dark-100/startup-legacy-copy-error/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "起動：停止履歴の移行　1920×1080　ダーク　エラー",
+          "source": "baseline/error/1920x1080-dark-100/startup-stop-migration/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "停止履歴の確認　1920×1080　ダーク　エラー",
+          "source": "baseline/error/1920x1080-dark-100/stop-history-guide/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "取得停止の確認・回復　1920×1080　ダーク　エラー",
+          "source": "baseline/error/1920x1080-dark-100/stop-recovery/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        }
+      ]
+    },
+    {
+      "sheet": "nicegui-25.jpg",
+      "width": 2400,
+      "height": 1666,
+      "cells": [
+        {
+          "label": "取得停止状態の確認　1920×1080　ダーク　エラー",
+          "source": "baseline/error/1920x1080-dark-100/stop-uncertain/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "通信制限　1920×1080　ダーク　エラー",
+          "source": "baseline/error/1920x1080-dark-100/request-limit/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "エラー通知　1920×1080　ダーク　エラー",
+          "source": "baseline/error/1920x1080-dark-100/toast-error/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        },
+        {
+          "label": "通信の再試行待ち　1920×1080　ダーク　待機",
+          "source": "baseline/loading/1920x1080-dark-100/request-wait/port.png",
+          "size": [
+            1920,
+            1080
+          ],
+          "captured": true,
+          "state_proven": true
+        }
+      ]
+    }
+  ],
+  "pairs": [
+    {
+      "sheet": "flet-nicegui-01.jpg",
+      "width": 2400,
+      "height": 3268,
+      "cells": [
+        {
+          "label": "ダウンロード　1280×800　ライト　通常",
+          "source": "matrix-r1/normal/1280x800_light/download.png",
+          "size": [
+            2560,
+            800
+          ],
+          "captured": true
+        },
+        {
+          "label": "キュー　1280×800　ライト　通常",
+          "source": "matrix-r1/normal/1280x800_light/queue.png",
+          "size": [
+            2560,
+            800
+          ],
+          "captured": true
+        },
+        {
+          "label": "失敗リスト　1280×800　ライト　通常",
+          "source": "matrix-r1/normal/1280x800_light/failed.png",
+          "size": [
+            2560,
+            800
+          ],
+          "captured": true
+        },
+        {
+          "label": "重複整理　1280×800　ライト　通常",
+          "source": "matrix-r1/normal/1280x800_light/dedup.png",
+          "size": [
+            2560,
+            800
+          ],
+          "captured": true
+        }
+      ]
+    },
+    {
+      "sheet": "flet-nicegui-02.jpg",
+      "width": 2400,
+      "height": 3268,
+      "cells": [
+        {
+          "label": "学習　1280×800　ライト　通常",
+          "source": "matrix-r1/normal/1280x800_light/learning.png",
+          "size": [
+            2560,
+            800
+          ],
+          "captured": true
+        },
+        {
+          "label": "ランキング　1280×800　ライト　通常",
+          "source": "matrix-r1/normal/1280x800_light/ranking.png",
+          "size": [
+            2560,
+            800
+          ],
+          "captured": true
+        },
+        {
+          "label": "カスタムランキング　1280×800　ライト　通常",
+          "source": "matrix-r1/normal/1280x800_light/personal.png",
+          "size": [
+            2560,
+            800
+          ],
+          "captured": true
+        },
+        {
+          "label": "ライブラリ　1280×800　ライト　通常",
+          "source": "matrix-r1/normal/1280x800_light/library.png",
+          "size": [
+            2560,
+            800
+          ],
+          "captured": true
+        }
+      ]
+    },
+    {
+      "sheet": "flet-nicegui-03.jpg",
+      "width": 2400,
+      "height": 3268,
+      "cells": [
+        {
+          "label": "マイブックマーク　1280×800　ライト　通常",
+          "source": "matrix-r1/normal/1280x800_light/bookmarks.png",
+          "size": [
+            2560,
+            800
+          ],
+          "captured": true
+        },
+        {
+          "label": "おすすめ　1280×800　ライト　通常",
+          "source": "matrix-r1/normal/1280x800_light/recommend.png",
+          "size": [
+            2560,
+            800
+          ],
+          "captured": true
+        },
+        {
+          "label": "直近のバックアップ　1280×800　ライト　通常",
+          "source": "matrix-r1/normal/1280x800_light/history.png",
+          "size": [
+            2560,
+            800
+          ],
+          "captured": true
+        },
+        {
+          "label": "設定　1280×800　ライト　通常",
+          "source": "matrix-r1/normal/1280x800_light/settings.png",
+          "size": [
+            2560,
+            800
+          ],
+          "captured": true
+        }
+      ]
+    },
+    {
+      "sheet": "flet-nicegui-04.jpg",
+      "width": 2400,
+      "height": 3268,
+      "cells": [
+        {
+          "label": "ダウンロード　1280×800　ダーク　通常",
+          "source": "matrix-r1/normal/1280x800_dark/download.png",
+          "size": [
+            2560,
+            800
+          ],
+          "captured": true
+        },
+        {
+          "label": "キュー　1280×800　ダーク　通常",
+          "source": "matrix-r1/normal/1280x800_dark/queue.png",
+          "size": [
+            2560,
+            800
+          ],
+          "captured": true
+        },
+        {
+          "label": "失敗リスト　1280×800　ダーク　通常",
+          "source": "matrix-r1/normal/1280x800_dark/failed.png",
+          "size": [
+            2560,
+            800
+          ],
+          "captured": true
+        },
+        {
+          "label": "重複整理　1280×800　ダーク　通常",
+          "source": "matrix-r1/normal/1280x800_dark/dedup.png",
+          "size": [
+            2560,
+            800
+          ],
+          "captured": true
+        }
+      ]
+    },
+    {
+      "sheet": "flet-nicegui-05.jpg",
+      "width": 2400,
+      "height": 3268,
+      "cells": [
+        {
+          "label": "学習　1280×800　ダーク　通常",
+          "source": "matrix-r1/normal/1280x800_dark/learning.png",
+          "size": [
+            2560,
+            800
+          ],
+          "captured": true
+        },
+        {
+          "label": "ランキング　1280×800　ダーク　通常",
+          "source": "matrix-r1/normal/1280x800_dark/ranking.png",
+          "size": [
+            2560,
+            800
+          ],
+          "captured": true
+        },
+        {
+          "label": "カスタムランキング　1280×800　ダーク　通常",
+          "source": "matrix-r1/normal/1280x800_dark/personal.png",
+          "size": [
+            2560,
+            800
+          ],
+          "captured": true
+        },
+        {
+          "label": "ライブラリ　1280×800　ダーク　通常",
+          "source": "matrix-r1/normal/1280x800_dark/library.png",
+          "size": [
+            2560,
+            800
+          ],
+          "captured": true
+        }
+      ]
+    },
+    {
+      "sheet": "flet-nicegui-06.jpg",
+      "width": 2400,
+      "height": 3268,
+      "cells": [
+        {
+          "label": "マイブックマーク　1280×800　ダーク　通常",
+          "source": "matrix-r1/normal/1280x800_dark/bookmarks.png",
+          "size": [
+            2560,
+            800
+          ],
+          "captured": true
+        },
+        {
+          "label": "おすすめ　1280×800　ダーク　通常",
+          "source": "matrix-r1/normal/1280x800_dark/recommend.png",
+          "size": [
+            2560,
+            800
+          ],
+          "captured": true
+        },
+        {
+          "label": "直近のバックアップ　1280×800　ダーク　通常",
+          "source": "matrix-r1/normal/1280x800_dark/history.png",
+          "size": [
+            2560,
+            800
+          ],
+          "captured": true
+        },
+        {
+          "label": "設定　1280×800　ダーク　通常",
+          "source": "matrix-r1/normal/1280x800_dark/settings.png",
+          "size": [
+            2560,
+            800
+          ],
+          "captured": true
+        }
+      ]
+    },
+    {
+      "sheet": "flet-nicegui-07.jpg",
+      "width": 2400,
+      "height": 3268,
+      "cells": [
+        {
+          "label": "ダウンロード　1920×1080　ライト　通常",
+          "source": "matrix-r1/normal/1920x1080_light/download.png",
+          "size": [
+            3840,
+            1080
+          ],
+          "captured": true
+        },
+        {
+          "label": "キュー　1920×1080　ライト　通常",
+          "source": "matrix-r1/normal/1920x1080_light/queue.png",
+          "size": [
+            3840,
+            1080
+          ],
+          "captured": true
+        },
+        {
+          "label": "失敗リスト　1920×1080　ライト　通常",
+          "source": "matrix-r1/normal/1920x1080_light/failed.png",
+          "size": [
+            3840,
+            1080
+          ],
+          "captured": true
+        },
+        {
+          "label": "重複整理　1920×1080　ライト　通常",
+          "source": "matrix-r1/normal/1920x1080_light/dedup.png",
+          "size": [
+            3840,
+            1080
+          ],
+          "captured": true
+        }
+      ]
+    },
+    {
+      "sheet": "flet-nicegui-08.jpg",
+      "width": 2400,
+      "height": 3268,
+      "cells": [
+        {
+          "label": "学習　1920×1080　ライト　通常",
+          "source": "matrix-r1/normal/1920x1080_light/learning.png",
+          "size": [
+            3840,
+            1080
+          ],
+          "captured": true
+        },
+        {
+          "label": "ランキング　1920×1080　ライト　通常",
+          "source": "matrix-r1/normal/1920x1080_light/ranking.png",
+          "size": [
+            3840,
+            1080
+          ],
+          "captured": true
+        },
+        {
+          "label": "カスタムランキング　1920×1080　ライト　通常",
+          "source": "matrix-r1/normal/1920x1080_light/personal.png",
+          "size": [
+            3840,
+            1080
+          ],
+          "captured": true
+        },
+        {
+          "label": "ライブラリ　1920×1080　ライト　通常",
+          "source": "matrix-r1/normal/1920x1080_light/library.png",
+          "size": [
+            3840,
+            1080
+          ],
+          "captured": true
+        }
+      ]
+    },
+    {
+      "sheet": "flet-nicegui-09.jpg",
+      "width": 2400,
+      "height": 3268,
+      "cells": [
+        {
+          "label": "マイブックマーク　1920×1080　ライト　通常",
+          "source": "matrix-r1/normal/1920x1080_light/bookmarks.png",
+          "size": [
+            3840,
+            1080
+          ],
+          "captured": true
+        },
+        {
+          "label": "おすすめ　1920×1080　ライト　通常",
+          "source": "matrix-r1/normal/1920x1080_light/recommend.png",
+          "size": [
+            3840,
+            1080
+          ],
+          "captured": true
+        },
+        {
+          "label": "直近のバックアップ　1920×1080　ライト　通常",
+          "source": "matrix-r1/normal/1920x1080_light/history.png",
+          "size": [
+            3840,
+            1080
+          ],
+          "captured": true
+        },
+        {
+          "label": "設定　1920×1080　ライト　通常",
+          "source": "matrix-r1/normal/1920x1080_light/settings.png",
+          "size": [
+            3840,
+            1080
+          ],
+          "captured": true
+        }
+      ]
+    },
+    {
+      "sheet": "flet-nicegui-10.jpg",
+      "width": 2400,
+      "height": 3268,
+      "cells": [
+        {
+          "label": "ダウンロード　1920×1080　ダーク　通常",
+          "source": "matrix-r1/normal/1920x1080_dark/download.png",
+          "size": [
+            3840,
+            1080
+          ],
+          "captured": true
+        },
+        {
+          "label": "キュー　1920×1080　ダーク　通常",
+          "source": "matrix-r1/normal/1920x1080_dark/queue.png",
+          "size": [
+            3840,
+            1080
+          ],
+          "captured": true
+        },
+        {
+          "label": "失敗リスト　1920×1080　ダーク　通常",
+          "source": "matrix-r1/normal/1920x1080_dark/failed.png",
+          "size": [
+            3840,
+            1080
+          ],
+          "captured": true
+        },
+        {
+          "label": "重複整理　1920×1080　ダーク　通常",
+          "source": "matrix-r1/normal/1920x1080_dark/dedup.png",
+          "size": [
+            3840,
+            1080
+          ],
+          "captured": true
+        }
+      ]
+    },
+    {
+      "sheet": "flet-nicegui-11.jpg",
+      "width": 2400,
+      "height": 3268,
+      "cells": [
+        {
+          "label": "学習　1920×1080　ダーク　通常",
+          "source": "matrix-r1/normal/1920x1080_dark/learning.png",
+          "size": [
+            3840,
+            1080
+          ],
+          "captured": true
+        },
+        {
+          "label": "ランキング　1920×1080　ダーク　通常",
+          "source": "matrix-r1/normal/1920x1080_dark/ranking.png",
+          "size": [
+            3840,
+            1080
+          ],
+          "captured": true
+        },
+        {
+          "label": "カスタムランキング　1920×1080　ダーク　通常",
+          "source": "matrix-r1/normal/1920x1080_dark/personal.png",
+          "size": [
+            3840,
+            1080
+          ],
+          "captured": true
+        },
+        {
+          "label": "ライブラリ　1920×1080　ダーク　通常",
+          "source": "matrix-r1/normal/1920x1080_dark/library.png",
+          "size": [
+            3840,
+            1080
+          ],
+          "captured": true
+        }
+      ]
+    },
+    {
+      "sheet": "flet-nicegui-12.jpg",
+      "width": 2400,
+      "height": 3268,
+      "cells": [
+        {
+          "label": "マイブックマーク　1920×1080　ダーク　通常",
+          "source": "matrix-r1/normal/1920x1080_dark/bookmarks.png",
+          "size": [
+            3840,
+            1080
+          ],
+          "captured": true
+        },
+        {
+          "label": "おすすめ　1920×1080　ダーク　通常",
+          "source": "matrix-r1/normal/1920x1080_dark/recommend.png",
+          "size": [
+            3840,
+            1080
+          ],
+          "captured": true
+        },
+        {
+          "label": "直近のバックアップ　1920×1080　ダーク　通常",
+          "source": "matrix-r1/normal/1920x1080_dark/history.png",
+          "size": [
+            3840,
+            1080
+          ],
+          "captured": true
+        },
+        {
+          "label": "設定　1920×1080　ダーク　通常",
+          "source": "matrix-r1/normal/1920x1080_dark/settings.png",
+          "size": [
+            3840,
+            1080
+          ],
+          "captured": true
+        }
+      ]
+    }
+  ],
+  "settings": [
+    {
+      "sheet": "settings-01.jpg",
+      "width": 2400,
+      "height": 3268,
+      "cells": [
+        {
+          "label": "設定・アカウント　1280×800　ライト",
+          "source": "baseline/normal/1280x800-light-100/settings/group-01.png",
+          "size": [
+            616,
+            827
+          ],
+          "captured": true
+        },
+        {
+          "label": "設定・フォロー中リストの同期　1280×800　ライト",
+          "source": "baseline/normal/1280x800-light-100/settings/group-02.png",
+          "size": [
+            616,
+            293
+          ],
+          "captured": true
+        },
+        {
+          "label": "設定・保存ポリシー・通知　1280×800　ライト",
+          "source": "baseline/normal/1280x800-light-100/settings/group-03.png",
+          "size": [
+            616,
+            326
+          ],
+          "captured": true
+        },
+        {
+          "label": "設定・作品メタデータ　1280×800　ライト",
+          "source": "baseline/normal/1280x800-light-100/settings/group-04.png",
+          "size": [
+            616,
+            113
+          ],
+          "captured": true
+        },
+        {
+          "label": "設定・絵柄・構図の推論　1280×800　ライト",
+          "source": "baseline/normal/1280x800-light-100/settings/group-05.png",
+          "size": [
+            616,
+            451
+          ],
+          "captured": true
+        },
+        {
+          "label": "設定・視覚学習の操作　1280×800　ライト",
+          "source": "baseline/normal/1280x800-light-100/settings/group-06.png",
+          "size": [
+            590,
+            183
+          ],
+          "captured": true
+        },
+        {
+          "label": "設定・自動処理　1280×800　ライト",
+          "source": "baseline/normal/1280x800-light-100/settings/group-07.png",
+          "size": [
+            616,
+            209
+          ],
+          "captured": true
+        },
+        {
+          "label": "設定・エクスポート　1280×800　ライト",
+          "source": "baseline/normal/1280x800-light-100/settings/group-08.png",
+          "size": [
+            616,
+            234
+          ],
+          "captured": true
+        }
+      ]
+    },
+    {
+      "sheet": "settings-02.jpg",
+      "width": 2400,
+      "height": 3268,
+      "cells": [
+        {
+          "label": "設定・詳細設定　1280×800　ライト",
+          "source": "baseline/normal/1280x800-light-100/settings/group-09.png",
+          "size": [
+            616,
+            288
+          ],
+          "captured": true
+        },
+        {
+          "label": "設定・ブラウザ拡張機能　1280×800　ライト",
+          "source": "baseline/normal/1280x800-light-100/settings/group-10.png",
+          "size": [
+            616,
+            237
+          ],
+          "captured": true
+        },
+        {
+          "label": "設定・キャッシュ　1280×800　ライト",
+          "source": "baseline/normal/1280x800-light-100/settings/group-11.png",
+          "size": [
+            616,
+            192
+          ],
+          "captured": true
+        },
+        {
+          "label": "設定・画像キャッシュ　1280×800　ライト",
+          "source": "baseline/normal/1280x800-light-100/settings/group-12.png",
+          "size": [
+            616,
+            114
+          ],
+          "captured": true
+        },
+        {
+          "label": "設定・ローカルタグ補完モデル（任意）　1280×800　ライト",
+          "source": "baseline/normal/1280x800-light-100/settings/group-13.png",
+          "size": [
+            616,
+            271
+          ],
+          "captured": true
+        },
+        {
+          "label": "設定・借用プレミアムの状態　1280×800　ライト",
+          "source": "baseline/normal/1280x800-light-100/settings/group-14.png",
+          "size": [
+            616,
+            322
+          ],
+          "captured": true
+        },
+        {
+          "label": "設定・アカウント　1280×800　ダーク",
+          "source": "baseline/normal/1280x800-dark-100/settings/group-01.png",
+          "size": [
+            616,
+            827
+          ],
+          "captured": true
+        },
+        {
+          "label": "設定・フォロー中リストの同期　1280×800　ダーク",
+          "source": "baseline/normal/1280x800-dark-100/settings/group-02.png",
+          "size": [
+            616,
+            293
+          ],
+          "captured": true
+        }
+      ]
+    },
+    {
+      "sheet": "settings-03.jpg",
+      "width": 2400,
+      "height": 3268,
+      "cells": [
+        {
+          "label": "設定・保存ポリシー・通知　1280×800　ダーク",
+          "source": "baseline/normal/1280x800-dark-100/settings/group-03.png",
+          "size": [
+            616,
+            326
+          ],
+          "captured": true
+        },
+        {
+          "label": "設定・作品メタデータ　1280×800　ダーク",
+          "source": "baseline/normal/1280x800-dark-100/settings/group-04.png",
+          "size": [
+            616,
+            113
+          ],
+          "captured": true
+        },
+        {
+          "label": "設定・絵柄・構図の推論　1280×800　ダーク",
+          "source": "baseline/normal/1280x800-dark-100/settings/group-05.png",
+          "size": [
+            616,
+            451
+          ],
+          "captured": true
+        },
+        {
+          "label": "設定・視覚学習の操作　1280×800　ダーク",
+          "source": "baseline/normal/1280x800-dark-100/settings/group-06.png",
+          "size": [
+            590,
+            183
+          ],
+          "captured": true
+        },
+        {
+          "label": "設定・自動処理　1280×800　ダーク",
+          "source": "baseline/normal/1280x800-dark-100/settings/group-07.png",
+          "size": [
+            616,
+            209
+          ],
+          "captured": true
+        },
+        {
+          "label": "設定・エクスポート　1280×800　ダーク",
+          "source": "baseline/normal/1280x800-dark-100/settings/group-08.png",
+          "size": [
+            616,
+            234
+          ],
+          "captured": true
+        },
+        {
+          "label": "設定・詳細設定　1280×800　ダーク",
+          "source": "baseline/normal/1280x800-dark-100/settings/group-09.png",
+          "size": [
+            616,
+            288
+          ],
+          "captured": true
+        },
+        {
+          "label": "設定・ブラウザ拡張機能　1280×800　ダーク",
+          "source": "baseline/normal/1280x800-dark-100/settings/group-10.png",
+          "size": [
+            616,
+            237
+          ],
+          "captured": true
+        }
+      ]
+    },
+    {
+      "sheet": "settings-04.jpg",
+      "width": 2400,
+      "height": 3268,
+      "cells": [
+        {
+          "label": "設定・キャッシュ　1280×800　ダーク",
+          "source": "baseline/normal/1280x800-dark-100/settings/group-11.png",
+          "size": [
+            616,
+            192
+          ],
+          "captured": true
+        },
+        {
+          "label": "設定・画像キャッシュ　1280×800　ダーク",
+          "source": "baseline/normal/1280x800-dark-100/settings/group-12.png",
+          "size": [
+            616,
+            114
+          ],
+          "captured": true
+        },
+        {
+          "label": "設定・ローカルタグ補完モデル（任意）　1280×800　ダーク",
+          "source": "baseline/normal/1280x800-dark-100/settings/group-13.png",
+          "size": [
+            616,
+            271
+          ],
+          "captured": true
+        },
+        {
+          "label": "設定・借用プレミアムの状態　1280×800　ダーク",
+          "source": "baseline/normal/1280x800-dark-100/settings/group-14.png",
+          "size": [
+            616,
+            322
+          ],
+          "captured": true
+        },
+        {
+          "label": "設定・アカウント　1920×1080　ライト",
+          "source": "baseline/normal/1920x1080-light-100/settings/group-01.png",
+          "size": [
+            616,
+            827
+          ],
+          "captured": true
+        },
+        {
+          "label": "設定・フォロー中リストの同期　1920×1080　ライト",
+          "source": "baseline/normal/1920x1080-light-100/settings/group-02.png",
+          "size": [
+            616,
+            293
+          ],
+          "captured": true
+        },
+        {
+          "label": "設定・保存ポリシー・通知　1920×1080　ライト",
+          "source": "baseline/normal/1920x1080-light-100/settings/group-03.png",
+          "size": [
+            616,
+            326
+          ],
+          "captured": true
+        },
+        {
+          "label": "設定・作品メタデータ　1920×1080　ライト",
+          "source": "baseline/normal/1920x1080-light-100/settings/group-04.png",
+          "size": [
+            616,
+            113
+          ],
+          "captured": true
+        }
+      ]
+    },
+    {
+      "sheet": "settings-05.jpg",
+      "width": 2400,
+      "height": 3268,
+      "cells": [
+        {
+          "label": "設定・絵柄・構図の推論　1920×1080　ライト",
+          "source": "baseline/normal/1920x1080-light-100/settings/group-05.png",
+          "size": [
+            616,
+            451
+          ],
+          "captured": true
+        },
+        {
+          "label": "設定・視覚学習の操作　1920×1080　ライト",
+          "source": "baseline/normal/1920x1080-light-100/settings/group-06.png",
+          "size": [
+            590,
+            183
+          ],
+          "captured": true
+        },
+        {
+          "label": "設定・自動処理　1920×1080　ライト",
+          "source": "baseline/normal/1920x1080-light-100/settings/group-07.png",
+          "size": [
+            616,
+            209
+          ],
+          "captured": true
+        },
+        {
+          "label": "設定・エクスポート　1920×1080　ライト",
+          "source": "baseline/normal/1920x1080-light-100/settings/group-08.png",
+          "size": [
+            616,
+            234
+          ],
+          "captured": true
+        },
+        {
+          "label": "設定・詳細設定　1920×1080　ライト",
+          "source": "baseline/normal/1920x1080-light-100/settings/group-09.png",
+          "size": [
+            616,
+            288
+          ],
+          "captured": true
+        },
+        {
+          "label": "設定・ブラウザ拡張機能　1920×1080　ライト",
+          "source": "baseline/normal/1920x1080-light-100/settings/group-10.png",
+          "size": [
+            616,
+            237
+          ],
+          "captured": true
+        },
+        {
+          "label": "設定・キャッシュ　1920×1080　ライト",
+          "source": "baseline/normal/1920x1080-light-100/settings/group-11.png",
+          "size": [
+            616,
+            192
+          ],
+          "captured": true
+        },
+        {
+          "label": "設定・画像キャッシュ　1920×1080　ライト",
+          "source": "baseline/normal/1920x1080-light-100/settings/group-12.png",
+          "size": [
+            616,
+            114
+          ],
+          "captured": true
+        }
+      ]
+    },
+    {
+      "sheet": "settings-06.jpg",
+      "width": 2400,
+      "height": 3268,
+      "cells": [
+        {
+          "label": "設定・ローカルタグ補完モデル（任意）　1920×1080　ライト",
+          "source": "baseline/normal/1920x1080-light-100/settings/group-13.png",
+          "size": [
+            616,
+            271
+          ],
+          "captured": true
+        },
+        {
+          "label": "設定・借用プレミアムの状態　1920×1080　ライト",
+          "source": "baseline/normal/1920x1080-light-100/settings/group-14.png",
+          "size": [
+            616,
+            322
+          ],
+          "captured": true
+        },
+        {
+          "label": "設定・アカウント　1920×1080　ダーク",
+          "source": "baseline/normal/1920x1080-dark-100/settings/group-01.png",
+          "size": [
+            616,
+            827
+          ],
+          "captured": true
+        },
+        {
+          "label": "設定・フォロー中リストの同期　1920×1080　ダーク",
+          "source": "baseline/normal/1920x1080-dark-100/settings/group-02.png",
+          "size": [
+            616,
+            293
+          ],
+          "captured": true
+        },
+        {
+          "label": "設定・保存ポリシー・通知　1920×1080　ダーク",
+          "source": "baseline/normal/1920x1080-dark-100/settings/group-03.png",
+          "size": [
+            616,
+            326
+          ],
+          "captured": true
+        },
+        {
+          "label": "設定・作品メタデータ　1920×1080　ダーク",
+          "source": "baseline/normal/1920x1080-dark-100/settings/group-04.png",
+          "size": [
+            616,
+            113
+          ],
+          "captured": true
+        },
+        {
+          "label": "設定・絵柄・構図の推論　1920×1080　ダーク",
+          "source": "baseline/normal/1920x1080-dark-100/settings/group-05.png",
+          "size": [
+            616,
+            451
+          ],
+          "captured": true
+        },
+        {
+          "label": "設定・視覚学習の操作　1920×1080　ダーク",
+          "source": "baseline/normal/1920x1080-dark-100/settings/group-06.png",
+          "size": [
+            590,
+            183
+          ],
+          "captured": true
+        }
+      ]
+    },
+    {
+      "sheet": "settings-07.jpg",
+      "width": 2400,
+      "height": 3268,
+      "cells": [
+        {
+          "label": "設定・自動処理　1920×1080　ダーク",
+          "source": "baseline/normal/1920x1080-dark-100/settings/group-07.png",
+          "size": [
+            616,
+            209
+          ],
+          "captured": true
+        },
+        {
+          "label": "設定・エクスポート　1920×1080　ダーク",
+          "source": "baseline/normal/1920x1080-dark-100/settings/group-08.png",
+          "size": [
+            616,
+            234
+          ],
+          "captured": true
+        },
+        {
+          "label": "設定・詳細設定　1920×1080　ダーク",
+          "source": "baseline/normal/1920x1080-dark-100/settings/group-09.png",
+          "size": [
+            616,
+            288
+          ],
+          "captured": true
+        },
+        {
+          "label": "設定・ブラウザ拡張機能　1920×1080　ダーク",
+          "source": "baseline/normal/1920x1080-dark-100/settings/group-10.png",
+          "size": [
+            616,
+            237
+          ],
+          "captured": true
+        },
+        {
+          "label": "設定・キャッシュ　1920×1080　ダーク",
+          "source": "baseline/normal/1920x1080-dark-100/settings/group-11.png",
+          "size": [
+            616,
+            192
+          ],
+          "captured": true
+        },
+        {
+          "label": "設定・画像キャッシュ　1920×1080　ダーク",
+          "source": "baseline/normal/1920x1080-dark-100/settings/group-12.png",
+          "size": [
+            616,
+            114
+          ],
+          "captured": true
+        },
+        {
+          "label": "設定・ローカルタグ補完モデル（任意）　1920×1080　ダーク",
+          "source": "baseline/normal/1920x1080-dark-100/settings/group-13.png",
+          "size": [
+            616,
+            271
+          ],
+          "captured": true
+        },
+        {
+          "label": "設定・借用プレミアムの状態　1920×1080　ダーク",
+          "source": "baseline/normal/1920x1080-dark-100/settings/group-14.png",
+          "size": [
+            616,
+            322
+          ],
+          "captured": true
+        }
+      ]
+    }
+  ]
+}

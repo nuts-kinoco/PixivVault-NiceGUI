@@ -1,0 +1,73 @@
+============================= test session starts =============================
+platform win32 -- Python 3.13.11, pytest-8.4.2, pluggy-1.7.0
+rootdir: S:\Work\PV\uiux-final-20261124
+configfile: pyproject.toml
+plugins: anyio-4.15.1, asyncio-1.2.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function
+collected 74 items / 71 deselected / 3 selected
+
+tests\test_ui_common_browser.py FF.                                      [100%]
+
+================================== FAILURES ===================================
+_____________ test_automation_metadata_actions_are_reachable[100] _____________
+
+zoom_page = (<Page url='http://127.0.0.1:49446/?_audit_theme=light&_audit_screen=metadata'>, 'http://127.0.0.1:49446', 100)
+
+    @pytest.mark.parametrize('zoom_page', (100, 200), indirect=True)
+    def test_automation_metadata_actions_are_reachable(zoom_page):
+        from playwright.sync_api import expect
+
+        page, origin, zoom = zoom_page
+        page.set_viewport_size({'width': 1280, 'height': 800})
+        cell = audit.Cell('metadata', 'normal', 'light', 1280, 800, zoom, None)
+        audit.load_page(page, origin, cell)
+        opener = page.get_by_test_id('automation-open')
+        opener.press('Enter')
+        tab = page.get_by_test_id('automation-metadata')
+        tab.press('Enter')
+        expect(tab).to_have_attribute('aria-selected', 'true')
+        action = page.get_by_test_id('metadata-run-all')
+        expect(action).to_be_visible(timeout=2000)
+        action.scroll_into_view_if_needed()
+>       assert action.evaluate('''e => {
+            const r = e.getBoundingClientRect();
+            return e.contains(document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2));
+        }''')
+E       assert False
+E        +  where False = evaluate('e => {\n        const r = e.getBoundingClientRect();\n        return e.contains(document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2));\n    }')
+E        +    where evaluate = <Locator frame=<Frame name= url='http://127.0.0.1:49446/?_audit_theme=light&_audit_screen=metadata'> selector='internal:testid=[data-testid="metadata-run-all"s]'>.evaluate
+
+tests\test_ui_common_browser.py:331: AssertionError
+_____________ test_automation_metadata_actions_are_reachable[200] _____________
+
+zoom_page = (<Page url='http://127.0.0.1:49446/?_audit_theme=light&_audit_screen=metadata'>, 'http://127.0.0.1:49446', 200)
+
+    @pytest.mark.parametrize('zoom_page', (100, 200), indirect=True)
+    def test_automation_metadata_actions_are_reachable(zoom_page):
+        from playwright.sync_api import expect
+
+        page, origin, zoom = zoom_page
+        page.set_viewport_size({'width': 1280, 'height': 800})
+        cell = audit.Cell('metadata', 'normal', 'light', 1280, 800, zoom, None)
+        audit.load_page(page, origin, cell)
+        opener = page.get_by_test_id('automation-open')
+        opener.press('Enter')
+        tab = page.get_by_test_id('automation-metadata')
+        tab.press('Enter')
+        expect(tab).to_have_attribute('aria-selected', 'true')
+        action = page.get_by_test_id('metadata-run-all')
+        expect(action).to_be_visible(timeout=2000)
+        action.scroll_into_view_if_needed()
+>       assert action.evaluate('''e => {
+            const r = e.getBoundingClientRect();
+            return e.contains(document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2));
+        }''')
+E       assert False
+E        +  where False = evaluate('e => {\n        const r = e.getBoundingClientRect();\n        return e.contains(document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2));\n    }')
+E        +    where evaluate = <Locator frame=<Frame name= url='http://127.0.0.1:49446/?_audit_theme=light&_audit_screen=metadata'> selector='internal:testid=[data-testid="metadata-run-all"s]'>.evaluate
+
+tests\test_ui_common_browser.py:331: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_ui_common_browser.py::test_automation_metadata_actions_are_reachable[100]
+FAILED tests/test_ui_common_browser.py::test_automation_metadata_actions_are_reachable[200]
+================= 2 failed, 1 passed, 71 deselected in 14.77s =================

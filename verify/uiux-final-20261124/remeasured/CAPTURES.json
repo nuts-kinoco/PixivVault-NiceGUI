@@ -1,0 +1,975 @@
+{
+  "metadata": {
+    "product_revision": "807d3ab3375e199fa82408352c42c385731201cb",
+    "product_tree": "b3d1aa85a480249f3aaf2f2366513169dfad841d",
+    "original_revision": "3ac3aa0d47a64785251593bcb09bb2d5f6df374b",
+    "zoom_method": "Chromium browser zoom, verified inner width and DPR",
+    "dom_sha256": "2349f88795a8fd036481e5c6f1818ebef005a7d42183646f991e563dfecac056",
+    "fingerprint": "16a759f28d468772bd037a22faf563d61dada199c470fc68da5f458884866944",
+    "network": {
+      "normal/100": {
+        "server_denials": 0,
+        "fake_call_types": [
+          "transport"
+        ],
+        "blocked_host_count": 0
+      },
+      "normal/200": {
+        "server_denials": 0,
+        "fake_call_types": [
+          "transport"
+        ],
+        "blocked_host_count": 0
+      }
+    },
+    "verified_browser_zoom": 2
+  },
+  "counts": {
+    "planned": 26,
+    "missing": 0,
+    "captured": 26,
+    "inapplicable": 0
+  },
+  "captures": {
+    "normal/1024x768-light-100/metadata": {
+      "observed_viewport": [
+        1024,
+        768
+      ],
+      "device_scale": 1,
+      "product": "normal/1024x768-light-100/metadata/port.png",
+      "state_proven": true,
+      "measured": true,
+      "filled_buttons": 1,
+      "dom": "normal/1024x768-light-100/metadata/dom.json",
+      "items_observed": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5",
+        "A6",
+        "A7",
+        "A8",
+        "A9",
+        "A10",
+        "A12",
+        "A13",
+        "A15",
+        "A14"
+      ],
+      "motion": {
+        "normal": 3,
+        "reduced": 1,
+        "toasts": []
+      },
+      "hover_groups_sampled": 8,
+      "tab_cycle_observed": true
+    },
+    "normal/1024x768-light-100/metadata-ledger": {
+      "observed_viewport": [
+        1024,
+        768
+      ],
+      "device_scale": 1,
+      "product": "normal/1024x768-light-100/metadata-ledger/port.png",
+      "state_proven": true,
+      "measured": true,
+      "filled_buttons": 1,
+      "dom": "normal/1024x768-light-100/metadata-ledger/dom.json",
+      "items_observed": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5",
+        "A6",
+        "A7",
+        "A8",
+        "A9",
+        "A10",
+        "A12",
+        "A13",
+        "A15",
+        "A14"
+      ],
+      "motion": {
+        "normal": 5,
+        "reduced": 0,
+        "toasts": []
+      },
+      "hover_groups_sampled": 8,
+      "tab_cycle_observed": true
+    },
+    "normal/1024x768-light-100/recommend": {
+      "observed_viewport": [
+        1024,
+        768
+      ],
+      "device_scale": 1,
+      "product": "normal/1024x768-light-100/recommend/port.png",
+      "state_proven": true,
+      "measured": true,
+      "filled_buttons": 3,
+      "dom": "normal/1024x768-light-100/recommend/dom.json",
+      "items_observed": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5",
+        "A6",
+        "A7",
+        "A8",
+        "A9",
+        "A10",
+        "A12",
+        "A13",
+        "A15",
+        "A14"
+      ],
+      "motion": {
+        "normal": 3,
+        "reduced": 0,
+        "toasts": []
+      },
+      "hover_groups_sampled": 8,
+      "tab_cycle_observed": true
+    },
+    "normal/1024x768-light-100/learning-reset": {
+      "observed_viewport": [
+        1024,
+        768
+      ],
+      "device_scale": 1,
+      "product": "normal/1024x768-light-100/learning-reset/port.png",
+      "state_proven": true,
+      "measured": true,
+      "filled_buttons": 0,
+      "dom": "normal/1024x768-light-100/learning-reset/dom.json",
+      "items_observed": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5",
+        "A6",
+        "A7",
+        "A8",
+        "A9",
+        "A10",
+        "A12",
+        "A13",
+        "A15",
+        "A14"
+      ],
+      "motion": {
+        "normal": 2,
+        "reduced": 0,
+        "toasts": []
+      },
+      "hover_groups_sampled": 3,
+      "tab_cycle_observed": true
+    },
+    "normal/1024x768-dark-100/metadata": {
+      "observed_viewport": [
+        1024,
+        768
+      ],
+      "device_scale": 1,
+      "product": "normal/1024x768-dark-100/metadata/port.png",
+      "state_proven": true,
+      "measured": true,
+      "filled_buttons": 1,
+      "dom": "normal/1024x768-dark-100/metadata/dom.json",
+      "items_observed": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5",
+        "A6",
+        "A7",
+        "A8",
+        "A9",
+        "A10",
+        "A12",
+        "A13",
+        "A15",
+        "A14"
+      ],
+      "motion": {
+        "normal": 3,
+        "reduced": 1,
+        "toasts": []
+      },
+      "hover_groups_sampled": 8,
+      "tab_cycle_observed": true
+    },
+    "normal/1024x768-dark-100/metadata-ledger": {
+      "observed_viewport": [
+        1024,
+        768
+      ],
+      "device_scale": 1,
+      "product": "normal/1024x768-dark-100/metadata-ledger/port.png",
+      "state_proven": true,
+      "measured": true,
+      "filled_buttons": 1,
+      "dom": "normal/1024x768-dark-100/metadata-ledger/dom.json",
+      "items_observed": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5",
+        "A6",
+        "A7",
+        "A8",
+        "A9",
+        "A10",
+        "A12",
+        "A13",
+        "A15",
+        "A14"
+      ],
+      "motion": {
+        "normal": 5,
+        "reduced": 0,
+        "toasts": []
+      },
+      "hover_groups_sampled": 8,
+      "tab_cycle_observed": true
+    },
+    "normal/1024x768-dark-100/recommend": {
+      "observed_viewport": [
+        1024,
+        768
+      ],
+      "device_scale": 1,
+      "product": "normal/1024x768-dark-100/recommend/port.png",
+      "state_proven": true,
+      "measured": true,
+      "filled_buttons": 3,
+      "dom": "normal/1024x768-dark-100/recommend/dom.json",
+      "items_observed": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5",
+        "A6",
+        "A7",
+        "A8",
+        "A9",
+        "A10",
+        "A12",
+        "A13",
+        "A15",
+        "A14"
+      ],
+      "motion": {
+        "normal": 3,
+        "reduced": 0,
+        "toasts": []
+      },
+      "hover_groups_sampled": 8,
+      "tab_cycle_observed": true
+    },
+    "normal/1024x768-dark-100/learning-reset": {
+      "observed_viewport": [
+        1024,
+        768
+      ],
+      "device_scale": 1,
+      "product": "normal/1024x768-dark-100/learning-reset/port.png",
+      "state_proven": true,
+      "measured": true,
+      "filled_buttons": 0,
+      "dom": "normal/1024x768-dark-100/learning-reset/dom.json",
+      "items_observed": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5",
+        "A6",
+        "A7",
+        "A8",
+        "A9",
+        "A10",
+        "A12",
+        "A13",
+        "A15",
+        "A14"
+      ],
+      "motion": {
+        "normal": 1,
+        "reduced": 0,
+        "toasts": []
+      },
+      "hover_groups_sampled": 3,
+      "tab_cycle_observed": true
+    },
+    "normal/1280x800-light-100/metadata": {
+      "observed_viewport": [
+        1280,
+        800
+      ],
+      "device_scale": 1,
+      "product": "normal/1280x800-light-100/metadata/port.png",
+      "state_proven": true,
+      "measured": true,
+      "filled_buttons": 1,
+      "dom": "normal/1280x800-light-100/metadata/dom.json",
+      "items_observed": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5",
+        "A6",
+        "A7",
+        "A8",
+        "A9",
+        "A10",
+        "A12",
+        "A13",
+        "A15",
+        "A14"
+      ],
+      "motion": {
+        "normal": 5,
+        "reduced": 1,
+        "toasts": []
+      },
+      "hover_groups_sampled": 8,
+      "tab_cycle_observed": true
+    },
+    "normal/1280x800-light-100/metadata-ledger": {
+      "observed_viewport": [
+        1280,
+        800
+      ],
+      "device_scale": 1,
+      "product": "normal/1280x800-light-100/metadata-ledger/port.png",
+      "state_proven": true,
+      "measured": true,
+      "filled_buttons": 1,
+      "dom": "normal/1280x800-light-100/metadata-ledger/dom.json",
+      "items_observed": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5",
+        "A6",
+        "A7",
+        "A8",
+        "A9",
+        "A10",
+        "A12",
+        "A13",
+        "A15",
+        "A14"
+      ],
+      "motion": {
+        "normal": 5,
+        "reduced": 0,
+        "toasts": []
+      },
+      "hover_groups_sampled": 8,
+      "tab_cycle_observed": true
+    },
+    "normal/1280x800-light-100/recommend": {
+      "observed_viewport": [
+        1280,
+        800
+      ],
+      "device_scale": 1,
+      "product": "normal/1280x800-light-100/recommend/port.png",
+      "state_proven": true,
+      "measured": true,
+      "filled_buttons": 3,
+      "dom": "normal/1280x800-light-100/recommend/dom.json",
+      "items_observed": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5",
+        "A6",
+        "A7",
+        "A8",
+        "A9",
+        "A10",
+        "A12",
+        "A13",
+        "A15",
+        "A14"
+      ],
+      "motion": {
+        "normal": 4,
+        "reduced": 0,
+        "toasts": []
+      },
+      "hover_groups_sampled": 8,
+      "tab_cycle_observed": true
+    },
+    "normal/1280x800-light-100/learning-reset": {
+      "observed_viewport": [
+        1280,
+        800
+      ],
+      "device_scale": 1,
+      "product": "normal/1280x800-light-100/learning-reset/port.png",
+      "state_proven": true,
+      "measured": true,
+      "filled_buttons": 0,
+      "dom": "normal/1280x800-light-100/learning-reset/dom.json",
+      "items_observed": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5",
+        "A6",
+        "A7",
+        "A8",
+        "A9",
+        "A10",
+        "A12",
+        "A13",
+        "A15",
+        "A14"
+      ],
+      "motion": {
+        "normal": 0,
+        "reduced": 0,
+        "toasts": []
+      },
+      "hover_groups_sampled": 3,
+      "tab_cycle_observed": true
+    },
+    "normal/1280x800-dark-100/metadata": {
+      "observed_viewport": [
+        1280,
+        800
+      ],
+      "device_scale": 1,
+      "product": "normal/1280x800-dark-100/metadata/port.png",
+      "state_proven": true,
+      "measured": true,
+      "filled_buttons": 1,
+      "dom": "normal/1280x800-dark-100/metadata/dom.json",
+      "items_observed": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5",
+        "A6",
+        "A7",
+        "A8",
+        "A9",
+        "A10",
+        "A12",
+        "A13",
+        "A15",
+        "A14"
+      ],
+      "motion": {
+        "normal": 5,
+        "reduced": 1,
+        "toasts": []
+      },
+      "hover_groups_sampled": 8,
+      "tab_cycle_observed": true
+    },
+    "normal/1280x800-dark-100/metadata-ledger": {
+      "observed_viewport": [
+        1280,
+        800
+      ],
+      "device_scale": 1,
+      "product": "normal/1280x800-dark-100/metadata-ledger/port.png",
+      "state_proven": true,
+      "measured": true,
+      "filled_buttons": 1,
+      "dom": "normal/1280x800-dark-100/metadata-ledger/dom.json",
+      "items_observed": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5",
+        "A6",
+        "A7",
+        "A8",
+        "A9",
+        "A10",
+        "A12",
+        "A13",
+        "A15",
+        "A14"
+      ],
+      "motion": {
+        "normal": 5,
+        "reduced": 0,
+        "toasts": []
+      },
+      "hover_groups_sampled": 8,
+      "tab_cycle_observed": true
+    },
+    "normal/1280x800-dark-100/recommend": {
+      "observed_viewport": [
+        1280,
+        800
+      ],
+      "device_scale": 1,
+      "product": "normal/1280x800-dark-100/recommend/port.png",
+      "state_proven": true,
+      "measured": true,
+      "filled_buttons": 3,
+      "dom": "normal/1280x800-dark-100/recommend/dom.json",
+      "items_observed": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5",
+        "A6",
+        "A7",
+        "A8",
+        "A9",
+        "A10",
+        "A12",
+        "A13",
+        "A15",
+        "A14"
+      ],
+      "motion": {
+        "normal": 3,
+        "reduced": 0,
+        "toasts": []
+      },
+      "hover_groups_sampled": 8,
+      "tab_cycle_observed": true
+    },
+    "normal/1280x800-dark-100/learning-reset": {
+      "observed_viewport": [
+        1280,
+        800
+      ],
+      "device_scale": 1,
+      "product": "normal/1280x800-dark-100/learning-reset/port.png",
+      "state_proven": true,
+      "measured": true,
+      "filled_buttons": 0,
+      "dom": "normal/1280x800-dark-100/learning-reset/dom.json",
+      "items_observed": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5",
+        "A6",
+        "A7",
+        "A8",
+        "A9",
+        "A10",
+        "A12",
+        "A13",
+        "A15",
+        "A14"
+      ],
+      "motion": {
+        "normal": 2,
+        "reduced": 0,
+        "toasts": []
+      },
+      "hover_groups_sampled": 3,
+      "tab_cycle_observed": true
+    },
+    "normal/1920x1080-light-100/metadata": {
+      "observed_viewport": [
+        1920,
+        1080
+      ],
+      "device_scale": 1,
+      "product": "normal/1920x1080-light-100/metadata/port.png",
+      "state_proven": true,
+      "measured": true,
+      "filled_buttons": 1,
+      "dom": "normal/1920x1080-light-100/metadata/dom.json",
+      "items_observed": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5",
+        "A6",
+        "A7",
+        "A8",
+        "A9",
+        "A10",
+        "A12",
+        "A13",
+        "A15",
+        "A14"
+      ],
+      "motion": {
+        "normal": 3,
+        "reduced": 0,
+        "toasts": []
+      },
+      "hover_groups_sampled": 8,
+      "tab_cycle_observed": true
+    },
+    "normal/1920x1080-light-100/metadata-ledger": {
+      "observed_viewport": [
+        1920,
+        1080
+      ],
+      "device_scale": 1,
+      "product": "normal/1920x1080-light-100/metadata-ledger/port.png",
+      "state_proven": true,
+      "measured": true,
+      "filled_buttons": 1,
+      "dom": "normal/1920x1080-light-100/metadata-ledger/dom.json",
+      "items_observed": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5",
+        "A6",
+        "A7",
+        "A8",
+        "A9",
+        "A10",
+        "A12",
+        "A13",
+        "A15",
+        "A14"
+      ],
+      "motion": {
+        "normal": 5,
+        "reduced": 0,
+        "toasts": []
+      },
+      "hover_groups_sampled": 8,
+      "tab_cycle_observed": true
+    },
+    "normal/1920x1080-light-100/recommend": {
+      "observed_viewport": [
+        1920,
+        1080
+      ],
+      "device_scale": 1,
+      "product": "normal/1920x1080-light-100/recommend/port.png",
+      "state_proven": true,
+      "measured": true,
+      "filled_buttons": 3,
+      "dom": "normal/1920x1080-light-100/recommend/dom.json",
+      "items_observed": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5",
+        "A6",
+        "A7",
+        "A8",
+        "A9",
+        "A10",
+        "A12",
+        "A13",
+        "A15",
+        "A14"
+      ],
+      "motion": {
+        "normal": 3,
+        "reduced": 0,
+        "toasts": []
+      },
+      "hover_groups_sampled": 8,
+      "tab_cycle_observed": true
+    },
+    "normal/1920x1080-light-100/learning-reset": {
+      "observed_viewport": [
+        1920,
+        1080
+      ],
+      "device_scale": 1,
+      "product": "normal/1920x1080-light-100/learning-reset/port.png",
+      "state_proven": true,
+      "measured": true,
+      "filled_buttons": 0,
+      "dom": "normal/1920x1080-light-100/learning-reset/dom.json",
+      "items_observed": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5",
+        "A6",
+        "A7",
+        "A8",
+        "A9",
+        "A10",
+        "A12",
+        "A13",
+        "A15",
+        "A14"
+      ],
+      "motion": {
+        "normal": 0,
+        "reduced": 0,
+        "toasts": []
+      },
+      "hover_groups_sampled": 3,
+      "tab_cycle_observed": true
+    },
+    "normal/1920x1080-dark-100/metadata": {
+      "observed_viewport": [
+        1920,
+        1080
+      ],
+      "device_scale": 1,
+      "product": "normal/1920x1080-dark-100/metadata/port.png",
+      "state_proven": true,
+      "measured": true,
+      "filled_buttons": 1,
+      "dom": "normal/1920x1080-dark-100/metadata/dom.json",
+      "items_observed": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5",
+        "A6",
+        "A7",
+        "A8",
+        "A9",
+        "A10",
+        "A12",
+        "A13",
+        "A15",
+        "A14"
+      ],
+      "motion": {
+        "normal": 5,
+        "reduced": 1,
+        "toasts": []
+      },
+      "hover_groups_sampled": 8,
+      "tab_cycle_observed": true
+    },
+    "normal/1920x1080-dark-100/metadata-ledger": {
+      "observed_viewport": [
+        1920,
+        1080
+      ],
+      "device_scale": 1,
+      "product": "normal/1920x1080-dark-100/metadata-ledger/port.png",
+      "state_proven": true,
+      "measured": true,
+      "filled_buttons": 1,
+      "dom": "normal/1920x1080-dark-100/metadata-ledger/dom.json",
+      "items_observed": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5",
+        "A6",
+        "A7",
+        "A8",
+        "A9",
+        "A10",
+        "A12",
+        "A13",
+        "A15",
+        "A14"
+      ],
+      "motion": {
+        "normal": 5,
+        "reduced": 0,
+        "toasts": []
+      },
+      "hover_groups_sampled": 8,
+      "tab_cycle_observed": true
+    },
+    "normal/1920x1080-dark-100/recommend": {
+      "observed_viewport": [
+        1920,
+        1080
+      ],
+      "device_scale": 1,
+      "product": "normal/1920x1080-dark-100/recommend/port.png",
+      "state_proven": true,
+      "measured": true,
+      "filled_buttons": 3,
+      "dom": "normal/1920x1080-dark-100/recommend/dom.json",
+      "items_observed": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5",
+        "A6",
+        "A7",
+        "A8",
+        "A9",
+        "A10",
+        "A12",
+        "A13",
+        "A15",
+        "A14"
+      ],
+      "motion": {
+        "normal": 3,
+        "reduced": 0,
+        "toasts": []
+      },
+      "hover_groups_sampled": 8,
+      "tab_cycle_observed": true
+    },
+    "normal/1920x1080-dark-100/learning-reset": {
+      "observed_viewport": [
+        1920,
+        1080
+      ],
+      "device_scale": 1,
+      "product": "normal/1920x1080-dark-100/learning-reset/port.png",
+      "state_proven": true,
+      "measured": true,
+      "filled_buttons": 0,
+      "dom": "normal/1920x1080-dark-100/learning-reset/dom.json",
+      "items_observed": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5",
+        "A6",
+        "A7",
+        "A8",
+        "A9",
+        "A10",
+        "A12",
+        "A13",
+        "A15",
+        "A14"
+      ],
+      "motion": {
+        "normal": 0,
+        "reduced": 0,
+        "toasts": []
+      },
+      "hover_groups_sampled": 3,
+      "tab_cycle_observed": true
+    },
+    "normal/1280x800-light-200/metadata": {
+      "observed_viewport": [
+        640,
+        400
+      ],
+      "device_scale": 2,
+      "product": "normal/1280x800-light-200/metadata/port.png",
+      "state_proven": true,
+      "measured": true,
+      "filled_buttons": 1,
+      "dom": "normal/1280x800-light-200/metadata/dom.json",
+      "items_observed": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5",
+        "A6",
+        "A7",
+        "A8",
+        "A9",
+        "A10",
+        "A12",
+        "A13",
+        "A15",
+        "A11",
+        "A14"
+      ],
+      "motion": {
+        "normal": 3,
+        "reduced": 0,
+        "toasts": []
+      },
+      "hover_groups_sampled": 8,
+      "tab_cycle_observed": true
+    },
+    "normal/1280x800-dark-200/metadata": {
+      "observed_viewport": [
+        640,
+        400
+      ],
+      "device_scale": 2,
+      "product": "normal/1280x800-dark-200/metadata/port.png",
+      "state_proven": true,
+      "measured": true,
+      "filled_buttons": 1,
+      "dom": "normal/1280x800-dark-200/metadata/dom.json",
+      "items_observed": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5",
+        "A6",
+        "A7",
+        "A8",
+        "A9",
+        "A10",
+        "A12",
+        "A13",
+        "A15",
+        "A11",
+        "A14"
+      ],
+      "motion": {
+        "normal": 3,
+        "reduced": 1,
+        "toasts": []
+      },
+      "hover_groups_sampled": 7,
+      "tab_cycle_observed": true
+    }
+  },
+  "plan": [
+    {"screen":"metadata","state":"normal","theme":"light","width":1024,"height":768,"zoom":100,"original":null,"unsupported":"","condition":"1024x768/light/normal/100%","key":"normal/1024x768-light-100/metadata"},
+    {"screen":"metadata-ledger","state":"normal","theme":"light","width":1024,"height":768,"zoom":100,"original":null,"unsupported":"","condition":"1024x768/light/normal/100%","key":"normal/1024x768-light-100/metadata-ledger"},
+    {"screen":"recommend","state":"normal","theme":"light","width":1024,"height":768,"zoom":100,"original":null,"unsupported":"","condition":"1024x768/light/normal/100%","key":"normal/1024x768-light-100/recommend"},
+    {"screen":"learning-reset","state":"normal","theme":"light","width":1024,"height":768,"zoom":100,"original":null,"unsupported":"","condition":"1024x768/light/normal/100%","key":"normal/1024x768-light-100/learning-reset"},
+    {"screen":"metadata","state":"normal","theme":"dark","width":1024,"height":768,"zoom":100,"original":null,"unsupported":"","condition":"1024x768/dark/normal/100%","key":"normal/1024x768-dark-100/metadata"},
+    {"screen":"metadata-ledger","state":"normal","theme":"dark","width":1024,"height":768,"zoom":100,"original":null,"unsupported":"","condition":"1024x768/dark/normal/100%","key":"normal/1024x768-dark-100/metadata-ledger"},
+    {"screen":"recommend","state":"normal","theme":"dark","width":1024,"height":768,"zoom":100,"original":null,"unsupported":"","condition":"1024x768/dark/normal/100%","key":"normal/1024x768-dark-100/recommend"},
+    {"screen":"learning-reset","state":"normal","theme":"dark","width":1024,"height":768,"zoom":100,"original":null,"unsupported":"","condition":"1024x768/dark/normal/100%","key":"normal/1024x768-dark-100/learning-reset"},
+    {"screen":"metadata","state":"normal","theme":"light","width":1280,"height":800,"zoom":100,"original":null,"unsupported":"","condition":"1280x800/light/normal/100%","key":"normal/1280x800-light-100/metadata"},
+    {"screen":"metadata-ledger","state":"normal","theme":"light","width":1280,"height":800,"zoom":100,"original":null,"unsupported":"","condition":"1280x800/light/normal/100%","key":"normal/1280x800-light-100/metadata-ledger"},
+    {"screen":"recommend","state":"normal","theme":"light","width":1280,"height":800,"zoom":100,"original":null,"unsupported":"","condition":"1280x800/light/normal/100%","key":"normal/1280x800-light-100/recommend"},
+    {"screen":"learning-reset","state":"normal","theme":"light","width":1280,"height":800,"zoom":100,"original":null,"unsupported":"","condition":"1280x800/light/normal/100%","key":"normal/1280x800-light-100/learning-reset"},
+    {"screen":"metadata","state":"normal","theme":"dark","width":1280,"height":800,"zoom":100,"original":null,"unsupported":"","condition":"1280x800/dark/normal/100%","key":"normal/1280x800-dark-100/metadata"},
+    {"screen":"metadata-ledger","state":"normal","theme":"dark","width":1280,"height":800,"zoom":100,"original":null,"unsupported":"","condition":"1280x800/dark/normal/100%","key":"normal/1280x800-dark-100/metadata-ledger"},
+    {"screen":"recommend","state":"normal","theme":"dark","width":1280,"height":800,"zoom":100,"original":null,"unsupported":"","condition":"1280x800/dark/normal/100%","key":"normal/1280x800-dark-100/recommend"},
+    {"screen":"learning-reset","state":"normal","theme":"dark","width":1280,"height":800,"zoom":100,"original":null,"unsupported":"","condition":"1280x800/dark/normal/100%","key":"normal/1280x800-dark-100/learning-reset"},
+    {"screen":"metadata","state":"normal","theme":"light","width":1920,"height":1080,"zoom":100,"original":null,"unsupported":"","condition":"1920x1080/light/normal/100%","key":"normal/1920x1080-light-100/metadata"},
+    {"screen":"metadata-ledger","state":"normal","theme":"light","width":1920,"height":1080,"zoom":100,"original":null,"unsupported":"","condition":"1920x1080/light/normal/100%","key":"normal/1920x1080-light-100/metadata-ledger"},
+    {"screen":"recommend","state":"normal","theme":"light","width":1920,"height":1080,"zoom":100,"original":null,"unsupported":"","condition":"1920x1080/light/normal/100%","key":"normal/1920x1080-light-100/recommend"},
+    {"screen":"learning-reset","state":"normal","theme":"light","width":1920,"height":1080,"zoom":100,"original":null,"unsupported":"","condition":"1920x1080/light/normal/100%","key":"normal/1920x1080-light-100/learning-reset"},
+    {"screen":"metadata","state":"normal","theme":"dark","width":1920,"height":1080,"zoom":100,"original":null,"unsupported":"","condition":"1920x1080/dark/normal/100%","key":"normal/1920x1080-dark-100/metadata"},
+    {"screen":"metadata-ledger","state":"normal","theme":"dark","width":1920,"height":1080,"zoom":100,"original":null,"unsupported":"","condition":"1920x1080/dark/normal/100%","key":"normal/1920x1080-dark-100/metadata-ledger"},
+    {"screen":"recommend","state":"normal","theme":"dark","width":1920,"height":1080,"zoom":100,"original":null,"unsupported":"","condition":"1920x1080/dark/normal/100%","key":"normal/1920x1080-dark-100/recommend"},
+    {"screen":"learning-reset","state":"normal","theme":"dark","width":1920,"height":1080,"zoom":100,"original":null,"unsupported":"","condition":"1920x1080/dark/normal/100%","key":"normal/1920x1080-dark-100/learning-reset"},
+    {"screen":"metadata","state":"normal","theme":"light","width":1280,"height":800,"zoom":200,"original":null,"unsupported":"","condition":"1280x800/light/normal/200%","key":"normal/1280x800-light-200/metadata"},
+    {"screen":"metadata","state":"normal","theme":"dark","width":1280,"height":800,"zoom":200,"original":null,"unsupported":"","condition":"1280x800/dark/normal/200%","key":"normal/1280x800-dark-200/metadata"}
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "run_temp": "S:\\Work\\_tmp\\PV\\uiux-final-20261124\\capture-20261124_120815_168010",
+  "observed_by_image": {
+    "node.exe": 1,
+    "msedge.exe": 28,
+    "python.exe": 10,
+    "identity_helper.exe": 2
+  },
+  "remaining": [],
+  "owned_ports_closed": {
+    "22627": true
+  }
+}
