@@ -30,7 +30,13 @@ def _important(record):
     return is_pinned_notice(record) or record['phase'] in ('stopped', 'failed')
 
 
-def retry_status_text(records, *, acknowledged=(), limit=3, countdown=True):
+_RATE_STOP_SCOPE = ('同じ通信の仕組みを使う取得は、この起動中は停止しています。'
+                    '今回の停止は再起動後に残る停止として記録しません。')
+_RATE_STOP_NEXT = 'アプリを起動し直した後、必要な取得を手動でやり直してください。'
+_RATE_STOP_PAST = '再起動後も、過去に記録した通信停止は残ります。自動再送は行いません。'
+
+
+def retry_status_text(records, *, acknowledged=(), limit=3, countdown=True, compact=False):
     messages=[]
     for record in records:
         if is_pinned_notice(record) and record.get('notice_id') in acknowledged:
@@ -85,10 +91,8 @@ def retry_status_text(records, *, acknowledged=(), limit=3, countdown=True):
             else:
                 message=(f'今回のHTTP 429: この操作の試行表示 {attempt}/{attempt_limit}。429の試行上限に達したため、通信を止めています。'
                          'この記録には停止原因の処理が残っていないため、この操作自身か別の取得処理かは特定できません。')
-            messages.append(message+'同じ通信の仕組みを使う取得は、この起動中は停止しています。'
-                            '今回の停止は再起動後に残る停止として記録しません。'
-                            'アプリを起動し直した後、必要な取得を手動でやり直してください。'
-                            '再起動後も、過去に記録した通信停止は残ります。自動再送は行いません。')
+            messages.append(message + (_RATE_STOP_NEXT if compact else
+                                       _RATE_STOP_SCOPE + _RATE_STOP_NEXT + _RATE_STOP_PAST))
         elif phase in ('stopped','failed'):
             messages.append(f'{reason}: 試行 {attempt}/{attempt_limit}で取得を終了しました。')
         elif phase=='cancelled':
@@ -101,8 +105,9 @@ def _storage_authority_text(record):
 
 
 class RequestStatusView:
-    def __init__(self, policy, *, prefix="request-retry"):
+    def __init__(self, policy, *, prefix="request-retry", compact=False):
         self.policy = policy
+        self.compact = compact
         self._closed = False
         self._dismissed = set()
         self._acknowledged = {}
@@ -116,6 +121,14 @@ class RequestStatusView:
         with ui.element('div').classes('w-full') as self.root:
             self.label = status_label(testid=f'{prefix}-status', classes='pv-subtitle pv-request-status')
             self.progress = status_label(testid=f'{prefix}-progress', classes='pv-subtitle pv-request-status pv-warning-banner')
+            if compact:
+                with ui.element('details').classes('pv-request-stop-details') as self.stop_details:
+                    with ui.element('summary').classes('pv-hit28 pv-focus-ring').props(
+                            f'data-testid={prefix}-stop-details-toggle'):
+                        ui.label('停止の詳細')
+                    ui.label(_RATE_STOP_SCOPE + _RATE_STOP_PAST).classes(
+                        'pv-request-stop-supplement pv-focus-ring').props(
+                        f'tabindex=0 data-testid={prefix}-stop-details-text')
             self.more_button = secondary_button('', self.toggle_more, testid=f'{prefix}-more')
             self.details = status_label(testid=f'{prefix}-details', classes='pv-subtitle pv-request-status')
             self.detail_progress = status_label(testid=f'{prefix}-details-progress', classes='pv-subtitle pv-request-status')
@@ -197,7 +210,11 @@ class RequestStatusView:
         self._shown_important, self._shown_pinned = shown_important, shown_pinned
         tone = 'pv-alert-banner' if important or any(map(is_pinned_notice, overflow)) else 'pv-warning-banner'
         self.label.classes(remove='pv-alert-banner pv-warning-banner', add=tone)
-        announcements = self._render_lines(displayed, self.label, self.progress)
+        rate_stop = self.compact and any(is_rate_stop_notice(record) for record in displayed)
+        if self.compact:
+            self.stop_details.set_visibility(rate_stop)
+            self.label.props['data-rate-stop'] = str(rate_stop).lower()
+        announcements = self._render_lines(displayed, self.label, self.progress, compact=rate_stop)
         pins = sum(is_pinned_notice(record) for record in overflow)
         summary = f'ほか {len(overflow)} 件' + (f'（停止 {pins} 件）' if pins else '')
         self.more_button.set_text('明細を閉じる' if self._expanded else summary)
@@ -214,7 +231,7 @@ class RequestStatusView:
             not can_confirm and any(is_pinned_notice(record) or is_rate_stop_notice(record) for record in records))
         self.root.set_visibility(bool(displayed))
 
-    def _render_lines(self, records, main, progress):
+    def _render_lines(self, records, main, progress, *, compact=False):
         alerts = [record for record in records if _important(record)]
         routine = [record for record in records if not _important(record)]
         countdown = any(record['phase'] == 'waiting' for record in routine)
@@ -225,7 +242,7 @@ class RequestStatusView:
             main.props.pop('aria-live')
         progress.props['aria-live'] = 'off' if countdown else 'polite'
         for label, lines in ((main, alerts or routine), (progress, routine if alerts else [])):
-            message = retry_status_text(lines, acknowledged=self._acknowledged, limit=None)
+            message = retry_status_text(lines, acknowledged=self._acknowledged, limit=None, compact=compact)
             label.set_text(message)
             label.props['title'] = message
             label.set_visibility(bool(message))

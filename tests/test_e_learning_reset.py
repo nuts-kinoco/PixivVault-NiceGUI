@@ -83,8 +83,14 @@ async def test_reset_dialog_text_gate_and_execution(tmp_path, monkeypatch):
     try:
         with client:
             v = LearningView(s)
-            v.active = True
-            r = v.reset_view
+            from pixivvault_nicegui.ui.learning_reset import LearningResetView
+            from pixivvault_nicegui.ui.preferences_view import PreferencesView
+
+            preferences = PreferencesView(s.preferences, build_learning_reset=lambda is_open:
+                                          LearningResetView(v, v.storage, is_open=is_open))
+            preferences.open()
+            r = preferences.learning_reset
+            assert not v.active
             assert r.item_label.text == '学習状況のリセット'
             assert r.button.text == '学習状況をリセット'
             await r.refresh()
@@ -118,6 +124,7 @@ async def test_reset_dialog_text_gate_and_execution(tmp_path, monkeypatch):
             assert r.notice.text == '学習状況: リセットしました'
             assert r.desc.text == 'まだ判定がありません。'
             assert not r.dialog.value
+            preferences.close()
             v.close()
     finally:
         s.close()
@@ -129,8 +136,14 @@ async def test_reset_failure_keeps_data_and_shows_no_raw_error(tmp_path, monkeyp
     try:
         with client:
             v = LearningView(s)
-            v.active = True
-            r = v.reset_view
+            from pixivvault_nicegui.ui.learning_reset import LearningResetView
+            from pixivvault_nicegui.ui.preferences_view import PreferencesView
+
+            preferences = PreferencesView(s.preferences, build_learning_reset=lambda is_open:
+                                          LearningResetView(v, v.storage, is_open=is_open))
+            preferences.open()
+            r = preferences.learning_reset
+            assert not v.active
             session = await s.learning.open_session()
             await s.learning.record(session.session_id, Judgment('demo-0001', 'like', 'o1'))
             await r.refresh()
@@ -146,6 +159,7 @@ async def test_reset_failure_keeps_data_and_shows_no_raw_error(tmp_path, monkeyp
             assert 'private-data' not in r.notice.text
             assert r.notice.text.startswith('学習状況: リセットに失敗しました')
             assert await s.learning.judged_count() == 1
+            preferences.close()
             v.close()
     finally:
         s.close()

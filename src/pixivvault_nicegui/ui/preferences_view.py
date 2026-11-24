@@ -140,7 +140,7 @@ def _set_status_alert(label, active, *, normal_role=None):
 
 
 class PreferencesView:
-    def __init__(self, store, *, enabled_keys=(), unavailable_reasons=None, on_change=None, desktop=None, clear_cache=None, extension_status=None, export_legacy=None, export_metadata=None, native_profile=None, following_sync=None, pixiv_actions_mode='readonly', extension_counts=None, extension_reasons=None, extension_snapshot=None, vault=None, similarity_status=None, resume_similarity=None, tagger=None, on_tagger_change=None, visual_service=None, build_automation=None):
+    def __init__(self, store, *, enabled_keys=(), unavailable_reasons=None, on_change=None, desktop=None, clear_cache=None, extension_status=None, export_legacy=None, export_metadata=None, native_profile=None, following_sync=None, pixiv_actions_mode='readonly', extension_counts=None, extension_reasons=None, extension_snapshot=None, vault=None, similarity_status=None, resume_similarity=None, tagger=None, on_tagger_change=None, visual_service=None, build_automation=None, build_learning_reset=None):
         if pixiv_actions_mode not in ('readonly', 'enabled', 'preferences'):
             raise ValueError('invalid Pixiv action policy')
         self.pixiv_actions_mode=pixiv_actions_mode
@@ -152,6 +152,8 @@ class PreferencesView:
         self._similarity_timer=None
         self.visual_service = visual_service
         self.build_automation = build_automation
+        self.build_learning_reset = build_learning_reset
+        self.learning_reset = None
         self._visual_timer = None
         self._visual_confirm = None
         self._visual_clear_target = None
@@ -186,6 +188,7 @@ class PreferencesView:
         self.following_sync=following_sync
         self.export_busy=False
         self.export_message=''
+        self.export_includes_images=False
         self.export_button=None
         self.export_metadata_button=None
         self.export_status=None
@@ -218,7 +221,11 @@ class PreferencesView:
             group.open()
 
     def open(self):
-        if self.closed: return
+        if self.closed or (self.learning_reset is not None and self.learning_reset.busy):
+            return
+        if self.learning_reset is not None:
+            self.learning_reset.close()
+            self.learning_reset = None
         self._close_visual_controls()
         self._visual_action_error = None
         if self._similarity_timer is not None:
@@ -261,6 +268,10 @@ class PreferencesView:
                 if self.snapshot is not None:
                     self._build_settings(epoch)
                 self._build_vault_settings()
+                if self.build_learning_reset is not None:
+                    with settings_group('学習状況', heading_testid='preferences-learning-heading'):
+                        self.learning_reset = self.build_learning_reset(
+                            lambda: self.opened and self._epoch == epoch)
             with ui.column().classes('w-full pv-preferences-footer'):
                 self.status = ui.label(message).classes('pv-subtitle pv-compact-status').props(
                     'data-testid=preferences-status role=status')
@@ -300,15 +311,19 @@ class PreferencesView:
             self.export_metadata_button=secondary_button('エクスポートを実行', self.run_metadata_export, icon='archive',
                 testid='preferences-export-metadata')
             self.export_metadata_button.set_enabled(self.export_metadata is not None and not self.export_busy)
+            metadata_result = ui.column().classes('w-full gap-0 pv-hide-empty')
             ui.label('旧データベース、作品メタデータ、指定した画像フォルダーをZIPに保存します。').classes('pv-field-hint')
             ui.label('同じ画像は1回だけ保存します。全ての元のパスに復元するには、ZIP内の RESTORE_IMAGES.txt の手順を使ってください。').classes('pv-field-hint')
             self.export_button=secondary_button('DBと画像をZIPへ保存', self.run_legacy_export, icon='archive',
                 testid='preferences-export-db')
             self.export_button.set_enabled(self.export_legacy is not None and not self.export_busy)
+            archive_result = ui.column().classes('w-full gap-0 pv-hide-empty')
             if self.export_legacy is None:
                 ui.label('この起動では読取専用の旧DBと専用設定保存先の両方が必要です。').classes('pv-field-hint')
-            self.export_status=ui.label(self.export_message).classes('pv-compact-status').props('data-testid=preferences-export-status role=status')
-            self.export_notices=ui.column().classes('w-full gap-0 pv-hide-empty')
+            self.export_results = {False: metadata_result, True: archive_result}
+            with self.export_results[self.export_includes_images], ui.column().classes('w-full gap-0') as self.export_result:
+                self.export_status=ui.label(self.export_message).classes('pv-compact-status').props('data-testid=preferences-export-status role=status')
+                self.export_notices=ui.column().classes('w-full gap-0 pv-hide-empty')
 
         self._build_preference_group('詳細設定', groups.pop('詳細設定', ()))
         with settings_group('ブラウザ拡張機能', collapsible=True, default_open=False):
@@ -603,6 +618,9 @@ class PreferencesView:
         if self.closed or not self.opened or self.export_busy or export is None:
             return
         self.export_busy=True
+        if self.export_includes_images != include_images:
+            self.export_includes_images=include_images
+            self.export_result.move(self.export_results[include_images])
         self.export_notices.clear()
         self.export_message='エクスポート中…'
         self.export_button.set_enabled(False)
@@ -640,8 +658,12 @@ class PreferencesView:
                     elif succeeded:
                         notify_action('エクスポートが完了しました。', type='positive')
                     else:
-                        notify_action('エクスポートに失敗しました。', type='negative',
-                                      within_dialog=notices, return_focus=return_focus)
+                        result_notice = notify_action('エクスポートに失敗しました。', type='negative',
+                                                      within_dialog=notices, return_focus=return_focus)
+                        if notices is not None:
+                            alert, _, _ = result_notice
+                            ui.run_javascript(
+                                f"document.getElementById('{alert.html_id}')?.scrollIntoView({{block:'nearest'}})")
 
     def save(self):
         if self.closed or not self.opened or self.snapshot is None: return False
@@ -741,6 +763,8 @@ class PreferencesView:
             if not self.save():
                 return
         self.opened=False
+        if self.learning_reset is not None:
+            self.learning_reset.dialog.close()
         self._close_visual_controls()
         if self._tagger_timer is not None:
             self._tagger_timer.cancel()
@@ -758,5 +782,7 @@ class PreferencesView:
     def close(self):
         self.closed=True
         self.close_dialog()
+        if self.learning_reset is not None:
+            self.learning_reset.close()
         if self.following_sync is not None:
             self.following_sync.close()

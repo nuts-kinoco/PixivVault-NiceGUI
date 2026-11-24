@@ -153,7 +153,7 @@ class DemoShell:
                                 self.get_recovery_view = SharedGetRecoveryView(shared)
                         policy=getattr(self.services,'_request_retry',None)
                         if policy is not None:
-                            self.request_status_view = RequestStatusView(policy)
+                            self.request_status_view = RequestStatusView(policy, compact=True)
                             self.request_status_view.root.classes('pv-header-request-status')
                     # 元 gui.py:6125-6136 の右カラム: IconButton 6 個（バックアップ・閲覧履歴・保存フォルダー・テーマ・Pixiv・設定）。
                     with ui.element("div").classes("pv-header-actions"):
@@ -425,8 +425,17 @@ class DemoShell:
                 similarity_status=(self.services.similarity_analysis_status if self.services.similarity_analysis_enabled else None),
                 resume_similarity=(self.services.rescan_similarity_analysis if self.services.similarity_analysis_enabled else None),
                 visual_service=(self.services if getattr(self.services, 'visual_preference_available', False) else None),
-                build_automation=self._build_automation_settings)
+                build_automation=self._build_automation_settings,
+                build_learning_reset=(self._build_learning_reset if
+                    getattr(self.services, 'discovery', None) is not None or
+                    getattr(self.services, 'learning', None) is not None else None))
         self.preferences_view.open()
+
+    def _build_learning_reset(self, is_open):
+        from .learning_reset import LearningResetView
+
+        learning = self._ensure_learning_view()
+        return LearningResetView(learning, learning.storage, is_open=is_open)
 
     def _build_automation_settings(self):
         self.automation.refresh_summary()
@@ -586,13 +595,8 @@ class DemoShell:
             from .viewer_backup_view import ViewerBackupView
             with self.content:
                 self.backup_view=ViewerBackupView(self.services,card_size=self.card_size,on_size_change=self.change_card_size)
-        if tab == "learning" and self.learning is None:
-            from .learning_view import LearningView
-            with self.content:
-                self.learning = LearningView(self.services, on_open_preferences=self.open_preferences)
-            history_view = getattr(self.learning, 'view_history', None)
-            if history_view is not None:
-                history_view.on_count = self.set_view_history_count
+        if tab == "learning":
+            self._ensure_learning_view()
         if tab == "library" and self.library is None:
             from .library_view import LibraryView
             with self.content:
@@ -720,6 +724,17 @@ class DemoShell:
         self.theme_button.icon = 'light_mode' if dark else 'dark_mode'
         self.theme_button.props(f'aria-label={label}')
         self.theme_tooltip.set_text(label)
+
+    def _ensure_learning_view(self):
+        if self.learning is None:
+            from .learning_view import LearningView
+
+            with self.content:
+                self.learning = LearningView(self.services, on_open_preferences=self.open_preferences)
+            history_view = getattr(self.learning, 'view_history', None)
+            if history_view is not None:
+                history_view.on_count = self.set_view_history_count
+        return self.learning
 
     def change_card_size(self, size: str) -> None:
         if size not in MAX_COLUMNS:

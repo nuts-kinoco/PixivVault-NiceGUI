@@ -185,7 +185,7 @@ def serve_port(port, nonce):
 
         view.controller.refresh = read
 
-    def with_reset_fixture(view, parent, storage):
+    def with_reset_fixture(view, parent, storage, **kwargs):
         class ResetCount:
             def __getattr__(self, name):
                 return getattr(storage, name)
@@ -194,7 +194,7 @@ def serve_port(port, nonce):
                 return max(1, await storage.judged_count())
 
         fake_count = os.environ.get('PV_UIUX_RETRY_JUDGED') == '1'
-        initialize_reset(view, parent, ResetCount() if fake_count else storage)
+        initialize_reset(view, parent, ResetCount() if fake_count else storage, **kwargs)
 
     def synthetic_login(profile):
         profile.auth_status.publish(
@@ -265,7 +265,7 @@ def open_port(page, cell, specs):
         p5.smoke.set_theme(page, cell.theme)
         return True, None
     if key in {'settings', 'extension', 'extension-confirm', 'toast-success', 'toast-error',
-               'premium-recovery', 'startup-and-storage'}:
+               'premium-recovery', 'startup-and-storage', 'learning-reset'}:
         opener = settings(page)
         if key in {'extension', 'extension-confirm'}:
             if not page.get_by_test_id('extension-status').filter(visible=True).count():
@@ -279,6 +279,9 @@ def open_port(page, cell, specs):
             click(page, 'preferences-export-metadata')
             notice = '.pv-preferences-card .pv-dialog-alert' if key == 'toast-error' else '.q-notification'
             page.locator(notice).filter(visible=True).first.wait_for(timeout=5500)
+        if key == 'learning-reset':
+            opener = click(page, 'learning-reset-open')
+            ready(page, 'learning-reset-confirm')
         if key == 'startup-and-storage':
             ready(page, 'native-profile-pick-folder').scroll_into_view_if_needed()
         if key == 'premium-recovery':
@@ -311,7 +314,7 @@ def open_port(page, cell, specs):
 
     parents = {
         'ranking-date': 'ranking', 'personal-filters': 'personal', 'dedup-trash': 'dedup',
-        'learning-settings': 'learning', 'learning-review': 'learning', 'learning-reset': 'learning',
+        'learning-settings': 'learning', 'learning-review': 'learning',
         'download-details': 'download', 'viewer': 'ranking',
         'queue-delete-confirm': 'queue', 'failed-delete-confirm': 'failed',
     }
@@ -331,7 +334,6 @@ def open_port(page, cell, specs):
         'dedup-trash': ('duplicate-trash', 'duplicate-trash-status'),
         'learning-settings': ('discovery-settings-open', 'discovery-settings-panel'),
         'learning-review': ('learning-review-open', 'learning-review-dialog'),
-        'learning-reset': ('learning-reset-open', 'learning-reset-confirm'),
         'download-details': ('unified-details-open', 'unified-details-dialog'),
         'failed-delete-confirm': ('failed-row-delete', 'failed-remove-dialog'),
     }

@@ -23,8 +23,9 @@ def description(judged):
 
 
 class LearningResetView:
-    def __init__(self, parent, storage):
+    def __init__(self, parent, storage, *, is_open=None):
         self.parent, self.storage = parent, storage
+        self.is_open = is_open if is_open is not None else lambda: parent.active
         self.closed = self.busy = False
         self.judged = 0
         self.generation = 0
@@ -35,7 +36,7 @@ class LearningResetView:
                 'flat no-caps data-testid=learning-reset-open')
             self.notice = ui.label().props('role=status data-testid=learning-reset-status')
         self.button.set_enabled(False)
-        with managed_dialog().props(
+        with managed_dialog(return_focus=self.button).props(
             'no-backdrop-dismiss transition-duration=150 data-testid=learning-reset-dialog '
             'aria-label=学習状況のリセット') as self.dialog, \
                 ui.card().classes('pv-dialog-card w-full').style('max-width:520px'):
@@ -71,7 +72,7 @@ class LearningResetView:
 
     def _available(self):
         p = self.parent
-        return (not self.closed and not self.busy and p.active and not p.state.closed
+        return (not self.closed and not self.busy and self.is_open() and not p.state.closed
                 and not p.services.closing and p._storage_ready and not p._storage_busy
                 and not p.state.saving and not p._review_busy and not getattr(p, '_review_mutating', False))
 
@@ -95,7 +96,7 @@ class LearningResetView:
         if not self._available():
             return
         judged = await self.refresh()
-        if judged <= 0 or self.closed:
+        if judged <= 0 or not self._available():
             return
         self.notice.set_text('')
         self.title.set_text(f'学習状況のリセット（判定 {judged}枚）')
@@ -153,4 +154,5 @@ class LearningResetView:
     def close(self):
         self.closed = True
         self.generation += 1
+        self.initial.cancel()
         self.dialog.close()

@@ -298,22 +298,21 @@ class LearningView:
                 # 元 discovery_tab.py:3295-3302 の「探索の設定 ▸」引き出し。畳んだ行だけが流れに入り、開いた板は重ね置き。
                 ui.label('判定は保存され、次に出す候補の並べ替えに反映されます。').classes('pv-subtitle')
                 with ui.element('div').classes('relative') as settings_anchor:
-                    with ui.card().classes('gap-2').props('role=region aria-label=探索の設定 data-testid=discovery-settings-panel').style(
-                            'position:absolute;left:0;top:100%;z-index:25;width:min(320px,calc(100vw - 32px));'
-                            'background:var(--pv-overlay);border:1px solid var(--pv-border);box-sizing:border-box;'
-                            'padding:10px;') as self.settings_panel:
-                        self.settings_subject,self.settings_subject_text=self._explore_slider('知らないジャンルを見る割合','discovery-settings-subject')
-                        self.settings_style,self.settings_style_text=self._explore_slider('知らない絵柄を見る割合','discovery-settings-style')
-                        self.settings_mode=ui.select({'all':'すべて','safe':'全年齢','r18':'R-18'},value='all',label='検索対象',
-                            on_change=lambda _:self._settings_commit()).props('outlined dense data-testid=discovery-settings-mode').classes('w-full')
-                        self.settings_status=ui.label().classes('pv-subtitle').props('role=status data-testid=discovery-settings-status')
-                    self.settings_panel.set_visibility(False)
                     self.settings_button = ui.button(on_click=self.toggle_discovery_settings).props(
                         'flat dense no-caps align=between aria-expanded=false data-testid=discovery-settings-open')
                     with self.settings_button:
                         ui.label('探索の設定').classes('pv-subtitle').style('flex:1 1 auto;text-align:left')
                         self.settings_arrow=ui.icon('keyboard_arrow_right').style('font-size:15px;color:var(--pv-muted)')
                         ui.tooltip('どのくらい知らないものを見るかを変えます')
+                    with ui.card().classes('gap-2 pv-discovery-settings-panel').props(
+                            'role=region aria-label=探索の設定 data-testid=discovery-settings-panel') as self.settings_panel:
+                        self.settings_subject,self.settings_subject_text=self._explore_slider('知らないジャンルを見る割合','discovery-settings-subject')
+                        self.settings_style,self.settings_style_text=self._explore_slider('知らない絵柄を見る割合','discovery-settings-style')
+                        self.settings_mode=ui.select({'all':'すべて','safe':'全年齢','r18':'R-18'},value='all',label='検索対象',
+                            on_change=lambda _:self._settings_commit()).props('outlined dense data-testid=discovery-settings-mode').classes('w-full')
+                        self.settings_status=ui.label().classes('pv-subtitle').props('role=status data-testid=discovery-settings-status')
+                    self.settings_panel.set_visibility(False)
+                    self.settings_button.props['aria-controls'] = self.settings_panel.html_id
                 with ui.row().classes('pv-learning-actions w-full items-center gap-2') as actions:
                     settings_anchor.move(actions)
                     self.fetch_button = ui.button('候補を取得', on_click=self.fetch_discovery).props('outline dense no-caps data-testid=discovery-fetch')
@@ -344,8 +343,6 @@ class LearningView:
             self.review_button = ui.button('振り返り', on_click=self.open_review).props('flat dense no-caps data-testid=learning-review-open')
             from .view_history_view import ViewHistoryView
             self.view_history = ViewHistoryView(self, self.storage)
-            from .learning_reset import LearningResetView
-            self.reset_view = LearningResetView(self, self.storage) if self.storage is not None else None
 
             self.review_button.set_visibility(self.storage is not None)
             self.swipe_area = ui.column().classes('pv-learning-swipe w-full')
@@ -2611,7 +2608,6 @@ class LearningView:
             self._local_revision_task.cancel()
         self.toast.close()
         self.view_history.close()
-        if self.reset_view is not None:self.reset_view.close()
         self._stop_initial_load()
         self._stop_candidate_refill()
         self._stop_prefetch(close=True)
