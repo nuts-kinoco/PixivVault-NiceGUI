@@ -1,0 +1,39 @@
+============================= test session starts =============================
+platform win32 -- Python 3.13.11, pytest-8.4.2, pluggy-1.7.0
+rootdir: S:\Work\PV\uiux-final-20261124
+configfile: pyproject.toml
+plugins: anyio-4.15.1, asyncio-1.2.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function
+collected 75 items / 74 deselected / 1 selected
+
+tests\test_ui_common_browser.py F                                        [100%]
+
+================================== FAILURES ===================================
+___________________ test_recommend_notice_has_visible_focus ___________________
+
+zoom_page = (<Page url='http://127.0.0.1:54975/?_audit_theme=light&_audit_screen=recommend'>, 'http://127.0.0.1:54975', 100)
+
+    def test_recommend_notice_has_visible_focus(zoom_page):
+        from playwright.sync_api import expect
+
+        page, origin, _ = zoom_page
+        cell = audit.Cell('recommend', 'normal', 'light', 1280, 800, 100, None)
+        audit.load_page(page, origin, cell)
+        uiux_fixture.open_port(page, cell, p5.helpers.load_expectations()['screens'])
+        notice = page.get_by_test_id('recommend-notice')
+        expect(notice).not_to_have_text('')
+        page.keyboard.press('Tab')
+        notice.focus()
+        expect(notice).to_be_focused()
+>       assert notice.evaluate('''e => {
+            const style = getComputedStyle(e);
+            return e.matches(':focus-visible') && parseFloat(style.outlineWidth) >= 2 && style.boxShadow !== 'none';
+        }''')
+E       assert False
+E        +  where False = evaluate("e => {\n        const style = getComputedStyle(e);\n        return e.matches(':focus-visible') && parseFloat(style.outlineWidth) >= 2 && style.boxShadow !== 'none';\n    }")
+E        +    where evaluate = <Locator frame=<Frame name= url='http://127.0.0.1:54975/?_audit_theme=light&_audit_screen=recommend'> selector='internal:testid=[data-testid="recommend-notice"s]'>.evaluate
+
+tests\test_ui_common_browser.py:368: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_ui_common_browser.py::test_recommend_notice_has_visible_focus
+====================== 1 failed, 74 deselected in 10.09s ======================

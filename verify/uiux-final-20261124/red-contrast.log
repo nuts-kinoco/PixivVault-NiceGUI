@@ -1,0 +1,49 @@
+============================= test session starts =============================
+platform win32 -- Python 3.13.11, pytest-8.4.2, pluggy-1.7.0
+rootdir: S:\Work\PV\uiux-final-20261124
+configfile: pyproject.toml
+plugins: anyio-4.15.1, asyncio-1.2.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function
+collected 19 items / 14 deselected / 5 selected
+
+tools\test_uiux_audit.py FF...                                           [100%]
+
+================================== FAILURES ===================================
+_______ test_small_bold_text_requires_normal_text_contrast[13-700-True] _______
+
+size = 13, weight = 700, needs_45 = True
+
+    @pytest.mark.parametrize(('size', 'weight', 'needs_45'), (
+        (13, 700, True), (18.6, 700, True), (18.7, 700, False),
+        (23.9, 400, True), (24, 400, False),
+    ))
+    def test_small_bold_text_requires_normal_text_contrast(size, weight, needs_45):
+        nodes = FakeComputedDOM('<p id="sample" aria-label="本文" style="color:130,130,130"></p>').nodes
+        nodes[0].update(fontSize=size, weight=weight)
+        findings = inspect(dict(nodes=nodes, viewport=[1280, 800]), zoom=100)
+>       assert any(row['item'] == 'A1' and row['threshold'] == 4.5 for row in findings) == needs_45
+E       assert False == True
+E        +  where False = any(<generator object test_small_bold_text_requires_normal_text_contrast.<locals>.<genexpr> at 0x000001F35DAA0860>)
+
+tools\test_uiux_audit.py:70: AssertionError
+______ test_small_bold_text_requires_normal_text_contrast[18.6-700-True] ______
+
+size = 18.6, weight = 700, needs_45 = True
+
+    @pytest.mark.parametrize(('size', 'weight', 'needs_45'), (
+        (13, 700, True), (18.6, 700, True), (18.7, 700, False),
+        (23.9, 400, True), (24, 400, False),
+    ))
+    def test_small_bold_text_requires_normal_text_contrast(size, weight, needs_45):
+        nodes = FakeComputedDOM('<p id="sample" aria-label="本文" style="color:130,130,130"></p>').nodes
+        nodes[0].update(fontSize=size, weight=weight)
+        findings = inspect(dict(nodes=nodes, viewport=[1280, 800]), zoom=100)
+>       assert any(row['item'] == 'A1' and row['threshold'] == 4.5 for row in findings) == needs_45
+E       assert False == True
+E        +  where False = any(<generator object test_small_bold_text_requires_normal_text_contrast.<locals>.<genexpr> at 0x000001F35DA9CE10>)
+
+tools\test_uiux_audit.py:70: AssertionError
+=========================== short test summary info ===========================
+FAILED tools/test_uiux_audit.py::test_small_bold_text_requires_normal_text_contrast[13-700-True]
+FAILED tools/test_uiux_audit.py::test_small_bold_text_requires_normal_text_contrast[18.6-700-True]
+================= 2 failed, 3 passed, 14 deselected in 0.16s ==================

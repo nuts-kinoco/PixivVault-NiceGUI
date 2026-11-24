@@ -1,0 +1,12 @@
+settings preference-meta_backfill_enabled enabled True {'rect': [460.578125, 19.5], 'hits': [True, True, True, True]}
+settings preference-visual_preference_enabled enabled True {'rect': [240.09375, 19.5], 'hits': [True, True, True, True]}
+settings preference-visual_preference_thumb_prefetch enabled True {'rect': [304.453125, 19.5], 'hits': [True, True, True, True]}
+settings preference-bookmark_auto_refresh enabled True {'rect': [266.09375, 19.5], 'hits': [True, True, True, True]}
+settings preference-legacy_novel_thumbnail_auto enabled True {'rect': [278.84375, 19.5], 'hits': [True, True, True, True]}
+settings preference-extension_bridge_enabled enabled True {'rect': [440.46875, 19.5], 'hits': [True, True, True, True]}
+history first Escape True True
+history second Escape True True
+download unified-header-check {'rect': [16, 16], 'hits': [True, True, True, True]}
+download unified-band-hint-row {'rect': [602, 16.5], 'hits': [True, True, True, True]}
+denials 0
+lifecycle {'run_temp': 'S:\\Work\\_tmp\\PV\\uiux-final-20261124\\final-probe-hit', 'observed_by_image': {'python.exe': 2, 'node.exe': 1, 'msedge.exe': 7}, 'remaining': [], 'owned_ports_closed': {22624: True}}

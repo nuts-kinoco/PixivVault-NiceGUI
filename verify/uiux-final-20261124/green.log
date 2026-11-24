@@ -1,0 +1,18 @@
+============================= test session starts =============================
+platform win32 -- Python 3.13.11, pytest-8.4.2, pluggy-1.7.0
+rootdir: S:\Work\PV\uiux-final-20261124
+configfile: pyproject.toml
+plugins: anyio-4.15.1, asyncio-1.2.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function
+collected 106 items / 69 deselected / 37 selected
+
+tests\test_ui_common_browser.py ......                                   [ 16%]
+tests\test_ui_common_accessibility.py .....                              [ 29%]
+tests\test_p6_network.py .......                                         [ 48%]
+tools\test_uiux_audit.py ................sss                             [100%]
+
+=========================== short test summary info ===========================
+SKIPPED [1] tools\test_uiux_audit.py:162: Chromium suite requires explicit invocation
+SKIPPED [1] tools\test_uiux_audit.py:212: Chromium suite requires explicit invocation
+SKIPPED [1] tools\test_uiux_audit.py:254: Chromium suite requires explicit invocation
+================ 34 passed, 3 skipped, 69 deselected in 24.59s ================

@@ -39,6 +39,8 @@ AREA_OUTPUT = ROOT / 'verify/uiimg-20261122/r1'
 DOM = Path(__file__).with_name('uiux_dom.js').read_text(encoding='utf-8')
 STATES = ('normal', 'empty', 'long', 'error', 'loading')
 SIZES = ((1024, 768, 100), (1280, 800, 100), (1920, 1080, 100), (1280, 800, 200))
+FINAL_ZOOM_SCREENS = {'download', 'learning', 'personal', 'bookmarks', 'settings', 'scheduler',
+                      'metadata', 'stop-recovery', 'queue-delete-confirm'}
 SCREENS = {
     **{key: 'normal empty long' for key in p5.SCREENS},
     'ranking': 'normal empty long error loading',
@@ -135,6 +137,12 @@ def plan_image_area(screens=None):
             for key in screens or image_area.LABELS]
 
 
+def plan_final(screens=None, states=None):
+    return [replace(cell, original=None) for cell in plan(screens, states or ('normal', 'error', 'loading'))
+            if not cell.unsupported and (states or cell.state == SCREENS[cell.screen].split()[0])
+            and (cell.zoom == 100 or cell.screen in FINAL_ZOOM_SCREENS)]
+
+
 class QuietPeriod(RuntimeError):
     pass
 
@@ -201,8 +209,13 @@ def keyboard(page, baseline, opener):
                                    '見た目の順に移動', status='review'))
 
     if modal:
+        from playwright.sync_api import TimeoutError
+
         page.keyboard.press('Escape')
-        page.wait_for_timeout(270)
+        try:
+            page.locator(modal).filter(visible=True).wait_for(state='hidden', timeout=900)
+        except TimeoutError:
+            pass
         after = scan(page, focusOnly=True)
         remains = page.locator(modal).filter(visible=True).count()
         if remains:
@@ -276,8 +289,9 @@ def output_path(out, path):
     return path.relative_to(out).as_posix()
 
 
-def screenshot(page, path, cell):
-    pixels = page.screenshot(timeout=10000, scale='device')
+def screenshot(page, path, cell, *, redact=False):
+    style = '[data-testid=scheduler-account] { color: transparent !important; }' if redact else None
+    pixels = page.screenshot(timeout=10000, scale='device', style=style)
     with Image.open(BytesIO(pixels)) as image:
         if image.size != (cell.width, cell.height):
             raise ValueError('physical screenshot dimensions not confirmed')
@@ -293,7 +307,7 @@ def load_page(page, url, cell, *, original=False):
         p5.original.set_theme(page, cell.theme)
     else:
         page.wait_for_function('window.did_handshake === true', timeout=10000)
-        fixture.ready(page, 'tab-library')
+        page.get_by_test_id('tab-library').wait_for(state='attached', timeout=5500)
         if not smoke.set_theme(page, cell.theme):
             raise ValueError('theme not confirmed')
 
@@ -311,7 +325,8 @@ def capture_settings_groups(page, out, folder, record):
     record['group_titles'] = {group['image']: group['title'] for group in groups}
 
 
-def capture_port(page, url, cell, out, folder, specs, record, *, prime_zoom=False, checkpoint=None):
+def capture_port(page, url, cell, out, folder, specs, record, *, prime_zoom=False, checkpoint=None,
+                 final=False):
     from playwright.sync_api import Error
 
     record['port_step'] = 'load'
@@ -357,7 +372,7 @@ def capture_port(page, url, cell, out, folder, specs, record, *, prime_zoom=Fals
         raise ValueError('browser zoom not confirmed')
     record['port_step'] = 'screenshot'
     path = folder / 'port.png'
-    screenshot(page, path, cell)
+    screenshot(page, path, cell, redact=final)
     record.update(product=output_path(out, path), state_proven=bool(state_proven),
                   observed_viewport=baseline['viewport'], device_scale=baseline['zoom'])
     findings = inspect(baseline, zoom=cell.zoom)
@@ -561,8 +576,9 @@ def capture_batch(context, sources, out, cells, metadata, records, args, owned):
 
     specs = p5.helpers.load_expectations()['screens']
     foreign = set()
-    old_font = p5.ORIGINAL_JAPANESE_FONT.read_bytes()
-    allowed = {f'127.0.0.1:{port}' for port in (args.port, args.original_port)}
+    old_font = p5.ORIGINAL_JAPANESE_FONT.read_bytes() if any(cell.original for cell in cells) else None
+    ports = (args.port,) if args.final else (args.port, args.original_port)
+    allowed = {f'127.0.0.1:{port}' for port in ports}
 
     def restrict_requests(route):
         address = urlsplit(route.request.url)
@@ -587,7 +603,8 @@ def capture_batch(context, sources, out, cells, metadata, records, args, owned):
         source, product = sources / state / 'original', sources / state / 'port'
         source.mkdir(parents=True)
         profile = state if state in p5.PROFILES else 'normal'
-        p5.copy_original(metadata['original_revision'], source)
+        if any(cell.original for cell in state_cells):
+            p5.copy_original(metadata['original_revision'], source)
         p5.seed_profile(product, source, profile, tone_mode=True)
         if args.image_area:
             fixture.seed_area_profile(product, source)
@@ -596,7 +613,10 @@ def capture_batch(context, sources, out, cells, metadata, records, args, owned):
                 for image in image_root.rglob('synthetic pair(*.png'):
                     image.rename(image.with_name(f'{p5.LONG[:48]} {image.name}'))
         nonce = secrets.token_urlsafe(24)
-        extra_env = {'PV_UIUX_STATE': state}
+        extra_env = {'PV_UIUX_STATE': state, 'LOCALAPPDATA': str(sources / 'local-appdata'),
+                     'APPDATA': str(sources / 'roaming-appdata')}
+        if args.final:
+            extra_env['PV_UIUX_RETRY_JUDGED'] = '1'
         if args.image_area:
             extra_env.update(PV_UI_IMAGE_AREA='1', LOCALAPPDATA=str(sources / 'local-appdata'),
                              APPDATA=str(sources / 'roaming-appdata'))
@@ -638,7 +658,7 @@ def capture_batch(context, sources, out, cells, metadata, records, args, owned):
                                     capture_area_port(port, port_url, cell, out, folder, specs, record)
                                 else:
                                     capture_port(port, port_url, cell, out, folder, specs, record,
-                                                 prime_zoom=args.prime_zoom,
+                                                 prime_zoom=args.prime_zoom, final=args.final,
                                                  checkpoint=lambda: save_receipt(folder, metadata['fingerprint'], record))
                             except (Error, ValueError, OSError) as error:
                                 issue = f"移植版 {record.get('port_step')}: {safe_error(error)}"
@@ -778,6 +798,7 @@ def main():
     parser.add_argument('--plan-only', action='store_true')
     parser.add_argument('--verify-fixture', nargs='?', const='port', choices=('port', 'original'))
     parser.add_argument('--image-area', action='store_true', help='measure the A17 normal image-area matrix')
+    parser.add_argument('--final', action='store_true', help='measure product screens without rerunning Flet')
     parser.add_argument('--only', nargs='+', choices=tuple(dict.fromkeys((*SCREENS, *image_area.LABELS))))
     parser.add_argument('--state', action='append', choices=STATES)
     parser.add_argument('--condition', action='append',
@@ -810,7 +831,7 @@ def main():
             fixture.serve_port(args.serve_port, args.nonce)
         return 0
 
-    if args.image_area and (args.state or args.prime_zoom or args.verify_fixture or
+    if args.image_area and (args.final or args.state or args.prime_zoom or args.verify_fixture or
                             any(s not in image_area.LABELS for s in args.only or ())):
         parser.error('--image-area uses normal state, 100% zoom and the image-area screen inventory')
     if args.image_area and any(not c.endswith('-100') for c in args.condition or ()):
@@ -843,10 +864,15 @@ def main():
         [metadata['product_tree'], metadata['original_revision'],
          *[hashlib.sha256(path.read_bytes()).hexdigest() for path in sorted(audit_files)]]
     ).encode()).hexdigest()
-    selected = plan_image_area(args.only) if args.image_area else plan(args.only, args.state)
+    if args.final:
+        selected = plan_final(args.only, args.state)
+    else:
+        selected = plan_image_area(args.only) if args.image_area else plan(args.only, args.state)
     selected_matrix = [cell for cell in selected
                        if not cell.unsupported and (not args.condition or
                                                     any(condition in cell.key for condition in args.condition))]
+    if args.final:
+        matrix = selected_matrix
     fingerprints = {metadata['fingerprint']}
     if args.plan_only or args.batch:
         batches = [json.loads(path.read_text(encoding='utf-8')) for path in sorted(out.glob('BATCH-*.json'))]
@@ -914,7 +940,8 @@ def main():
         print(error, flush=True)
         outcome = 75
     finally:
-        lifecycle = owned.result(scratch, (args.original_port, args.original_port + 1, args.port))
+        ports = (args.port,) if args.final else (args.original_port, args.original_port + 1, args.port)
+        lifecycle = owned.result(scratch, ports)
         if args.batch:
             p5.write_json(out / f'BATCH-{args.batch}.json', dict(lifecycle=lifecycle, metadata=metadata))
         else:

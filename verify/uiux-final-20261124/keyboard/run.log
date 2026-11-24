@@ -1,0 +1,11 @@
+normal/1280x800-light-100/settings captured
+normal/1280x800-light-100/scheduler captured
+normal/1280x800-light-100/borrow-on captured
+normal/1280x800-light-100/communication-result captured
+normal/1280x800-light-100/extension-confirm captured
+normal/1280x800-light-100/stop-migration-dialog captured
+normal/1280x800-light-100/view-history captured
+normal/1280x800-light-100/view-history-delete captured
+error/1280x800-light-100/stop-recovery captured
+error/1280x800-light-100/stop-history-guide captured
+{'counts': {'planned': 10, 'missing': 0, 'captured': 10, 'inapplicable': 0}, 'images': {'product': 10, 'settings group': 15}}

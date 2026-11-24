@@ -75,7 +75,8 @@ def inspect(snapshot, *, zoom):
             results.append(finding(item, selector, actual, expected, state=state, **options))
 
         if text and size:
-            expected = 3 if size >= 24 or weight >= 700 else 4.5
+            large = size >= 24 or (weight >= 700 and size >= 14 * 96 / 72)
+            expected = 3 if large else 4.5
             if node.get('uncertainColor'):
                 add('A1', node['uncertainColor'], expected, status='review')
             elif node.get('foreground') and node.get('background'):

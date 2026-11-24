@@ -51,6 +51,8 @@ body {
   max-height:calc(100dvh - 32px); display:flex; flex-direction:column; gap:4px; overflow:hidden; }
 .pv-automation-dialog > :not(.pv-automation-scroll) { flex:none; }
 .pv-automation-scroll { overflow:auto; min-height:0; flex:1 1 auto; }
+/* The hosted detail sizes to its content. The dialog owns the scroll area. */
+.pv-automation-scroll [data-testid=metadata-view] { flex:none; overflow:visible; }
 .pv-automation-dialog [role="tab"][aria-selected="true"] { background:var(--pv-tab-selected); color:var(--pv-primary); }
 .pv-automation-status [data-testid="automation-status"] {
   position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%);

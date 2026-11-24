@@ -59,6 +59,17 @@ def test_wcag_contrast(fg, bg, expected):
     assert contrast(fg, bg) == pytest.approx(expected, abs=.001)
 
 
+@pytest.mark.parametrize(('size', 'weight', 'needs_45'), (
+    (13, 700, True), (18.6, 700, True), (18.7, 700, False),
+    (23.9, 400, True), (24, 400, False),
+))
+def test_small_bold_text_requires_normal_text_contrast(size, weight, needs_45):
+    nodes = FakeComputedDOM('<p id="sample" aria-label="本文" style="color:130,130,130"></p>').nodes
+    nodes[0].update(fontSize=size, weight=weight)
+    findings = inspect(dict(nodes=nodes, viewport=[1280, 800]), zoom=100)
+    assert any(row['item'] == 'A1' and row['threshold'] == 4.5 for row in findings) == needs_45
+
+
 def test_inventory_keeps_missing_and_inapplicable_cells_distinct():
     from tools.uiux_audit import plan
     from tools.uiux_report import coverage

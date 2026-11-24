@@ -312,6 +312,65 @@ def test_nonmodal_notice_has_a_safe_fallback(zoom_page, mode):
     expect(page.get_by_test_id('notice-fallback')).to_be_focused()
 
 
+@pytest.mark.parametrize('zoom_page', (100, 200), indirect=True)
+def test_automation_metadata_actions_are_reachable(zoom_page):
+    from playwright.sync_api import expect
+
+    page, origin, zoom = zoom_page
+    page.set_viewport_size({'width': 1280, 'height': 800})
+    cell = audit.Cell('metadata', 'normal', 'light', 1280, 800, zoom, None)
+    audit.load_page(page, origin, cell)
+    opener = page.get_by_test_id('automation-open')
+    opener.press('Enter')
+    tab = page.get_by_test_id('automation-metadata')
+    tab.press('Enter')
+    expect(tab).to_have_attribute('aria-selected', 'true')
+    action = page.get_by_test_id('metadata-run-all')
+    expect(action).to_be_visible(timeout=2000)
+    action.scroll_into_view_if_needed()
+    assert action.evaluate('''e => {
+        const r = e.getBoundingClientRect();
+        return e.contains(document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2));
+    }''')
+    page.keyboard.press('Escape')
+    expect(page.get_by_test_id('automation-dialog')).to_be_hidden()
+    expect(opener).to_be_focused()
+
+
+def test_settings_escape_closes_and_restores_focus(zoom_page):
+    from playwright.sync_api import expect
+
+    page, origin, _ = zoom_page
+    cell = audit.Cell('settings', 'normal', 'light', 1280, 800, 100, None)
+    audit.load_page(page, origin, cell)
+    opener = page.get_by_test_id('preferences-open')
+    opener.press('Enter')
+    dialog = page.get_by_test_id('preferences-dialog')
+    expect(dialog).to_be_visible()
+    expect(dialog.locator(':focus')).to_be_visible()
+    page.keyboard.press('Escape')
+    expect(dialog).to_be_hidden(timeout=2000)
+    expect(opener).to_be_focused()
+
+
+def test_recommend_notice_has_visible_focus(zoom_page):
+    from playwright.sync_api import expect
+
+    page, origin, _ = zoom_page
+    cell = audit.Cell('recommend', 'normal', 'light', 1280, 800, 100, None)
+    audit.load_page(page, origin, cell)
+    uiux_fixture.open_port(page, cell, p5.helpers.load_expectations()['screens'])
+    notice = page.get_by_test_id('recommend-notice')
+    expect(notice).not_to_have_text('')
+    page.keyboard.press('Tab')
+    notice.focus()
+    expect(notice).to_be_focused()
+    assert notice.evaluate('''e => {
+        const style = getComputedStyle(e);
+        return e.matches(':focus-visible') && parseFloat(style.outlineWidth) >= 2 && style.boxShadow !== 'none';
+    }''')
+
+
 @pytest.mark.parametrize(('screen', 'dialog_id', 'close_id'), (
     ('ranking-date', 'ranking-date-dialog', 'ranking-date-cancel'),
     ('view-history', 'view-history-dialog', 'view-history-close'),
