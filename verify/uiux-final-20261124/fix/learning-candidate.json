@@ -1,0 +1,414 @@
+{
+  "normal/1280x800-light-100/learning-reset": {
+    "passed": true,
+    "metrics": {
+      "learning_entry": 0,
+      "settings_entry": 1,
+      "entry": {
+        "x": 345,
+        "y": 597.03,
+        "right": 539,
+        "bottom": 633.03,
+        "width": 194,
+        "height": 36,
+        "clientWidth": 194,
+        "scrollWidth": 194,
+        "clientHeight": 36,
+        "scrollHeight": 36,
+        "lines": 4,
+        "textRight": 539,
+        "textLeft": 345,
+        "whiteSpace": "normal",
+        "overflowY": "visible"
+      },
+      "enter": true,
+      "count_gate": true,
+      "csv_focus": true,
+      "csv_filename": "discovery_judgment_history_export.csv",
+      "focus_return": true
+    }
+  },
+  "normal/1280x800-dark-100/learning-reset": {
+    "passed": true,
+    "metrics": {
+      "learning_entry": 0,
+      "settings_entry": 1,
+      "entry": {
+        "x": 345,
+        "y": 597.03,
+        "right": 539,
+        "bottom": 633.03,
+        "width": 194,
+        "height": 36,
+        "clientWidth": 194,
+        "scrollWidth": 194,
+        "clientHeight": 36,
+        "scrollHeight": 36,
+        "lines": 4,
+        "textRight": 539,
+        "textLeft": 345,
+        "whiteSpace": "normal",
+        "overflowY": "visible"
+      },
+      "enter": true,
+      "count_gate": true,
+      "csv_focus": true,
+      "csv_filename": "discovery_judgment_history_export.csv",
+      "focus_return": true
+    }
+  },
+  "normal/1920x1080-light-100/learning-reset": {
+    "passed": true,
+    "metrics": {
+      "learning_entry": 0,
+      "settings_entry": 1,
+      "entry": {
+        "x": 665,
+        "y": 737.03,
+        "right": 859,
+        "bottom": 773.03,
+        "width": 194,
+        "height": 36,
+        "clientWidth": 194,
+        "scrollWidth": 194,
+        "clientHeight": 36,
+        "scrollHeight": 36,
+        "lines": 4,
+        "textRight": 859,
+        "textLeft": 665,
+        "whiteSpace": "normal",
+        "overflowY": "visible"
+      },
+      "enter": true,
+      "count_gate": true,
+      "csv_focus": true,
+      "csv_filename": "discovery_judgment_history_export.csv",
+      "focus_return": true
+    }
+  },
+  "normal/1920x1080-dark-100/learning-reset": {
+    "passed": true,
+    "metrics": {
+      "learning_entry": 0,
+      "settings_entry": 1,
+      "entry": {
+        "x": 665,
+        "y": 737.03,
+        "right": 859,
+        "bottom": 773.03,
+        "width": 194,
+        "height": 36,
+        "clientWidth": 194,
+        "scrollWidth": 194,
+        "clientHeight": 36,
+        "scrollHeight": 36,
+        "lines": 4,
+        "textRight": 859,
+        "textLeft": 665,
+        "whiteSpace": "normal",
+        "overflowY": "visible"
+      },
+      "enter": true,
+      "count_gate": true,
+      "csv_focus": true,
+      "csv_filename": "discovery_judgment_history_export.csv",
+      "focus_return": true
+    }
+  },
+  "normal/1280x800-light-100/learning-settings": {
+    "passed": true,
+    "metrics": {
+      "panel": {
+        "x": 832,
+        "y": 453.44,
+        "right": 1152,
+        "bottom": 639.44,
+        "width": 320,
+        "height": 186,
+        "clientWidth": 318,
+        "scrollWidth": 318,
+        "clientHeight": 184,
+        "scrollHeight": 184,
+        "lines": 12,
+        "textRight": 1141,
+        "textLeft": 843,
+        "whiteSpace": "normal",
+        "overflowY": "auto"
+      },
+      "target_before": {
+        "x": 855,
+        "y": 602.44,
+        "right": 1099,
+        "bottom": 628.44,
+        "width": 244,
+        "height": 26,
+        "clientWidth": 244,
+        "scrollWidth": 244,
+        "clientHeight": 26,
+        "scrollHeight": 26,
+        "lines": 3,
+        "textRight": 895.86,
+        "textLeft": 855,
+        "whiteSpace": "normal",
+        "overflowY": "visible"
+      },
+      "target_after": {
+        "x": 855,
+        "y": 602.44,
+        "right": 1099,
+        "bottom": 628.44,
+        "width": 244,
+        "height": 26,
+        "clientWidth": 244,
+        "scrollWidth": 244,
+        "clientHeight": 26,
+        "scrollHeight": 26,
+        "lines": 3,
+        "textRight": 895.86,
+        "textLeft": 855,
+        "whiteSpace": "normal",
+        "overflowY": "visible"
+      },
+      "keyboard": true,
+      "mode_menu": true,
+      "tab_trace": [
+        {
+          "tag": "DIV",
+          "role": null,
+          "testid": "discovery-settings-subject",
+          "in_mode": false
+        },
+        {
+          "tag": "DIV",
+          "role": null,
+          "testid": "discovery-settings-style",
+          "in_mode": false
+        },
+        {
+          "tag": "INPUT",
+          "role": "combobox",
+          "testid": "discovery-settings-mode",
+          "in_mode": true
+        }
+      ],
+      "controls": [
+        {
+          "tag": "DIV",
+          "role": "slider",
+          "tabIndex": -1,
+          "disabled": false,
+          "ariaDisabled": null,
+          "visible": true,
+          "testid": "discovery-settings-subject"
+        },
+        {
+          "tag": "DIV",
+          "role": null,
+          "tabIndex": 0,
+          "disabled": false,
+          "ariaDisabled": null,
+          "visible": true,
+          "testid": "discovery-settings-subject"
+        },
+        {
+          "tag": "DIV",
+          "role": "slider",
+          "tabIndex": -1,
+          "disabled": false,
+          "ariaDisabled": null,
+          "visible": true,
+          "testid": "discovery-settings-style"
+        },
+        {
+          "tag": "DIV",
+          "role": null,
+          "tabIndex": 0,
+          "disabled": false,
+          "ariaDisabled": null,
+          "visible": true,
+          "testid": "discovery-settings-style"
+        },
+        {
+          "tag": "DIV",
+          "role": null,
+          "tabIndex": -1,
+          "disabled": false,
+          "ariaDisabled": null,
+          "visible": true,
+          "testid": "discovery-settings-panel"
+        },
+        {
+          "tag": "INPUT",
+          "role": "combobox",
+          "tabIndex": 0,
+          "disabled": false,
+          "ariaDisabled": null,
+          "visible": true,
+          "testid": "discovery-settings-mode"
+        }
+      ],
+      "opener_kept_focus": true,
+      "panel_tab": true
+    }
+  },
+  "normal/1280x800-dark-100/learning-settings": {
+    "passed": true,
+    "metrics": {
+      "panel": {
+        "x": 832,
+        "y": 453.44,
+        "right": 1152,
+        "bottom": 639.44,
+        "width": 320,
+        "height": 186,
+        "clientWidth": 318,
+        "scrollWidth": 318,
+        "clientHeight": 184,
+        "scrollHeight": 184,
+        "lines": 12,
+        "textRight": 1141,
+        "textLeft": 843,
+        "whiteSpace": "normal",
+        "overflowY": "auto"
+      },
+      "target_before": {
+        "x": 855,
+        "y": 602.44,
+        "right": 1099,
+        "bottom": 628.44,
+        "width": 244,
+        "height": 26,
+        "clientWidth": 244,
+        "scrollWidth": 244,
+        "clientHeight": 26,
+        "scrollHeight": 26,
+        "lines": 3,
+        "textRight": 895.86,
+        "textLeft": 855,
+        "whiteSpace": "normal",
+        "overflowY": "visible"
+      },
+      "target_after": {
+        "x": 855,
+        "y": 602.44,
+        "right": 1099,
+        "bottom": 628.44,
+        "width": 244,
+        "height": 26,
+        "clientWidth": 244,
+        "scrollWidth": 244,
+        "clientHeight": 26,
+        "scrollHeight": 26,
+        "lines": 3,
+        "textRight": 895.86,
+        "textLeft": 855,
+        "whiteSpace": "normal",
+        "overflowY": "visible"
+      },
+      "keyboard": true,
+      "mode_menu": true,
+      "tab_trace": [
+        {
+          "tag": "DIV",
+          "role": null,
+          "testid": "discovery-settings-subject",
+          "in_mode": false
+        },
+        {
+          "tag": "DIV",
+          "role": null,
+          "testid": "discovery-settings-style",
+          "in_mode": false
+        },
+        {
+          "tag": "INPUT",
+          "role": "combobox",
+          "testid": "discovery-settings-mode",
+          "in_mode": true
+        }
+      ],
+      "controls": [
+        {
+          "tag": "DIV",
+          "role": "slider",
+          "tabIndex": -1,
+          "disabled": false,
+          "ariaDisabled": null,
+          "visible": true,
+          "testid": "discovery-settings-subject"
+        },
+        {
+          "tag": "DIV",
+          "role": null,
+          "tabIndex": 0,
+          "disabled": false,
+          "ariaDisabled": null,
+          "visible": true,
+          "testid": "discovery-settings-subject"
+        },
+        {
+          "tag": "DIV",
+          "role": "slider",
+          "tabIndex": -1,
+          "disabled": false,
+          "ariaDisabled": null,
+          "visible": true,
+          "testid": "discovery-settings-style"
+        },
+        {
+          "tag": "DIV",
+          "role": null,
+          "tabIndex": 0,
+          "disabled": false,
+          "ariaDisabled": null,
+          "visible": true,
+          "testid": "discovery-settings-style"
+        },
+        {
+          "tag": "DIV",
+          "role": null,
+          "tabIndex": -1,
+          "disabled": false,
+          "ariaDisabled": null,
+          "visible": true,
+          "testid": "discovery-settings-panel"
+        },
+        {
+          "tag": "INPUT",
+          "role": "combobox",
+          "tabIndex": 0,
+          "disabled": false,
+          "ariaDisabled": null,
+          "visible": true,
+          "testid": "discovery-settings-mode"
+        }
+      ],
+      "opener_kept_focus": true,
+      "panel_tab": true
+    }
+  },
+  "normal_network": {
+    "server_denials": 0,
+    "fake_call_types": [
+      "transport"
+    ]
+  },
+  "blocked_external": 0,
+  "browser_errors": [],
+  "http_status_ge_400": [],
+  "lifecycle": {
+    "run_temp": "S:\\Work\\_tmp\\PV\\uiux-high-codex-20261124\\learning-candidate",
+    "observed_by_image": {
+      "node.exe": 1,
+      "python.exe": 2,
+      "msedge.exe": 10,
+      "identity_helper.exe": 1
+    },
+    "remaining": [],
+    "owned_ports_closed": {
+      "22629": true
+    }
+  },
+  "head": "b4c7f33514b94c72804009852e1e668832a019b6",
+  "src_tree": "e0b12acd4cf737fe25591d90df3696aa4b5f17d3"
+}

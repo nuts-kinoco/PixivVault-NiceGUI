@@ -101,15 +101,19 @@ async def test_label_sits_in_fixed_height_row_so_buttons_do_not_move(view):
 
 async def test_learning_reset_clears_the_count(tmp_path, monkeypatch):
     """元 discovery_tab.py:5669 §3-3-7: リセットで回数も0へ。"""
+    from pixivvault_nicegui.ui.learning_reset import LearningResetView
+
     view, cleanup = await make_view(monkeypatch, learning_sandbox=tmp_path / 'learning')
     try:
         await judge(view, 'superLike', 'a')
         assert view.superlike_used_label.text == 'SuperLike使用: 1回'
-        reset = view.reset_view
+        with view.client:
+            reset = LearningResetView(view, view.storage)
         await reset.refresh()
         await reset.open()
         reset.confirm.set_value('1')
         await reset.execute()
+        reset.close()
         await settled(view)
         assert view.superlike_used_label.visible is False and view._superlike_used == 0
     finally:
@@ -117,6 +121,7 @@ async def test_learning_reset_clears_the_count(tmp_path, monkeypatch):
 
 
 async def test_reset_during_slow_rerank_does_not_restore_old_count(tmp_path, monkeypatch):
+    from pixivvault_nicegui.ui.learning_reset import LearningResetView
     from z_learning_support_20261118 import open_discovery_view, settled as discovery_settled
     view, services, service, cleanup = await open_discovery_view(tmp_path, monkeypatch, count=5)
     started, release = asyncio.Event(), asyncio.Event()
@@ -132,11 +137,13 @@ async def test_reset_during_slow_rerank_does_not_restore_old_count(tmp_path, mon
         assert view.judge('superLike', dict(work_id=work_id, generation=view.state.generation, operation_id='slow'))
         await asyncio.wait_for(started.wait(), 5)
         save = view._save_task
-        reset = view.reset_view
+        with view.client:
+            reset = LearningResetView(view, view.storage)
         await reset.refresh()
         await reset.open()
         reset.confirm.set_value('1')
         await reset.execute()
+        reset.close()
         await discovery_settled(view)
         assert not view.state.can_undo and view.toast.kind is None
         release.set()

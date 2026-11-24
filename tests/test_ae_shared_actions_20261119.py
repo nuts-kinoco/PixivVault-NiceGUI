@@ -23,6 +23,7 @@ def test_owned_cache_clear_logs_confirmed_and_fixed_failure():
 @pytest.mark.asyncio
 async def test_real_learning_reset_and_history_clear_log_once(tmp_path,monkeypatch):
     from pixivvault_nicegui.learning import Judgment
+    from pixivvault_nicegui.ui.learning_reset import LearningResetView
     from pixivvault_nicegui.ui.learning_view import LearningView
     monkeypatch.setattr(core,'loop',asyncio.get_running_loop())
     services=ApplicationServices(2,learning_sandbox=tmp_path/'learning')
@@ -30,10 +31,11 @@ async def test_real_learning_reset_and_history_clear_log_once(tmp_path,monkeypat
     try:
         with client:
             view=LearningView(services);view.active=True
+            reset=LearningResetView(view, view.storage)
             session=await services.learning.open_session()
             await services.learning.record(session.session_id,Judgment('demo-0001','like','op'))
-            await view.reset_view.refresh();await view.reset_view.open()
-            view.reset_view.confirm.set_value('1');await view.reset_view.execute()
+            await reset.refresh();await reset.open()
+            reset.confirm.set_value('1');await reset.execute()
             assert await services.learning.judged_count()==0
             await services.learning.record_view('demo-0001')
             await view.view_history.refresh();view.view_history.confirm.set_value('1')
@@ -42,6 +44,7 @@ async def test_real_learning_reset_and_history_clear_log_once(tmp_path,monkeypat
             messages=[e.message for e in services.shared_log.snapshot()]
             assert messages.count('学習状況: リセットしました')==1
             assert messages.count('閲覧履歴: 全件削除しました')==1
+            reset.close()
             view.close()
     finally:client.delete();services.close()
 

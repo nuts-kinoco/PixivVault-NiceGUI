@@ -14,6 +14,7 @@ from nicegui import ui
 
 from ..bookmark_state import BookmarkState, BookmarkCard
 from .grid_layout import MAX_COLUMNS
+from .card_size_control import size_buttons, update_size_buttons
 from .card_grid import CardGrid, MoreCell
 from .action_controls import refresh_button
 
@@ -47,7 +48,7 @@ class BookmarkView:
                  image_url: Callable[[str], str] | None = None,
                  can_open: Callable[[str], bool] | None = None,
                  cache_persistence_unconfirmed: Callable[[], bool] | None = None,
-                 with_filter_toggle: bool = False, standalone: bool = False) -> None:
+                 with_filter_toggle: bool = False, standalone: bool = False, on_size_change=None) -> None:
         self.state = state
         self.on_refresh = on_refresh
         self.on_open = on_open
@@ -59,6 +60,8 @@ class BookmarkView:
         self.cache_persistence_unconfirmed = cache_persistence_unconfirmed
         self.with_filter_toggle = with_filter_toggle
         self.standalone = standalone
+        self.on_size_change = on_size_change or self.apply_card_size
+        self.size_buttons = {}
         self.filter_toggle = None
         self.root = None
         self.grid = None
@@ -101,7 +104,15 @@ class BookmarkView:
                     on_change=lambda event: self.search(event.value or "")).props(
                     "outlined dense clearable debounce=200 data-testid=bookmark-search")
                 if self.standalone:
-                    self.toolbar, _, _ = manual_toolbar(self.root, 'bookmarks', (self.search_input, self.filter_toggle))
+                    with ui.row().classes('pv-library-sizes items-center no-wrap') as sizes:
+                        self.size_buttons = size_buttons(self.on_size_change, prefix='bookmarks')
+                        for button in self.size_buttons.values():
+                            button.classes('pv-hit28')
+                        update_size_buttons(self.size_buttons, self.card_size)
+                    controls = [self.search_input]
+                    if self.filter_toggle is not None:
+                        controls.append(self.filter_toggle)
+                    self.toolbar, _, _ = manual_toolbar(self.root, 'bookmarks', (*controls, sizes))
                 self.message = ui.label().classes("pv-empty").props("data-testid=bookmark-status role=status")
                 self.download_status = ui.label("").classes("pv-subtitle").props(
                     "role=status data-testid=bookmark-download-status")
@@ -356,6 +367,7 @@ class BookmarkView:
         self.card_size = size
         if self.grid is not None and not self.state.closed:
             self.grid.style(f"--pv-max-cols:{MAX_COLUMNS[size]}")
+            update_size_buttons(self.size_buttons, size)
 
     def close(self) -> None:
         self.state.close()

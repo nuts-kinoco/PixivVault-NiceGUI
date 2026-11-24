@@ -1,0 +1,112 @@
+{
+  "error/1920x1080-light-100/stop-recovery": {
+    "passed": false,
+    "metrics": {
+      "banner": {
+        "x": 648,
+        "y": 72,
+        "right": 1272,
+        "bottom": 126,
+        "width": 624,
+        "height": 54,
+        "clientWidth": 624,
+        "scrollWidth": 624,
+        "clientHeight": 54,
+        "scrollHeight": 54,
+        "lines": 2,
+        "textRight": 1257.77,
+        "textLeft": 658,
+        "whiteSpace": "normal",
+        "overflowY": "visible"
+      },
+      "warning": {
+        "x": 648,
+        "y": 189.98,
+        "right": 3069.53,
+        "bottom": 319.98,
+        "width": 2421.53,
+        "height": 130,
+        "clientWidth": 2420,
+        "scrollWidth": 2420,
+        "clientHeight": 128,
+        "scrollHeight": 128,
+        "lines": 1,
+        "textRight": 3058.53,
+        "textLeft": 659,
+        "whiteSpace": "nowrap",
+        "overflowY": "hidden"
+      },
+      "keyboard": true,
+      "focus_return": true
+    }
+  },
+  "error/1280x800-dark-100/stop-recovery": {
+    "passed": false,
+    "metrics": {
+      "banner": {
+        "x": 328,
+        "y": 72,
+        "right": 952,
+        "bottom": 126,
+        "width": 624,
+        "height": 54,
+        "clientWidth": 624,
+        "scrollWidth": 624,
+        "clientHeight": 54,
+        "scrollHeight": 54,
+        "lines": 2,
+        "textRight": 937.77,
+        "textLeft": 338,
+        "whiteSpace": "normal",
+        "overflowY": "visible"
+      },
+      "warning": {
+        "x": 328,
+        "y": 189.98,
+        "right": 2749.53,
+        "bottom": 319.98,
+        "width": 2421.53,
+        "height": 130,
+        "clientWidth": 2420,
+        "scrollWidth": 2420,
+        "clientHeight": 128,
+        "scrollHeight": 128,
+        "lines": 1,
+        "textRight": 2738.53,
+        "textLeft": 339,
+        "whiteSpace": "nowrap",
+        "overflowY": "hidden"
+      },
+      "keyboard": true,
+      "focus_return": true
+    }
+  },
+  "error_network": {
+    "server_denials": 0,
+    "fake_call_types": [
+      "transport"
+    ]
+  },
+  "normal_network": {
+    "server_denials": 0,
+    "fake_call_types": [
+      "transport"
+    ]
+  },
+  "blocked_external": 0,
+  "browser_errors": 0,
+  "lifecycle": {
+    "run_temp": "S:\\Work\\_tmp\\PV\\uiux-high-codex-20261124\\red-startup",
+    "observed_by_image": {
+      "node.exe": 1,
+      "python.exe": 4,
+      "msedge.exe": 10,
+      "identity_helper.exe": 1
+    },
+    "remaining": [],
+    "owned_ports_closed": {
+      "22629": true
+    }
+  },
+  "head": "977511c0aa4aaf394e1961159c780f1d0dab4451"
+}

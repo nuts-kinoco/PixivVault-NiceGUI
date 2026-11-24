@@ -1,0 +1,348 @@
+{
+  "normal/1280x800-light-100/learning-settings": {
+    "passed": false,
+    "metrics": {
+      "panel": {
+        "x": 832,
+        "y": 453.44,
+        "right": 1152,
+        "bottom": 639.44,
+        "width": 320,
+        "height": 186,
+        "clientWidth": 318,
+        "scrollWidth": 318,
+        "clientHeight": 184,
+        "scrollHeight": 184,
+        "lines": 12,
+        "textRight": 1141,
+        "textLeft": 843,
+        "whiteSpace": "normal",
+        "overflowY": "auto"
+      },
+      "target_before": {
+        "x": 855,
+        "y": 602.44,
+        "right": 1099,
+        "bottom": 628.44,
+        "width": 244,
+        "height": 26,
+        "clientWidth": 244,
+        "scrollWidth": 244,
+        "clientHeight": 26,
+        "scrollHeight": 26,
+        "lines": 2,
+        "textRight": 895.86,
+        "textLeft": 855,
+        "whiteSpace": "normal",
+        "overflowY": "visible"
+      },
+      "target_after": {
+        "x": 855,
+        "y": 602.44,
+        "right": 1099,
+        "bottom": 628.44,
+        "width": 244,
+        "height": 26,
+        "clientWidth": 244,
+        "scrollWidth": 244,
+        "clientHeight": 26,
+        "scrollHeight": 26,
+        "lines": 2,
+        "textRight": 895.86,
+        "textLeft": 855,
+        "whiteSpace": "normal",
+        "overflowY": "visible"
+      },
+      "keyboard": false,
+      "mode_menu": false,
+      "tab_trace": [
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "testid": "learning-swipe-mode",
+          "in_mode": false
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "testid": "learning-summary-toggle",
+          "in_mode": false
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "testid": null,
+          "in_mode": false
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "testid": null,
+          "in_mode": false
+        },
+        {
+          "tag": "BODY",
+          "role": null,
+          "testid": null,
+          "in_mode": false
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "testid": "db-warning-details",
+          "in_mode": false
+        },
+        {
+          "tag": "DIV",
+          "role": "switch",
+          "testid": "premium-borrow-toggle",
+          "in_mode": false
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "testid": "premium-setup-shell",
+          "in_mode": false
+        }
+      ],
+      "controls": [
+        {
+          "tag": "DIV",
+          "role": "slider",
+          "tabIndex": -1,
+          "disabled": false,
+          "ariaDisabled": "true",
+          "visible": true,
+          "testid": "discovery-settings-subject"
+        },
+        {
+          "tag": "DIV",
+          "role": null,
+          "tabIndex": -1,
+          "disabled": false,
+          "ariaDisabled": null,
+          "visible": true,
+          "testid": "discovery-settings-subject"
+        },
+        {
+          "tag": "DIV",
+          "role": "slider",
+          "tabIndex": -1,
+          "disabled": false,
+          "ariaDisabled": "true",
+          "visible": true,
+          "testid": "discovery-settings-style"
+        },
+        {
+          "tag": "DIV",
+          "role": null,
+          "tabIndex": -1,
+          "disabled": false,
+          "ariaDisabled": null,
+          "visible": true,
+          "testid": "discovery-settings-style"
+        },
+        {
+          "tag": "DIV",
+          "role": null,
+          "tabIndex": -1,
+          "disabled": false,
+          "ariaDisabled": null,
+          "visible": true,
+          "testid": "discovery-settings-panel"
+        }
+      ],
+      "focused_before": {
+        "focused": false,
+        "disabled": true,
+        "siblingMatches": true,
+        "ariaExpanded": "true"
+      }
+    }
+  },
+  "normal/1280x800-dark-100/learning-settings": {
+    "passed": false,
+    "metrics": {
+      "panel": {
+        "x": 832,
+        "y": 453.44,
+        "right": 1152,
+        "bottom": 639.44,
+        "width": 320,
+        "height": 186,
+        "clientWidth": 318,
+        "scrollWidth": 318,
+        "clientHeight": 184,
+        "scrollHeight": 184,
+        "lines": 12,
+        "textRight": 1141,
+        "textLeft": 843,
+        "whiteSpace": "normal",
+        "overflowY": "auto"
+      },
+      "target_before": {
+        "x": 855,
+        "y": 602.44,
+        "right": 1099,
+        "bottom": 628.44,
+        "width": 244,
+        "height": 26,
+        "clientWidth": 244,
+        "scrollWidth": 244,
+        "clientHeight": 26,
+        "scrollHeight": 26,
+        "lines": 2,
+        "textRight": 895.86,
+        "textLeft": 855,
+        "whiteSpace": "normal",
+        "overflowY": "visible"
+      },
+      "target_after": {
+        "x": 855,
+        "y": 602.44,
+        "right": 1099,
+        "bottom": 628.44,
+        "width": 244,
+        "height": 26,
+        "clientWidth": 244,
+        "scrollWidth": 244,
+        "clientHeight": 26,
+        "scrollHeight": 26,
+        "lines": 2,
+        "textRight": 895.86,
+        "textLeft": 855,
+        "whiteSpace": "normal",
+        "overflowY": "visible"
+      },
+      "keyboard": false,
+      "mode_menu": false,
+      "tab_trace": [
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "testid": "learning-swipe-mode",
+          "in_mode": false
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "testid": "learning-summary-toggle",
+          "in_mode": false
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "testid": null,
+          "in_mode": false
+        },
+        {
+          "tag": "BODY",
+          "role": null,
+          "testid": null,
+          "in_mode": false
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "testid": "db-warning-details",
+          "in_mode": false
+        },
+        {
+          "tag": "DIV",
+          "role": "switch",
+          "testid": "premium-borrow-toggle",
+          "in_mode": false
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "testid": "premium-setup-shell",
+          "in_mode": false
+        },
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "testid": "premium-recovery-shell",
+          "in_mode": false
+        }
+      ],
+      "controls": [
+        {
+          "tag": "DIV",
+          "role": "slider",
+          "tabIndex": -1,
+          "disabled": false,
+          "ariaDisabled": "true",
+          "visible": true,
+          "testid": "discovery-settings-subject"
+        },
+        {
+          "tag": "DIV",
+          "role": null,
+          "tabIndex": -1,
+          "disabled": false,
+          "ariaDisabled": null,
+          "visible": true,
+          "testid": "discovery-settings-subject"
+        },
+        {
+          "tag": "DIV",
+          "role": "slider",
+          "tabIndex": -1,
+          "disabled": false,
+          "ariaDisabled": "true",
+          "visible": true,
+          "testid": "discovery-settings-style"
+        },
+        {
+          "tag": "DIV",
+          "role": null,
+          "tabIndex": -1,
+          "disabled": false,
+          "ariaDisabled": null,
+          "visible": true,
+          "testid": "discovery-settings-style"
+        },
+        {
+          "tag": "DIV",
+          "role": null,
+          "tabIndex": -1,
+          "disabled": false,
+          "ariaDisabled": null,
+          "visible": true,
+          "testid": "discovery-settings-panel"
+        }
+      ],
+      "focused_before": {
+        "focused": false,
+        "disabled": true,
+        "siblingMatches": true,
+        "ariaExpanded": "true"
+      }
+    }
+  },
+  "normal_network": {
+    "server_denials": 0,
+    "fake_call_types": [
+      "transport"
+    ]
+  },
+  "blocked_external": 0,
+  "browser_errors": [],
+  "http_status_ge_400": [],
+  "lifecycle": {
+    "run_temp": "S:\\Work\\_tmp\\PV\\uiux-high-codex-20261124\\learning-tab-debug",
+    "observed_by_image": {
+      "node.exe": 1,
+      "python.exe": 2,
+      "msedge.exe": 9,
+      "identity_helper.exe": 1
+    },
+    "remaining": [],
+    "owned_ports_closed": {
+      "22629": true
+    }
+  },
+  "head": "1492b6c9610ee9a33ec30682b4306b2eab0f9bce",
+  "src_tree": "c400f14c463b546f963b796942c9df46e2e47ec7"
+}

@@ -273,6 +273,7 @@ class LibraryView(ViewerController):
                         self._bookmark_snapshot_token),
                     with_filter_toggle=True,
                     standalone=navigation_view == "bookmarks",
+                    on_size_change=self.change_size,
                 )
                 self.bookmarks.render()
                 if services.bookmark_cache_persist_failed:

@@ -48,9 +48,11 @@ class GalleryView(ViewerController):
                     on_change=lambda event: self.search(event.value),
                 ).props("outlined dense clearable debounce=200 data-testid=gallery-search").classes("pv-search")
                 self.search_input.on("keydown.enter", lambda _: self.search(self.search_input.value))
-                ui.button("検索", on_click=lambda: self.search(self.search_input.value))
-                ui.label("カードサイズ").classes("pv-subtitle")
-                self.size_buttons = size_buttons(self.change_size, prefix="gallery")
+                ui.button("検索", on_click=lambda: self.search(self.search_input.value)).props(
+                    "data-testid=gallery-search-submit")
+                with ui.row().classes("items-center no-wrap gap-2").style("flex:none"):
+                    ui.label("カードサイズ").classes("pv-subtitle")
+                    self.size_buttons = size_buttons(self.change_size, prefix="gallery")
                 self._update_size_buttons()
             self.counter = ui.label().classes("pv-counter")
             with ui.element("div").classes("pv-gallery-scroll").props("data-testid=gallery-scroll"):
