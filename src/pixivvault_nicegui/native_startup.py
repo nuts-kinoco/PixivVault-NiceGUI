@@ -264,7 +264,9 @@ class NativeProfileBinding:
                                  pick_model=self.pick_model,
                                  verify_auth=self.check_selected_authentication if allow_auth else None)
         view.migration_factory = self.create_migration_view
-        view.on_saved = self.request_cookie_check
+        # Offline recovery saves the profile without scheduling authentication.
+        if allow_auth:
+            view.on_saved = self.request_cookie_check
         view.request_retry_policy = self.auth_retry_policy
         return view
 
@@ -845,7 +847,6 @@ def register_profile_recovery(binding, *, cookie_rejected=False,
                 from .ui.stop_recovery_view import build_startup_stop_recheck
                 notice.classes('pv-warning-banner')
                 view.reserve_auth_button = True
-                view.on_saved = None
                 build_startup_stop_recheck(binding, notice, view)
             view.build()
             ui.context.client.on_delete(view.close)

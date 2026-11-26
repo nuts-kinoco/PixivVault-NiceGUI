@@ -3,6 +3,7 @@
 Generated Cookie/profile only; fake transport can never reach the network.
 """
 
+import asyncio
 from threading import Event
 from types import SimpleNamespace
 import time
@@ -98,11 +99,92 @@ def test_native_auth_probe_latches_its_own_failure_and_refuses_retry(tmp_path, m
         binding.close()
 
 
-def test_stop_migration_recovery_creates_no_authentication_callback(tmp_path):
-    store = NativeProfileStore(tmp_path / "generated-profile")
+@pytest.mark.parametrize(
+    ("allow_auth", "missing_shared_history"),
+    [(False, False), (False, True), (True, False)],
+    ids=["protected-open-gates", "protected-local-401", "normal"],
+)
+def test_native_profile_save_schedules_auth_only_when_allowed(
+    tmp_path, monkeypatch, allow_auth, missing_shared_history,
+):
+    from nicegui import Client
+    from nicegui.page import page as Page
+
+    from pixivvault_nicegui import managed_network_stop_reader as reader_module
+    from test_stage5_r1_native_first_draft_shared import _generated_shared_owner
+
+    profile = tmp_path / "generated-profile"
+    cookie_root = tmp_path / "generated-credential"
+    cookie_root.mkdir()
+    cookie = cookie_root / "synthetic-cookie.txt"
+    cookie.write_text(
+        "# Netscape HTTP Cookie File\n"
+        f".pixiv.net\tTRUE\t/\tTRUE\t{int(time.time())+86400}\tPHPSESSID\t55_generatedonly\n",
+        encoding="utf-8",
+    )
+    parent = tmp_path / "generated-storage"
+    parent.mkdir()
+    store = NativeProfileStore(profile)
+    local = ManagedProfileNetworkStopScope(profile)
+    shared = _generated_shared_owner(tmp_path)
+    if missing_shared_history:
+        local.gate.trip(401)
+
+    gets = []
+
+    def fake_get(request, *_args):
+        assert request.get_method() == "GET" and request.data is None
+        gets.append(request.get_method())
+        raise HTTPStatusRejected(401)
+
+    monkeypatch.setattr(
+        reader_module, "create_exact_managed_read_client",
+        lambda path, gate: LivePixivReadClient(
+            path, transport=ManagedNetworkStopTransport(gate, fake_get),
+        ),
+    )
     binding = NativeProfileBinding(store)
+    binding.auth_stop_required = True
+    binding.auth_shared_stop_required = True
+    binding.managed_network_stop_scope = local
+    # With missing provenance the shared owner is rejected before being bound.
+    if not missing_shared_history:
+        binding.shared_network_stop_scope = shared
+
+    client = Client(Page("/generated-native-save"))
+
+    async def save():
+        with client:
+            view = binding.create_view(allow_auth=allow_auth)
+            view.build()
+            view.draft_cookie = cookie
+            view.draft_parent = parent
+            assert view.save()
+            scheduled = tuple(binding._background_tasks)
+            if scheduled:
+                await asyncio.gather(*scheduled)
+            assert len(gets) == int(allow_auth)
+            assert len(scheduled) == int(allow_auth)
+            assert (view.verify_auth is not None) is allow_auth
+            view.close()
+
     try:
-        view = binding.create_view(allow_auth=False)
-        assert view.verify_auth is None
+        asyncio.run(save())
     finally:
+        client.delete()
         binding.close()
+
+    reopened = NativeProfileStore(profile)
+    try:
+        saved = reopened.snapshot()
+        assert saved.cookie_file == cookie
+        assert saved.save_parent == parent
+        assert saved.revision == 1
+    finally:
+        reopened.close()
+
+    if missing_shared_history:
+        local_stop = local.gate.snapshot()
+        assert (local_stop.blocked, local_stop.status_code, local_stop.revision) == (True, 401, 1)
+        assert not shared.gate.snapshot().blocked
+        assert shared.gate.snapshot().revision == 0
