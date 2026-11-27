@@ -9,16 +9,20 @@ class NativeAuthResult:
 
     @property
     def ok(self):
-        return self.code == 'verified'
+        return self.code in ('verified', 'recovered', 'recovered_restart')
 
     @property
     def message(self):
+        if self.code == 'stopped' and self.status_code == 401:
+            return '認証エラーで取得を停止しています。有効なCookieを選び、「選択したCookieの認証を確認」を押してください。'
         return {
+            'recovered': '認証を確認し、Cookieを保存しました。取得を再開できます。',
+            'recovered_restart': '認証を確認し、Cookieを保存しました。取得を再開するにはアプリを起動し直してください。',
             'verified': '認証を確認できました。Cookieと保存先を保存し、再起動すると利用できます。',
             'cookie_unreadable': 'Cookieを読み込めません。選択したファイルの形式・有効期限・読取権限を確認してください。通信は行っていません。',
             'owner_absent': '共有STOPの初期設定が完了していません。アプリを再起動してください。認証通信は行っていません。',
             'local_unavailable': 'STOP保護または設定の保存状態を確認できません。記録を保持したまま設定画面で確認してください。Pixivの認証失敗ではありません。',
-            'uncertain': '前回の通信結果が不明なため停止しています。共有GETの復旧画面で記録を確認してください。再送していません。',
+            'uncertain': '前回の通信結果が不明なため取得を停止しています。「取得停止の確認・回復」で記録を確認してください。',
             'busy': '別の通信または設定処理が実行中です。完了を待ってから確認してください。',
             'stop_rechecked': '通信記録を確認できました。設定画面から認証を確認できます。通常画面を開くにはアプリを再起動してください。',
             'profile_changed': '起動後に設定が変わりました。新しい設定を反映するにはアプリを再起動してください。',

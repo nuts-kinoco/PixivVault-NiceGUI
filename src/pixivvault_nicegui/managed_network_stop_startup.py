@@ -171,9 +171,8 @@ def open_or_initialize_windows_user_stop(*, selected_roots=(), profile_scope=Non
             validate_startup()
             retry_lock(lambda: attach_selected_histories(scope, selected_roots))
             if profile_scope is not None:
-                state = retry_lock(profile_scope.gate.snapshot)
-                if state.blocked:
-                    retry_lock(lambda: scope.gate.trip(state.status_code))
+                from .managed_network_stop_shared_transport import transfer_current_local_stop
+                retry_lock(lambda: transfer_current_local_stop(profile_scope.gate, scope.gate))
         return scope
 
     if previous_scope is not None:

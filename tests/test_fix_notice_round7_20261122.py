@@ -450,7 +450,7 @@ def test_outer_cleanup_does_not_replace_a_committed_stop(tmp_path, monkeypatch, 
             local.gate.trip(401)
             def fail_trip(*_):
                 raise gate.ManagedNetworkGateStorageError('synthetic mirror write refusal')
-            monkeypatch.setattr(shared.gate, 'trip', fail_trip)
+            monkeypatch.setattr(shared.gate, '_trip_locked', fail_trip)
         with pytest.raises(gate.ManagedNetworkStopped) as denied:
             reader.get_image_bytes(IMAGE)
         assert denied.value.status_code == 401 and denied.value.__notes__
@@ -470,7 +470,9 @@ def test_failed_intent_completion_keeps_primary_and_refuses_retry(tmp_path, monk
         sent.append(True)
         if outcome == '429':
             raise HTTPStatusRejected(429)
-        raise TransportFailed()
+        error = TransportFailed()
+        error.get_outcome_known = True
+        raise error
 
     with create_shared_profile_reader(local, credential, shared.gate,
                                       shared_owner_check=shared._check_owner, transport=send) as reader:

@@ -28,6 +28,7 @@ from .pixiv_read_client import HTTPStatusRejected, PixivReadError, ResponseRejec
 STOP_STATUSES = frozenset({401, 403, 429})
 _APP_ID = 0x50564E53
 _VERSION = 1
+_RECOVERABLE_VERSION = 2
 _GATE_SCHEMA = (
     "CREATE TABLE gate (id INTEGER PRIMARY KEY CHECK(id=1),"
     " blocked INTEGER NOT NULL CHECK(blocked IN (0,1)),"
@@ -401,7 +402,7 @@ def _configure_gate_connection(conn):
 def _verify_gate_schema(conn):
     objects = conn.execute("SELECT type,name,tbl_name,sql FROM sqlite_master LIMIT 2").fetchall()
     if (conn.execute("PRAGMA application_id").fetchone()[0] != _APP_ID
-            or conn.execute("PRAGMA user_version").fetchone()[0] != _VERSION
+            or conn.execute("PRAGMA user_version").fetchone()[0] not in (_VERSION, _RECOVERABLE_VERSION)
             or objects != [("table", "gate", "gate", _GATE_SCHEMA)]):
         raise ManagedNetworkGateStorageError("unmanaged gate database")
 
@@ -430,6 +431,8 @@ class ManagedNetworkStopGate:
     any subsequent guarded GET begins. Lock contention fails closed, not open.
     """
 
+    _prioritize_terminal_stop = False
+
     def __init__(self, path: Path):
         self.path = Path(path)
         if not self.path.is_absolute():
@@ -437,11 +440,10 @@ class ManagedNetworkStopGate:
         self.lock_path = self.path.with_name(self.path.name + ".lock")
         self._database_identity: tuple[int, int] | None = None
         self._lock_identity: tuple[int, int] | None = None
-        # A live gate must never forget a STOP it has already seen, even if
-        # its SQLite row is later rewritten to another syntactically valid
-        # state while the file identity remains unchanged. This supplements,
-        # but does not replace, a separately verified restart-time history.
+        # A live gate cannot roll back an observed revision or forget a
+        # terminal STOP. Only a newer recovery-format revision can advance 401.
         self._observed_stop_status: int | None = None
+        self._observed_revision = 0
         # Writers own the existing gate lock. The observer reads an immutable
         # snapshot of this memory-only proof, never SQL on the writable VFS.
         self._acquisition_sql = _AcquisitionSqlProof()
@@ -555,8 +557,8 @@ class ManagedNetworkStopGate:
                 raise ManagedNetworkGateStorageError("managed gate database identity changed")
             yield conn
 
-    @staticmethod
-    def _read_state(conn, observed_stop=None) -> NetworkStopState:
+    def _read_state(self, conn, observed_stop=None) -> NetworkStopState:
+        observed_revision = self._observed_revision
         # Never ignore an extra row: a corrupt history is not evidence that
         # the ordinary id=1 row still gives safe permission for another GET.
         # LIMIT 2 bounds work even if someone injected millions of rows.
@@ -564,33 +566,34 @@ class ManagedNetworkStopGate:
         if len(rows) != 1 or type(rows[0][0]) is not int or rows[0][0] != 1:
             raise ManagedNetworkGateStorageError("invalid managed gate state")
         _, blocked, status, revision = rows[0]
+        recoverable = conn.execute('PRAGMA user_version').fetchone()[0] == _RECOVERABLE_VERSION
         if (type(blocked) is not int or blocked not in (0, 1)
                 or type(revision) is not int or revision < 0
                 or (blocked == 0 and status is not None)
                 or (blocked == 1 and status not in STOP_STATUSES)
-                # This gate can write only (0, NULL, 0) initially and a
-                # single irreversible STOP transition to (1, status, 1).
-                # Treat other revisions as possible out-of-band alteration,
-                # never as permission to dispatch another managed GET.
-                or (blocked == 0 and revision != 0)
-                or (blocked == 1 and revision != 1)):
+                or (recoverable and (revision < 2 or revision % 2 != blocked))
+                or (not recoverable and revision != blocked)
+                or revision < observed_revision):
             raise ManagedNetworkGateStorageError("invalid managed gate state")
-        if observed_stop is not None and (blocked != 1 or status != observed_stop):
+        if (observed_stop is not None and status != observed_stop
+                and not (observed_stop == 401 and recoverable and revision > observed_revision)):
             raise ManagedNetworkGateStorageError("observed managed stop state changed")
         return NetworkStopState(bool(blocked), status, revision)
 
     def _read_locked(self, conn) -> NetworkStopState:
         with self._acquisition_sql_check(_AcquisitionSqlCheck.STATE):
             state = self._read_state(conn, self._observed_stop_status)
-        if state.blocked:
-            self._observed_stop_status = state.status_code
+        self._observed_stop_status = state.status_code
+        self._observed_revision = state.revision
         return state
 
     def _require_open_locked(self):
         with self._connection_locked() as conn:
             state = self._read_locked(conn)
             if state.blocked:
-                raise ManagedNetworkStopped(state.status_code)
+                stopped = ManagedNetworkStopped(state.status_code)
+                stopped.gate_revision = state.revision
+                raise stopped
         # Recover an actual acquisition refusal only after the same R/W SQL
         # path completed, closed its connection and admitted the request.
         generation, failed_check = self._acquisition_sql.stamp
@@ -612,10 +615,33 @@ class ManagedNetworkStopGate:
         with self._permission():
             pass
 
+    def _snapshot_locked(self) -> NetworkStopState:
+        with self._connection_locked() as conn:
+            return self._read_locked(conn)
+
     def snapshot(self) -> NetworkStopState:
         with self._exclusive():
-            with self._connection_locked() as conn:
-                return self._read_locked(conn)
+            return self._snapshot_locked()
+
+    def _advance_401_locked(self, status):
+        """Change a confirmed 401 while owning the same lock used for sends."""
+        if status not in (None, 403, 429):
+            raise ValueError('unsupported 401 recovery transition')
+        with self._connection_locked() as conn:
+            if self._read_locked(conn).status_code != 401:
+                raise ManagedNetworkGateStorageError('expected a 401 stop')
+            self._write_401_transition(conn, status)
+            return self._read_locked(conn)
+
+    @staticmethod
+    def _write_401_transition(conn, status):
+        conn.execute("BEGIN IMMEDIATE")
+        conn.execute(f"PRAGMA user_version={_RECOVERABLE_VERSION}")
+        conn.execute(
+            "UPDATE gate SET blocked=?,status=?,revision=revision+? WHERE id=1",
+            (int(status is not None), status, 1 if status is None else 2),
+        )
+        conn.commit()
 
     def _trip_locked(self, status_code: int) -> NetworkStopState:
         completed = None
@@ -629,6 +655,10 @@ class ManagedNetworkStopGate:
                         (status_code,),
                     )
                     conn.commit()
+                    state = self._read_locked(conn)
+                elif self._prioritize_terminal_stop and state.status_code == 401 and status_code in (403, 429):
+                    record_gate_refusal()
+                    self._write_401_transition(conn, status_code)
                     state = self._read_locked(conn)
                 completed = state
         except ManagedNetworkGateStorageError as error:
@@ -645,7 +675,7 @@ class ManagedNetworkStopGate:
             return self._trip_locked(status_code)
 
     @contextmanager
-    def request(self):
+    def request(self, *, after_stop=None):
         """Fence a synchronous GET, persisting fatal HTTP status before release."""
         with self._exclusive():
             self._require_open_locked()
@@ -664,4 +694,7 @@ class ManagedNetworkStopGate:
                             _carry_gate_cleanup(error, storage_error)
                             raise
                         _attach_gate_cleanup(error, storage_error)
+                    else:
+                        if after_stop is not None:
+                            after_stop(error)
                 raise

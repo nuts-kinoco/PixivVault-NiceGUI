@@ -33,12 +33,13 @@ from .managed_network_stop_gate import (
     _gate_cleanup,
     _gate_cleanup_failure,
     _carry_gate_cleanup,
+    _attach_gate_cleanup,
     STOP_STATUSES,
     _file_identity,
     _reject_links,
 )
-from .managed_network_stop_transport import _GatedReadTransport
-from .pixiv_read_client import HTTPStatusRejected, PixivReadError
+from .managed_network_stop_transport import StaleCredentialReader, _GatedReadTransport
+from .pixiv_read_client import HTTPStatusRejected, PixivReadError, _PeerRateStopped
 from .gate_refusal_state import gate_refusal_scope, pending_refusal_check, record_gate_refusal
 from .request_policy import durable_stop_status, record_request_rate_stop
 
@@ -49,6 +50,8 @@ _OWNER_SCHEMA = "pixivvault-managed-get-user-owner-v1"
 _STARTUP_OWNER_SCHEMA = "pixivvault-managed-get-user-startup-owner-v1"
 _INFLIGHT_FILE = ".pixivvault-user-stop-inflight.v1"
 _INFLIGHT_BYTES = b"pixivvault-user-pixiv-get-inflight-v1\n"
+_PENDING_GET_BYTES = b"pixivvault-user-pixiv-get-pending-v2\n"
+_UNANSWERED_GET_BYTES = b"pixivvault-user-pixiv-get-unanswered-v2\n"
 
 
 class SharedGetOutcomeUncertain(ManagedNetworkGateStorageError):
@@ -67,6 +70,17 @@ class SharedGetRecoveryPlan:
     marker_identity: tuple[int, int]
     marker_mtime_ns: int
     gate_revision: int
+    stop_status: int | None = None
+
+
+def _get_completion_known(error):
+    if getattr(error, 'gate_cleanup_errors', ()) or getattr(error, 'cleanup_failed', False):
+        return False
+    if isinstance(error, (StaleCredentialReader, _PeerRateStopped)):
+        return True
+    if isinstance(error, ManagedNetworkGateStorageError):
+        return False
+    return getattr(error, 'get_outcome_known', isinstance(error, HTTPStatusRejected)) is True
 
 
 class ManagedUserNetworkStopGate(ManagedNetworkStopGate):
@@ -79,6 +93,8 @@ class ManagedUserNetworkStopGate(ManagedNetworkStopGate):
     Completed harmless requests remove their own markers. A separate explicit,
     owner-checked recovery may archive an abandoned intent without clearing STOP.
     """
+
+    _prioritize_terminal_stop = True
 
     def __init__(self, path: Path):
         super().__init__(path)
@@ -109,7 +125,8 @@ class ManagedUserNetworkStopGate(ManagedNetworkStopGate):
             try:
                 stream = self.inflight_path.open("xb")
                 with _gate_cleanup(stream.close, 'shared GET intent close failed', authority='shared'):
-                    stream.write(_INFLIGHT_BYTES)
+                    if stream.write(_PENDING_GET_BYTES) != len(_PENDING_GET_BYTES):
+                        raise OSError('shared GET intent short write')
                     stream.flush()
                     os.fsync(stream.fileno())
                 return _file_identity(self.inflight_path)
@@ -138,20 +155,62 @@ class ManagedUserNetworkStopGate(ManagedNetworkStopGate):
             self._no_inflight()
         return state
 
+    def _record_unanswered_get(self, identity, error):
+        # A terminal response, interrupted process or failed cleanup must
+        # leave its pending record unacknowledgeable. Only the returning
+        # transport can prove that no final response was observed.
+        if (getattr(error, 'status_code', None) in STOP_STATUSES
+                or getattr(error, 'get_outcome_known', None) is not False
+                or getattr(error, 'gate_cleanup_errors', ())
+                or getattr(error, 'cleanup_failed', False)):
+            return
+        with _gate_storage_io('shared GET outcome record unavailable'):
+            if _file_identity(self.inflight_path) != identity:
+                raise ManagedNetworkGateStorageError('shared GET intent replaced')
+            with self.inflight_path.open('r+b') as stream:
+                info = os.fstat(stream.fileno())
+                if ((info.st_dev, info.st_ino) != identity
+                        or stream.read(len(_PENDING_GET_BYTES) + 1) != _PENDING_GET_BYTES):
+                    raise ManagedNetworkGateStorageError('shared GET intent not recognized')
+                stream.seek(0)
+                if stream.write(_UNANSWERED_GET_BYTES) != len(_UNANSWERED_GET_BYTES):
+                    raise OSError('shared GET outcome short write')
+                stream.truncate()
+                stream.flush()
+                os.fsync(stream.fileno())
+
+    def _finish_failed_get(self, identity, error):
+        _run_gate_cleanup(lambda: self._finish_inflight(identity),
+                          'shared GET completion not durable', primary=error)
+
+    def _settle_failed_get(self, identity, error):
+        if _get_completion_known(error):
+            self._finish_failed_get(identity, error)
+        elif (not isinstance(error, ManagedNetworkGateStorageError)
+              and not getattr(error, 'gate_cleanup_errors', ())):
+            uncertain = SharedGetOutcomeUncertain()
+            _run_gate_cleanup(lambda: self._record_unanswered_get(identity, error),
+                              'shared GET outcome record unavailable', primary=uncertain)
+            # Preserve the primary exception and suppress another admission.
+            _attach_gate_cleanup(error, uncertain)
+            return uncertain
+        return None
+
     @contextmanager
     def request(self):
-        with super().request():
+        def settled_stop(error):
+            # Keep the intent until the observed STOP has been committed.
+            if error.status_code == 401 and _get_completion_known(error):
+                self._finish_failed_get(identity, error)
+
+        with super().request(after_stop=settled_stop):
             identity = self._begin_inflight()
             try:
                 yield
             except HTTPStatusRejected as error:
                 record_request_rate_stop(error.status_code, cleanup_failed=bool(getattr(error, 'gate_cleanup_errors', ())))
                 if not durable_stop_status(error.status_code):
-                    _run_gate_cleanup(lambda: self._finish_inflight(identity),
-                                      'shared GET completion not durable', primary=error)
-                # Fatal: leave the pre-GET marker. Only a durable gate trip
-                # may prove STOP; if that SQLite write fails the next reader
-                # still sees the marker and refuses all further GETs.
+                    self._settle_failed_get(identity, error)
                 raise
             except HTTPError as error:
                 rejected = _http_gate_rejection(error)
@@ -159,24 +218,14 @@ class ManagedUserNetworkStopGate(ManagedNetworkStopGate):
                     record_request_rate_stop(rejected.status_code,
                                              cleanup_failed=bool(getattr(rejected, 'gate_cleanup_errors', ())))
                 if not isinstance(rejected, HTTPStatusRejected) or not durable_stop_status(rejected.status_code):
-                    _run_gate_cleanup(lambda: self._finish_inflight(identity),
-                                      'shared GET completion not durable', primary=rejected)
+                    self._settle_failed_get(identity, rejected)
                 raise rejected from None
             except ManagedNetworkStopped as stopped:
                 if stopped.status_code not in STOP_STATUSES:
                     raise ManagedNetworkGateStorageError("unknown raw shared STOP") from None
-                raise HTTPStatusRejected(stopped.status_code) from None
+                raise _carry_gate_cleanup(stopped, HTTPStatusRejected(stopped.status_code)) from None
             except PixivReadError as error:
-                if isinstance(error, ManagedNetworkGateStorageError):
-                    # A failed STOP write or uncertain shared ownership is
-                    # never evidence that this GET completed harmlessly.
-                    raise
-                # Real owned HTTPS transport now preserves any observed fatal
-                # status before mapping cancel, timeout, response rejection or
-                # other ordinary errors. These nonfatal PixivReadErrors may
-                # safely free the intent and retain normal retry/cleanup.
-                _run_gate_cleanup(lambda: self._finish_inflight(identity),
-                                  'shared GET completion not durable', primary=error)
+                self._settle_failed_get(identity, error)
                 raise
             else:
                 self._finish_inflight(identity)
@@ -277,10 +326,12 @@ class ManagedUserNetworkStopScope:
     def create_reader(self, cookie_path, *, transport=None):
         from .managed_network_stop_reader import create_exact_managed_read_client
         self._check_owner()
+        generation = ManagedNetworkStopGate.snapshot(self.gate).revision // 2
         client = create_exact_managed_read_client(cookie_path, self.gate, transport=transport)
         try:
             # The transport must be checked at every GET, not just creation.
             original = client._transport
+            original.shared_generation = generation
             client._transport = _SealedOwnerTransport(self, original)
             return client
         except BaseException as error:
@@ -297,7 +348,7 @@ class ManagedUserNetworkStopScope:
         self._check_owner()
         with self.gate._connection_locked() as conn:
             state = self.gate._read_locked(conn)
-            if state.blocked:
+            if state.status_code in (403, 429):
                 raise ManagedNetworkStopped(state.status_code)
         path = self.gate.inflight_path
         _reject_links(path)
@@ -305,17 +356,23 @@ class ManagedUserNetworkStopScope:
             try:
                 path.lstat()
             except FileNotFoundError:
+                if state.blocked:
+                    raise ManagedNetworkStopped(state.status_code)
                 return None
         try:
             identity = _file_identity(path)
             with path.open('rb') as stream:
                 info = os.fstat(stream.fileno())
-                if ((info.st_dev, info.st_ino) != identity
-                        or stream.read(len(_INFLIGHT_BYTES) + 1) != _INFLIGHT_BYTES):
-                    raise ManagedNetworkGateStorageError('shared GET intent not recognized')
+                marker = stream.read(len(_UNANSWERED_GET_BYTES) + 1)
+                if (info.st_dev, info.st_ino) != identity:
+                    raise ManagedNetworkGateStorageError('shared GET intent changed')
+                if state.blocked and marker == _INFLIGHT_BYTES:
+                    raise ManagedNetworkStopped(state.status_code)
+                if marker not in (_INFLIGHT_BYTES, _UNANSWERED_GET_BYTES):
+                    raise ManagedNetworkGateStorageError('shared GET outcome was not classified')
             if (_file_identity(path) != identity or path.stat().st_mtime_ns != info.st_mtime_ns):
                 raise ManagedNetworkGateStorageError('shared GET intent changed')
-            return SharedGetRecoveryPlan(identity, info.st_mtime_ns, state.revision)
+            return SharedGetRecoveryPlan(identity, info.st_mtime_ns, state.revision, state.status_code)
         except OSError:
             raise ManagedNetworkGateStorageError('shared GET intent unavailable') from None
 
@@ -374,6 +431,9 @@ class _SealedOwnerTransport(_GatedReadTransport):
             self.scope._check_owner()
             with selected_history_guard(self.scope, transfer_stop=not confirming):
                 yield
+
+    def _require_generation(self, local_revision, shared_revision=None):
+        self.transport._require_generation(local_revision, shared_revision)
 
     def __call__(self, request, timeout, limit, deadline):
         with self._admission_owner_checks():

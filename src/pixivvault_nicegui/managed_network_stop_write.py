@@ -8,6 +8,7 @@ from .managed_network_stop_shared_transport import _transfer_known_stop, _trip_l
 from .managed_network_stop_gate import (
     ManagedNetworkGateStorageError, ManagedNetworkStopped, STOP_STATUSES, _report_stop_authority,
 )
+from .managed_network_stop_transport import StaleCredentialReader
 from .pixiv_read_client import HTTPStatusRejected
 
 
@@ -17,6 +18,7 @@ def write_admission(reader, local, shared):
     if shared is None:
         raise RuntimeError('shared STOP owner required')
     transport = reader._transport
+    require_generation = getattr(transport, '_require_generation', None)
     if local is not None:
         _require_selected_cookie(transport.profile_root, transport.cookie_path,
                                  transport.profile_identity, gate=local.gate)
@@ -29,6 +31,12 @@ def write_admission(reader, local, shared):
                 try:
                     with _report_stop_authority('shared'), shared.gate.request():
                         shared._check_owner()
+                        shared_revision = shared.gate._observed_revision
+                        if require_generation is not None:
+                            local_revision = local.gate._observed_revision if local is not None else None
+                            require_generation(local_revision, shared_revision)
+                        elif shared_revision:
+                            raise StaleCredentialReader('writer lacks recovered credential proof', authority='shared')
                         if local is not None:
                             _require_selected_cookie(transport.profile_root, transport.cookie_path,
                                                      transport.profile_identity, gate=local.gate)

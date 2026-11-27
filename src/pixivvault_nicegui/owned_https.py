@@ -9,6 +9,7 @@ from __future__ import annotations
 from contextlib import contextmanager, nullcontext
 from functools import lru_cache
 import http.client
+import io
 from select import select
 import socket
 import ssl
@@ -48,6 +49,7 @@ class HTTPSOwner:
         self.reused_dispatch = False
         self.reused_disconnect = False
         self.response_started = False
+        self.send_started = False
         self.trust_epoch = _trust_epoch()
         self.idle_until = 0.0
         self.fence = SocketFence()
@@ -220,11 +222,19 @@ class _EarlyObservedHTTPResponse(http.client.HTTPResponse):
             if not self.fp.peek(1):
                 raise http.client.RemoteDisconnected("HTTPS peer disconnected before response")
             owner.response_started = True
-        version, status, reason = super()._read_status()
+        stream = self.fp
+        line = stream.readline(http.client._MAXLINE + 1)
+        self.fp = io.BytesIO(line)
+        try:
+            version, status, reason = super()._read_status()
+        finally:
+            self.fp = stream
+        complete = line.endswith(b'\n') and version in ('HTTP/1.0', 'HTTP/1.1')
         observer = owner._http_status_observer
-        if (callable(observer) and type(status) is int and 100 <= status <= 599
-                and version.startswith('HTTP/1.')):
-            observer(status)
+        if (callable(observer) and 100 <= status <= 599 and version.startswith('HTTP/1.')):
+            observer(status, complete=complete)
+        if not complete:
+            raise http.client.BadStatusLine('invalid or incomplete HTTPS status line')
         return version, status, reason
 
 
@@ -288,6 +298,7 @@ class OwnedHTTPSConnection(http.client.HTTPSConnection):
         sendall = self.sock.sendall
         sys.audit("http.client.send", self, data)
         before_send()
+        self.owner.send_started = True
         return sendall(data)
 
     def getresponse(self):
@@ -479,6 +490,7 @@ class OwnedHTTPSPool:
                         owner.reused_dispatch = False
                         owner.reused_disconnect = False
                         owner.response_started = False
+                        owner.send_started = False
                     owner.keep_alive = keep_alive
                     self._owners.add(owner)
             if not healthy:

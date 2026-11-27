@@ -27,16 +27,16 @@ def test_second_profile_reader_construction_failure_closes_first(tmp_path, monke
     store.update(cookie_file=cookie, expected_revision=0)
     binding = NativeProfileBinding(store)
     readers = []
-    real_create = scope.create_reader
+    real_create = scope._create_reader_locked
 
-    def fail_second(path, *, transport=None):
+    def fail_second(path, gate_revision, *, transport=None):
         if readers:
             raise RuntimeError("synthetic second reader failure")
-        reader = real_create(path, transport=lambda *_args: pytest.fail("network not allowed"))
+        reader = real_create(path, gate_revision, transport=lambda *_args: pytest.fail("network not allowed"))
         readers.append(reader)
         return reader
 
-    monkeypatch.setattr(scope, "create_reader", fail_second)
+    monkeypatch.setattr(scope, "_create_reader_locked", fail_second)
     monkeypatch.setattr(bootstrap, "_registered", False)
     # A generated, explicitly injected shared owner is required before an
     # authenticated reader may be constructed. This lifecycle test does not

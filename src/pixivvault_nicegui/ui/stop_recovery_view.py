@@ -27,6 +27,7 @@ def build_startup_stop_recheck(binding, notice, view):
     """Re-open the startup fence locally and restore only the manual auth check."""
     client = ui.context.client
     active = None
+    recovery = None
 
     def cancel_active():
         if active is not None:
@@ -36,10 +37,12 @@ def build_startup_stop_recheck(binding, notice, view):
     client.on_delete(cancel_active)
 
     async def verify_auth(cookie_file):
-        result = await binding.check_authentication(cookie_file, _publish=False)
+        result = await binding.check_selected_authentication(cookie_file, _publish=False)
         if result.code == 'profile_changed':
             view.set_auth_verifier(None)
             notice.set_text(result.message)
+        elif result.code == 'uncertain':
+            show_recovery(binding.shared_network_stop_scope)
         return result
 
     def render(scope, code):
@@ -48,11 +51,17 @@ def build_startup_stop_recheck(binding, notice, view):
         if code == 'stop_rechecked':
             notice.classes(remove='pv-warning-banner', add='pv-subtitle')
             view.set_auth_verifier(verify_auth)
-        elif code == 'uncertain' and scope is not None:
-            from .shared_get_recovery_view import SharedGetRecoveryView
-            with actions:
-                recovery = SharedGetRecoveryView(scope)
-            client.on_delete(recovery.close)
+        elif code == 'uncertain':
+            show_recovery(scope)
+
+    def show_recovery(scope):
+        nonlocal recovery
+        if scope is None or recovery is not None or client.is_deleted:
+            return
+        from .shared_get_recovery_view import SharedGetRecoveryView
+        with actions:
+            recovery = SharedGetRecoveryView(scope)
+        client.on_delete(recovery.close)
 
     async def check():
         nonlocal active

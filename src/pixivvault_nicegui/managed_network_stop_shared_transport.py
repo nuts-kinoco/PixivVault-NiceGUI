@@ -33,7 +33,7 @@ from .request_policy import durable_stop_status, request_send_checkpoint
 
 
 def _dispatch_dual_stop(local_gate, shared_gate, transport,
-                        request, timeout, limit, deadline):
+                        request, timeout, limit, deadline, *, before_send=None):
     if request.get_method() != "GET" or request.data is not None:
         raise ValueError("managed network transport accepts GET only")
     fatal_status = None
@@ -42,6 +42,8 @@ def _dispatch_dual_stop(local_gate, shared_gate, transport,
             try:
                 with _report_stop_authority('shared'), shared_gate.request():
                     try:
+                        if before_send is not None:
+                            before_send(local_gate._observed_revision, shared_gate._observed_revision)
                         request_send_checkpoint()
                         return transport(request, timeout, limit, deadline)
                     except HTTPError as error:
@@ -92,7 +94,36 @@ def _trip_local_after_shared_failure(local_gate, status, error):
         _attach_gate_cleanup(error, local_error)
 
 
+def transfer_current_local_stop(local_gate, shared_gate, *, expected_revision=None):
+    """Read and copy under the local lock so a cleared STOP cannot be re-latched."""
+    with _report_stop_authority('local'), local_gate._exclusive():
+        state = local_gate._snapshot_locked()
+        if not state.blocked or (expected_revision is not None and state.revision != expected_revision):
+            return False
+        with _report_stop_authority('shared'):
+            shared_gate.trip(state.status_code)
+        return True
+
+
 def _transfer_known_stop(local_gate, shared_gate, stopped):
+    if stopped.status_code == 401 and hasattr(stopped, 'gate_revision'):
+        try:
+            if stopped.authority == 'local':
+                copied = transfer_current_local_stop(
+                    local_gate, shared_gate, expected_revision=stopped.gate_revision)
+            else:
+                with local_gate._exclusive(), shared_gate._exclusive():
+                    state = shared_gate._snapshot_locked()
+                    copied = state.status_code == 401 and state.revision == stopped.gate_revision
+                    if copied:
+                        with _report_stop_authority('local'):
+                            local_gate._trip_locked(401)
+        except ManagedNetworkGateStorageError as error:
+            _attach_gate_cleanup(stopped, error)
+        else:
+            if copied:
+                stopped.authority = 'both'
+        return
     transfer_failed = False
     for authority, gate in (('shared', shared_gate), ('local', local_gate)):
         try:
@@ -134,7 +165,7 @@ class SharedProfileStopTransport(_ProfileBoundTransport):
     resource_authority = 'shared'
 
     def __init__(self, previous: _ProfileBoundTransport,
-                 shared_gate: ManagedNetworkStopGate, *, shared_owner_check=None):
+                 shared_gate: ManagedNetworkStopGate, *, shared_owner_check=None, shared_generation=None):
         if not isinstance(previous, _ProfileBoundTransport):
             raise TypeError("owned native profile transport required")
         if not isinstance(shared_gate, ManagedNetworkStopGate):
@@ -151,9 +182,16 @@ class SharedProfileStopTransport(_ProfileBoundTransport):
         # This matters: a nested ManagedNetworkStopTransport would translate
         # the local HTTPStatusRejected before shared_gate.request() could trip.
         super().__init__(previous.profile_root, previous.cookie_path,
-                         previous.profile_identity, previous)
+                         previous.profile_identity, previous, previous.local_generation)
         self.shared_gate = shared_gate
         self.shared_owner_check = shared_owner_check
+        with _report_stop_authority('shared'):
+            self.shared_generation = (ManagedNetworkStopGate.snapshot(shared_gate).revision // 2
+                                      if shared_generation is None else shared_generation)
+
+    def _require_generation(self, local_revision, shared_revision=None):
+        super()._require_generation(local_revision)
+        ManagedNetworkStopTransport._require_generation(self, local_revision, shared_revision)
 
     @property
     def _notice_gates(self):
@@ -169,17 +207,24 @@ class SharedProfileStopTransport(_ProfileBoundTransport):
                  deadline: float) -> bytes:
         with self._admission_owner_checks():
             return _dispatch_dual_stop(self.gate, self.shared_gate, self.transport,
-                                       request, timeout, limit, deadline)
+                                       request, timeout, limit, deadline,
+                                       before_send=self._require_generation)
 
 
 class _DraftAuthSharedTransport(_GatedReadTransport):
     """The Native draft Cookie is not yet the saved credential selection."""
 
-    __slots__ = ("scope", "shared_owner", "transport")
+    __slots__ = ("scope", "shared_owner", "transport", "generations")
     resource_authority = 'shared'
 
-    def __init__(self, scope, shared_owner, transport):
+    def __init__(self, scope, shared_owner, transport, generations=None):
         self.scope, self.shared_owner, self.transport = scope, shared_owner, transport
+        self.generations = generations
+
+    def _require_generation(self, local_revision, shared_revision=None):
+        if self.generations is not None and self.generations != (local_revision // 2, shared_revision // 2):
+            from .managed_network_stop_transport import StaleCredentialReader
+            raise StaleCredentialReader('draft reader predates credential recovery', authority='both')
 
     @property
     def _notice_gates(self):
@@ -194,7 +239,8 @@ class _DraftAuthSharedTransport(_GatedReadTransport):
     def __call__(self, request, timeout, limit, deadline):
         with self._admission_owner_checks():
             return _dispatch_dual_stop(self.scope.gate, self.shared_owner.gate,
-                                       self.transport, request, timeout, limit, deadline)
+                                       self.transport, request, timeout, limit, deadline,
+                                       before_send=self._require_generation)
 
 
 def create_shared_draft_auth_reader(scope, cookie_path, shared_owner):
@@ -207,12 +253,13 @@ def create_shared_draft_auth_reader(scope, cookie_path, shared_owner):
         raise TypeError("sealed Native and shared STOP scopes required")
     shared_owner._check_owner()
     scope.require_allowed()
+    generations = (scope.gate.snapshot().revision // 2, shared_owner.gate.snapshot().revision // 2)
     reader = create_exact_managed_read_client(cookie_path, scope.gate)
     try:
         previous = reader._transport
         if not isinstance(previous, ManagedNetworkStopTransport):
             raise ManagedNetworkGateStorageError("draft reader is not gated")
-        reader._transport = _DraftAuthSharedTransport(scope, shared_owner, previous.transport)
+        reader._transport = _DraftAuthSharedTransport(scope, shared_owner, previous.transport, generations)
         return reader
     except BaseException as error:
         _run_gate_cleanup(reader.close, 'managed reader close failed', primary=error, authority='shared')
@@ -238,26 +285,36 @@ def create_shared_profile_reader(scope, cookie_path, shared_gate, *, transport=N
         raise TypeError("shared owner validation callable required")
     if shared_owner_check is not None:
         shared_owner_check()
-    reader = scope.create_reader(cookie_path, transport=transport)
+    reader = None
     try:
-        # Do not offer a callable that retrofits an already-published reader:
-        # a GET between its local snapshot and transport replacement could
-        # trip only local STOP and leave the shared owner unblocked.
-        if type(reader) is not LivePixivReadClient:
-            raise TypeError("exact managed Pixiv reader required")
-        previous = reader._transport
-        if not isinstance(previous, _ProfileBoundTransport):
-            raise TypeError("owned native profile transport required")
-        shared_transport = SharedProfileStopTransport(
-            previous, shared_gate, shared_owner_check=shared_owner_check)
-        try:
-            with _report_stop_authority('local'):
-                previous.gate.require_allowed()
-        except ManagedNetworkStopped as stopped:
-            with _report_stop_authority('shared'):
-                _trip_before_admission(shared_gate.trip, stopped)
-        reader._transport = shared_transport
+        with _report_stop_authority('local'), scope.gate._exclusive():
+            stopped = None
+            try:
+                scope.gate._require_open_locked()
+            except ManagedNetworkStopped as error:
+                stopped = error
+                if stopped.status_code == 401:
+                    with _report_stop_authority('shared'):
+                        _trip_before_admission(shared_gate.trip, stopped)
+            # Capture the shared generation before reading the credential.
+            # A different profile can recover while this local lock is held.
+            shared_generation = None
+            if stopped is None or stopped.status_code == 401:
+                with _report_stop_authority('shared'):
+                    shared_generation = ManagedNetworkStopGate.snapshot(shared_gate).revision // 2
+            # _require_open_locked just read the local generation from disk.
+            reader = scope._create_reader_locked(cookie_path, scope.gate._observed_revision,
+                                                 transport=transport)
+            if stopped is not None and stopped.status_code != 401:
+                with _report_stop_authority('shared'):
+                    _trip_before_admission(shared_gate.trip, stopped)
+            if type(reader) is not LivePixivReadClient:
+                raise TypeError("exact managed Pixiv reader required")
+            reader._transport = SharedProfileStopTransport(
+                reader._transport, shared_gate, shared_owner_check=shared_owner_check,
+                shared_generation=shared_generation)
         return reader
     except BaseException as error:
-        _run_gate_cleanup(reader.close, 'managed reader close failed', primary=error, authority='shared')
+        if reader is not None:
+            _run_gate_cleanup(reader.close, 'managed reader close failed', primary=error, authority='shared')
         raise

@@ -116,7 +116,7 @@ class AccountFollowup:
 
     # -- entry point ---------------------------------------------------------
 
-    async def after_confirmed(self, account):
+    async def after_confirmed(self, account, *, sync=True, reader_ready=False):
         """Called with the verified account ID after a startup/saved/received check."""
         if self.binding._closed:
             return
@@ -133,6 +133,10 @@ class AccountFollowup:
                 self._close_dialog()
                 self.pending = AccountSwitchRequest(account, old)
                 self._emit('account_switch', {'new_account': account, 'old_account': old})
+                return
+            if not sync:
+                if reader_ready and old == account:
+                    await self._signal_following_ready(account, store)
                 return
             snapshot = await asyncio.to_thread(store.snapshot, account)
         except Exception:

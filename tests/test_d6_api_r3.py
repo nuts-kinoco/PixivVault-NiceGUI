@@ -5,7 +5,7 @@ from contextlib import ExitStack, closing, contextmanager
 from select import select
 import socket
 import ssl
-from threading import Event, Thread, current_thread
+from threading import Event, Thread
 from time import monotonic, sleep
 from types import SimpleNamespace
 
@@ -59,56 +59,23 @@ def dual_reader(root, monkeypatch, *, policy):
 
 
 @pytest.mark.parametrize("policy", [False, True], ids=["default", "configured"])
-@pytest.mark.parametrize(("reply", "error", "phase", "status"), [
-    ((200, "identity", BODY), None, None, None),
-    ((200, "drop", b""), reads.TransportFailed, "failed", None),
-    ((404, "identity", b""), reads.HTTPStatusRejected, None, 404),
-    ((500, "identity", b""), reads.HTTPStatusRejected, "failed", 500),
-    ((429, "identity", b""), ManagedNetworkStopped, "stopped", 429),
+@pytest.mark.parametrize("next_reply", [
+    (200, "identity", BODY), (200, "drop", b""), (404, "identity", b""),
+    (500, "identity", b""), (429, "identity", b""),
 ], ids=["good", "drop", "404", "500", "429"])
-def test_reused_eof_gets_only_one_fresh_attempt(
-        tmp_path, wire, monkeypatch, policy, reply, error, phase, status):
+def test_reused_eof_preserves_unknown_intent_without_fresh_attempt(tmp_path, wire, monkeypatch, policy, next_reply):
     with dual_reader(tmp_path, monkeypatch, policy=policy) as (client, local, shared, admissions, waits):
         assert get(client) == BODY
-        outcomes = iter([(200, "drop", b""), reply])
-
-        def replay_reply():
-            assert shared.inflight_path.is_file()
-            return next(outcomes)
-
-        wire.on_request = replay_reply
-        if error is None:
-            assert get(client, seconds=10) == BODY
-        else:
-            with pytest.raises(error) as failure:
-                get(client, seconds=10)
-            assert getattr(failure.value, "status_code", None) == status
-        assert [row[0] for row in wire.requests] == [0, 0, 1]
-        assert len(admissions) == 3 and not waits
-        if status != 429:
-            assert not shared.inflight_path.exists()
-        assert shared.snapshot().blocked == local.snapshot().blocked == (status == 429)
-        if status == 429:
-            assert shared.snapshot().status_code == local.snapshot().status_code == 429
-
-        if policy:
-            records = client._retry_policy.progress_snapshot()
-            if phase is None:
-                assert records == ()
-                assert retry_status_text(records) == ""
-            else:
-                record, = records
-                assert (record["phase"], record["status"], record["attempt"], record["limit"]) == (
-                    phase, status, 2, 3,
-                )
-                if status == 429:
-                    assert record["stop_cause"] == "durable_gate"
-                    assert "通信を止めています。アクセスが制限されました。" in retry_status_text(records)
-                    assert "試行上限" not in retry_status_text(records)
-        if status == 429:
-            with pytest.raises(ManagedNetworkStopped):
-                get(client)
-            assert len(wire.requests) == 3
+        replies = iter([(200, "drop", b""), next_reply])
+        wire.on_request = lambda: next(replies)
+        with pytest.raises(reads._PooledConnectionLost):
+            get(client, seconds=10)
+        assert [row[0] for row in wire.requests] == [0, 0]
+        assert len(admissions) == 2 and not waits
+        assert shared.inflight_path.is_file() and not local.snapshot().blocked
+        with pytest.raises(SharedGetOutcomeUncertain):
+            get(client)
+        assert len(wire.requests) == 2
 
 
 @pytest.mark.parametrize("warm", [False, True], ids=["fresh", "pooled"])
@@ -120,7 +87,7 @@ def test_partial_http_status_is_never_replayed(tmp_path, wire, monkeypatch, warm
         with pytest.raises(reads.TransportFailed):
             get(client, seconds=10)
         assert len(wire.requests) == len(admissions) == (2 if warm else 1)
-        assert not waits and not shared.inflight_path.exists()
+        assert not waits and shared.inflight_path.exists()
 
 
 def confirm_fragment_before_reset(monkeypatch, wire):
@@ -137,11 +104,18 @@ def confirm_fragment_before_reset(monkeypatch, wire):
 
 
 @pytest.mark.parametrize("disposition", ["reset", "drop"], ids=["tcp-rst", "dirty-fin"])
-def test_zero_response_reused_socket_recovers(tmp_path, wire, monkeypatch, disposition):
+def test_zero_response_on_reused_socket_requires_acknowledgement(tmp_path, wire, monkeypatch, disposition):
+    from pixivvault_nicegui.managed_network_stop_shared_scope import ManagedUserNetworkStopScope
+
     with dual_reader(tmp_path, monkeypatch, policy=True) as (client, _, shared, admissions, waits):
         assert get(client) == BODY
-        replies = iter([(200, disposition, b""), (200, "identity", BODY)])
-        wire.on_request = lambda: next(replies)
+        wire.reply = 200, disposition, b""
+        with pytest.raises(reads._PooledConnectionLost):
+            get(client)
+        assert shared.inflight_path.is_file()
+        owner = ManagedUserNetworkStopScope(shared.path.parent)
+        owner.recover_uncertain_get(owner.preview_uncertain_get_recovery(), confirmed=True)
+        wire.reply = 200, "identity", BODY
         assert get(client) == BODY
         assert [row[0] for row in wire.requests] == [0, 0, 1]
         assert len(admissions) == 3 and not waits and not shared.inflight_path.exists()
@@ -167,7 +141,8 @@ def test_response_started_on_pooled_socket_prevents_replay(
         if disposition == "reset":
             assert wire.reset_release.is_set()
         assert [row[0] for row in wire.requests] == [0, 0]
-        assert len(admissions) == 2 and not waits and not shared.inflight_path.exists()
+        assert len(admissions) == 2 and not waits
+        assert shared.inflight_path.exists() is (disposition == "partial-status")
 
 
 @pytest.mark.parametrize(("kind", "path"), [
@@ -197,82 +172,42 @@ def test_account_switch_after_pooled_disconnect_prevents_recovery(
         assert get(client) == BODY
         selection = profile.snapshot()
         replacement = write_cookie(selection.cookie_file.parent, 56)
-        switched = False
-        entries = []
-        client.set_request_admission(lambda _: entries.append(1))
-
-        def switch_after_disconnect():
-            nonlocal switched
-            if not switched and len(wire.requests) == 2 and not shared.inflight_path.exists():
-                profile.update(cookie_file=replacement, expected_revision=selection.revision)
-                switched = True
-
         wire.reply = 200, "drop", b""
+        with pytest.raises(reads._PooledConnectionLost):
+            get(client, seconds=10)
+        assert shared.inflight_path.is_file()
+        profile.update(cookie_file=replacement, expected_revision=selection.revision)
         error = reads.CookieSourceRejected if coordinated else ManagedNetworkGateStorageError
-        with request_scope(checkpoint=switch_after_disconnect), pytest.raises(error) as failure:
+        with pytest.raises(error) as failure:
             get(client, seconds=10)
         assert type(failure.value) is error
-        assert switched and len(entries) == (1 if coordinated else 2)
         assert [row[0] for row in wire.requests] == [0, 0]
-        assert len(admissions) == 2 and not waits and not shared.inflight_path.exists()
+        assert len(admissions) == 2 and not waits and shared.inflight_path.is_file()
 
 
-@pytest.mark.parametrize("parallel_stop", [False, True], ids=["idle-parked", "rate-stop"])
-def test_other_thread_between_pooled_disconnect_and_recovery(
-        tmp_path, wire, monkeypatch, parallel_stop):
+@pytest.mark.parametrize("peer_status", [200, 429])
+def test_other_thread_cannot_send_after_pooled_disconnect(tmp_path, wire, monkeypatch, peer_status):
     with (dual_reader(tmp_path, monkeypatch, policy=True) as (client, local, shared, admissions, waits),
           ThreadPoolExecutor(max_workers=1) as worker):
         assert get(client) == BODY
-        competitor_reply = (429, "identity", b"") if parallel_stop else (200, "identity", BODY)
-        replies = iter([(200, "drop", b""), competitor_reply, (200, "identity", BODY)])
+        replies = iter([(200, "drop", b""), (peer_status, "identity", BODY)])
         wire.on_request = lambda: next(replies)
-        primary = current_thread()
-        get_once = client._get_once
-
-        def compete():
-            # One configured operation can hit its own limit without sleeping.
-            if parallel_stop:
-                with request_scope(allow_retry=False), pytest.raises(reads.HTTPStatusRejected) as failure:
-                    get(client)
-                assert failure.value.status_code == 429
-            else:
-                assert get(client) == BODY
-
-        def interleave(*args, **kwargs):
-            try:
-                return get_once(*args, **kwargs)
-            except reads._PooledConnectionLost:
-                assert current_thread() is primary and not shared.inflight_path.exists()
-                worker.submit(compete).result(timeout=5)
-                raise
-
-        monkeypatch.setattr(client, "_get_once", interleave)
-        if parallel_stop:
-            with pytest.raises(reads.HTTPStatusRejected) as failure:
-                get(client, seconds=10)
-            assert failure.value.status_code == 429
-            records = client._retry_policy.progress_snapshot()
-            assert {(r["phase"], r["status"], r["stop_cause"], r["attempt"]) for r in records} == {
-                ("stopped", 429, "own_limit", 1), ("stopped", 429, "shared_limit", 2),
-            }
-            assert [row[0] for row in wire.requests] == [0, 0, 1]
-        else:
-            assert get(client, seconds=10) == BODY
-            assert [row[0] for row in wire.requests] == [0, 0, 1, 2]
-            wire.on_request = None
-            assert get(client) == BODY and wire.requests[-1][0] == 1
-        assert len(admissions) == len(wire.requests) and not waits and not shared.inflight_path.exists()
-        assert not local.snapshot().blocked and not shared.snapshot().blocked
+        with pytest.raises(reads._PooledConnectionLost):
+            get(client, seconds=10)
+        with pytest.raises(SharedGetOutcomeUncertain):
+            worker.submit(get, client).result(timeout=5)
+        assert [row[0] for row in wire.requests] == [0, 0]
+        assert len(admissions) == 2 and not waits and shared.inflight_path.is_file()
+        assert not local.snapshot().blocked
 
 
-def test_fresh_zero_response_keeps_existing_bounded_retry(tmp_path, wire, monkeypatch):
+def test_fresh_zero_response_preserves_intent_without_retry(tmp_path, wire, monkeypatch):
     with dual_reader(tmp_path, monkeypatch, policy=True) as (client, _, shared, admissions, waits):
         wire.reply = 200, "drop", b""
         with pytest.raises(reads.TransportFailed):
             get(client, seconds=10)
-        assert [row[0] for row in wire.requests] == [0, 1, 2]
-        assert len(admissions) == 3 and sum(waits) == pytest.approx(3, abs=.06)
-        assert not shared.inflight_path.exists()
+        assert [row[0] for row in wire.requests] == [0]
+        assert len(admissions) == 1 and not waits and shared.inflight_path.is_file()
 
 
 @pytest.mark.parametrize("policy", [False, True])
@@ -283,7 +218,7 @@ def test_explicit_no_retry_scope_blocks_keep_alive_recovery(tmp_path, wire, monk
         with request_scope(allow_retry=False), pytest.raises(reads.TransportFailed):
             get(client)
         assert [row[0] for row in wire.requests] == [0, 0]
-        assert len(admissions) == 2 and not waits and not shared.inflight_path.exists()
+        assert len(admissions) == 2 and not waits and shared.inflight_path.is_file()
 
 
 @pytest.mark.parametrize("block", ["stopped", "uncertain"])
@@ -291,8 +226,17 @@ def test_recovery_reenters_gate_after_first_intent_settles(tmp_path, wire, monke
     with (dual_reader(tmp_path, monkeypatch, policy=True) as (client, local, shared, admissions, waits),
           ThreadPoolExecutor(max_workers=1) as worker):
         assert get(client) == BODY
-        wire.reply = 200, "drop", b""
         entries = []
+        raw = client._transport.transport
+
+        def fail_before_send(*args):
+            if len(entries) == 1:
+                failure = reads._PooledConnectionLost()
+                failure.get_outcome_known = True
+                raise failure
+            return raw(*args)
+
+        client._transport.transport = fail_before_send
 
         def admit(_):
             entries.append(1)
@@ -310,7 +254,7 @@ def test_recovery_reenters_gate_after_first_intent_settles(tmp_path, wire, monke
         with pytest.raises(error):
             get(client, seconds=10)
         assert len(entries) == 2 and not waits
-        assert [row[0] for row in wire.requests] == [0, 0]
+        assert [row[0] for row in wire.requests] == [0]
         if block == "uncertain":
             assert shared.inflight_path.is_file()
         else:

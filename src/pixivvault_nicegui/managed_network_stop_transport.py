@@ -13,6 +13,7 @@ from urllib.error import HTTPError
 
 from .gate_refusal_state import confirmation_io
 from .managed_network_stop_gate import (
+    ManagedNetworkGateStorageError,
     ManagedNetworkStopGate,
     ManagedNetworkStopped,
     _carry_gate_cleanup,
@@ -20,6 +21,10 @@ from .managed_network_stop_gate import (
     _report_stop_authority,
 )
 from .pixiv_read_client import HTTPStatusRejected
+
+
+class StaleCredentialReader(ManagedNetworkGateStorageError):
+    """Admission rejected a reader from before a committed recovery."""
 
 
 class _GatedReadTransport:
@@ -30,6 +35,9 @@ class _GatedReadTransport:
     def _admission_owner_checks(self, *, confirming=False):
         yield
 
+    def _require_generation(self, local_revision, shared_revision=None):
+        pass
+
     def _confirm_admission(self):
         # Enter and unwind the actual GET admission, including the shared
         # durable intent. No request body or network transport runs here.
@@ -39,6 +47,7 @@ class _GatedReadTransport:
                 if gate is not None:
                     locks.enter_context(_report_stop_authority(authority))
                     locks.enter_context(gate.request())
+            self._require_generation(*(getattr(gate, '_observed_revision', None) for gate in gates))
         return gates, self._checks_notice_selection
 
 
@@ -51,7 +60,7 @@ class ManagedNetworkStopTransport(_GatedReadTransport):
     Async readers need a separate cancellation-aware boundary.
     """
 
-    __slots__ = ("gate", "transport")
+    __slots__ = ("gate", "transport", "shared_generation")
 
     def __init__(self, gate: ManagedNetworkStopGate, transport):
         if not isinstance(gate, ManagedNetworkStopGate):
@@ -60,6 +69,11 @@ class ManagedNetworkStopTransport(_GatedReadTransport):
             raise TypeError("read-only transport callable required")
         self.gate = gate
         self.transport = transport
+        self.shared_generation = None
+
+    def _require_generation(self, local_revision, shared_revision=None):
+        if self.shared_generation is not None and self.shared_generation != shared_revision // 2:
+            raise StaleCredentialReader('reader predates credential recovery', authority='shared')
 
     @property
     def resource_authority(self):
@@ -77,6 +91,8 @@ class ManagedNetworkStopTransport(_GatedReadTransport):
         try:
             with self._admission_owner_checks(), _report_stop_authority(authority), self.gate.request():
                 try:
+                    self._require_generation(*(getattr(gate, '_observed_revision', None)
+                                               for gate in self._notice_gates))
                     request_send_checkpoint()
                     return self.transport(request, timeout, limit, deadline)
                 except HTTPError as error:

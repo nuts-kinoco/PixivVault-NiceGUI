@@ -60,9 +60,9 @@ def test_an_already_started_get_refuses_to_send_after_429_is_latched(tmp_path, m
             raise reads.HTTPStatusRejected(429)
         sent.append('peer')
         if extra_attempt and sent.count('peer') == 1:
-            if where == 'fresh-gate':
-                raise reads._PooledConnectionLost()
-            raise reads.TransportFailed()
+            error = reads._PooledConnectionLost() if where == 'fresh-gate' else reads.TransportFailed()
+            error.get_outcome_known = True  # Fixture: failure known to precede dispatch.
+            raise error
         return b'synthetic image'
 
     guard = gate._bounded_thread_lock

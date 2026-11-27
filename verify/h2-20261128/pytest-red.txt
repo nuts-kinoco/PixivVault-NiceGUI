@@ -1,0 +1,82 @@
+============================= test session starts =============================
+platform win32 -- Python 3.13.11, pytest-8.4.2, pluggy-1.7.0
+rootdir: S:\Work\PV\h2-20261128
+configfile: pyproject.toml
+plugins: anyio-4.15.1, asyncio-1.2.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function
+collected 13 items
+
+tests\test_h2_401_recovery.py FFFFFFF....FF                              [100%]
+
+================================== FAILURES ===================================
+_______________ test_explicit_check_saves_and_clears_401[local] _______________
+tests\test_h2_401_recovery.py:90: in test_explicit_check_saves_and_clears_401
+    assert result.ok
+E   AssertionError: assert False
+E    +  where False = NativeAuthResult(code='stopped', status_code=401).ok
+______________ test_explicit_check_saves_and_clears_401[shared] _______________
+tests\test_h2_401_recovery.py:90: in test_explicit_check_saves_and_clears_401
+    assert result.ok
+E   AssertionError: assert False
+E    +  where False = NativeAuthResult(code='stopped', status_code=401).ok
+_______________ test_explicit_check_saves_and_clears_401[both] ________________
+tests\test_h2_401_recovery.py:90: in test_explicit_check_saves_and_clears_401
+    assert result.ok
+E   AssertionError: assert False
+E    +  where False = NativeAuthResult(code='stopped', status_code=401).ok
+______ test_recovery_checks_each_get_once_and_keeps_stop_on_failure[401] ______
+tests\test_h2_401_recovery.py:104: in test_recovery_checks_each_get_once_and_keeps_stop_on_failure
+    assert sends == [HOME, IDENTITY]
+E   AssertionError: assert [] == ['https://www...x/user/extra']
+E
+E     Right contains 2 more items, first extra item: 'https://www.pixiv.net/'
+E     Use -v to get more diff
+______ test_recovery_checks_each_get_once_and_keeps_stop_on_failure[403] ______
+tests\test_h2_401_recovery.py:104: in test_recovery_checks_each_get_once_and_keeps_stop_on_failure
+    assert sends == [HOME, IDENTITY]
+E   AssertionError: assert [] == ['https://www...x/user/extra']
+E
+E     Right contains 2 more items, first extra item: 'https://www.pixiv.net/'
+E     Use -v to get more diff
+______ test_recovery_checks_each_get_once_and_keeps_stop_on_failure[429] ______
+tests\test_h2_401_recovery.py:104: in test_recovery_checks_each_get_once_and_keeps_stop_on_failure
+    assert sends == [HOME, IDENTITY]
+E   AssertionError: assert [] == ['https://www...x/user/extra']
+E
+E     Right contains 2 more items, first extra item: 'https://www.pixiv.net/'
+E     Use -v to get more diff
+______ test_recovery_checks_each_get_once_and_keeps_stop_on_failure[503] ______
+tests\test_h2_401_recovery.py:104: in test_recovery_checks_each_get_once_and_keeps_stop_on_failure
+    assert sends == [HOME, IDENTITY]
+E   AssertionError: assert [] == ['https://www...x/user/extra']
+E
+E     Right contains 2 more items, first extra item: 'https://www.pixiv.net/'
+E     Use -v to get more diff
+__________ test_completed_401_has_no_unknown_intent_and_can_recover ___________
+tests\test_h2_401_recovery.py:133: in test_completed_401_has_no_unknown_intent_and_can_recover
+    assert not shared.gate.inflight_path.exists()
+E   AssertionError: assert not True
+E    +  where True = exists()
+E    +    where exists = WindowsPath('S:/Work/_tmp/PV/h2/red/test_completed_401_has_no_unkn0/generated-reviewed-user-stop/.pixivvault-user-stop-inflight.v1').exists
+E    +      where WindowsPath('S:/Work/_tmp/PV/h2/red/test_completed_401_has_no_unkn0/generated-reviewed-user-stop/.pixivvault-user-stop-inflight.v1') = <pixivvault_nicegui.managed_network_stop_shared_scope.ManagedUserNetworkStopGate object at 0x000001BB448ED9A0>.inflight_path
+E    +        where <pixivvault_nicegui.managed_network_stop_shared_scope.ManagedUserNetworkStopGate object at 0x000001BB448ED9A0> = <pixivvault_nicegui.managed_network_stop_shared_scope.ManagedUserNetworkStopScope object at 0x000001BB448ED5E0>.gate
+__________ test_old_reader_with_same_path_cannot_send_after_recovery __________
+tests\test_h2_401_recovery.py:145: in test_old_reader_with_same_path_cannot_send_after_recovery
+    assert asyncio.run(binding.check_selected_authentication(saved)).ok
+E   AssertionError: assert False
+E    +  where False = NativeAuthResult(code='stopped', status_code=401).ok
+E    +    where NativeAuthResult(code='stopped', status_code=401) = <function run at 0x000001BB42CE8220>(<coroutine object NativeProfileBinding.check_selected_authentication at 0x000001BB44889AD0>)
+E    +      where <function run at 0x000001BB42CE8220> = asyncio.run
+E    +      and   <coroutine object NativeProfileBinding.check_selected_authentication at 0x000001BB44889AD0> = check_selected_authentication(WindowsPath('S:/Work/_tmp/PV/h2/red/test_old_reader_with_same_path0/credential/saved.txt'))
+E    +        where check_selected_authentication = <pixivvault_nicegui.native_startup.NativeProfileBinding object at 0x000001BB44856850>.check_selected_authentication
+=========================== short test summary info ===========================
+FAILED tests/test_h2_401_recovery.py::test_explicit_check_saves_and_clears_401[local]
+FAILED tests/test_h2_401_recovery.py::test_explicit_check_saves_and_clears_401[shared]
+FAILED tests/test_h2_401_recovery.py::test_explicit_check_saves_and_clears_401[both]
+FAILED tests/test_h2_401_recovery.py::test_recovery_checks_each_get_once_and_keeps_stop_on_failure[401]
+FAILED tests/test_h2_401_recovery.py::test_recovery_checks_each_get_once_and_keeps_stop_on_failure[403]
+FAILED tests/test_h2_401_recovery.py::test_recovery_checks_each_get_once_and_keeps_stop_on_failure[429]
+FAILED tests/test_h2_401_recovery.py::test_recovery_checks_each_get_once_and_keeps_stop_on_failure[503]
+FAILED tests/test_h2_401_recovery.py::test_completed_401_has_no_unknown_intent_and_can_recover
+FAILED tests/test_h2_401_recovery.py::test_old_reader_with_same_path_cannot_send_after_recovery
+========================= 9 failed, 4 passed in 1.87s =========================
