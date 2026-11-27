@@ -1,0 +1,13 @@
+[ARGON_REVIEW_R1.md](file:///S:/Work/PV/h2-20261128/verify/h2-20261128/ARGON_REVIEW_R1.md) の 5 件および `git diff dac64719..828b4399` の再確認結果です。
+
+### R1 指摘 5 件の確認結果
+
+1. **[High] 401 確認 GET 中の通信失敗・タイムアウト等で共有 `inflight` が残留し、認証確認も送信中回復も両方不能になる**: **直った** — [managed_network_stop_auth_recovery.py](file:///S:/Work/PV/h2-20261128/src/pixivvault_nicegui/managed_network_stop_auth_recovery.py#L102-L128) と [managed_network_stop_shared_scope.py](file:///S:/Work/PV/h2-20261128/src/pixivvault_nicegui/managed_network_stop_shared_scope.py#L158-L197) で送信前・応答ステータス確定済みの失敗は `inflight` を削除し、送信後応答未着は `_UNANSWERED_GET_BYTES` を記録して 401 停止を維持したまま「取得停止の確認・回復」から退避・再試行できるようになった。
+2. **[High] 共有ゲートが一度 401 復帰（`revision >= 2`）すると以後の局所 401 が共有へ転記されず、停止中に共有専用経路の通信が先行できる**: **直った** — [managed_network_stop_shared_transport.py](file:///S:/Work/PV/h2-20261128/src/pixivvault_nicegui/managed_network_stop_shared_transport.py#L97-L105) から `revision != 0` の 401 転記制限（`_mirror_local_stop`）が撤廃され、起動時・リーダー生成時・通信時のいずれも局所 401 が `shared_gate.trip(401)` で共有ゲートへ転記されるようになった。
+3. **[Medium] 解除コミット区間でのキャンセル競合により、Cookie 保存・局所解除後に `checkpoint()` で共有解除が中断される**: **直った** — [managed_network_stop_auth_recovery.py](file:///S:/Work/PV/h2-20261128/src/pixivvault_nicegui/managed_network_stop_auth_recovery.py#L139-L148) で `save()` 突入前に `commit_started.set()` と最終 `checkpoint()` を済ませてコミット区間内の `checkpoint()` を廃止し、[cookie_expiry_refresh.py](file:///S:/Work/PV/h2-20261128/src/pixivvault_nicegui/cookie_expiry_refresh.py#L329-L371) の `prepare_verified_recovery` で両ゲート解除成功後にのみ稼働中リーダーを更新するようになった。
+4. **[Medium] リーダー生成時の世代番号が DB ではなくメモリ上の `_observed_revision` から採番され、別プロセス等で復帰後に新規作成したリーダーが `StaleCredentialReader` になる**: **直った** — [managed_network_stop_profile_scope.py](file:///S:/Work/PV/h2-20261128/src/pixivvault_nicegui/managed_network_stop_profile_scope.py#L250-L256) と [managed_network_stop_shared_transport.py](file:///S:/Work/PV/h2-20261128/src/pixivvault_nicegui/managed_network_stop_shared_transport.py#L189-L190)（および [L290-L315](file:///S:/Work/PV/h2-20261128/src/pixivvault_nicegui/managed_network_stop_shared_transport.py#L290-L315)）でロック下の DB スナップショットから世代番号を採番するようになった。
+5. **[Medium] 起動時ロック競合の回復画面および同一パス Cookie 上書き時の `launch_snapshot` 比較不整合**: **直った** — [native_startup.py](file:///S:/Work/PV/h2-20261128/src/pixivvault_nicegui/native_startup.py#L658-L670) で `_auth_profile_revision` の更新と `_recovery_restart_required` フラグが導入され、起動時再確認画面での自己保存拒否と同一パス別アカウント上書き時の再起動要否判定（[L501-L502](file:///S:/Work/PV/h2-20261128/src/pixivvault_nicegui/native_startup.py#L501-L502)）がともに解消された。
+
+### 新しい High の確認結果
+
+**High 0**（停止中の通信先行、401 以外や未分類 `_PENDING_GET_BYTES` の解除・退避、回復画面を含む復帰の行き止まり、別プロセス競合での過剰解除はいずれも無し）
