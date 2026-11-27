@@ -652,3 +652,46 @@ def test_neon_library_work_list_sort_and_bookmark_sizes(library_page, theme):
     expect(selected).to_be_visible()
     assert selected.evaluate('e => getComputedStyle(e).backgroundColor') == 'rgba(33, 150, 243, 0.12)'
     assert unselected.evaluate('e => getComputedStyle(e).backgroundColor') != 'rgba(33, 150, 243, 0.12)'
+
+@pytest.mark.parametrize('theme', ['light', 'dark'])
+def test_neon_switch_and_button_computed_styles(library_page, theme):
+    from playwright.sync_api import expect
+    page = library_page
+    page.evaluate("theme => {document.body.classList.remove('body--dark', 'body--light'); document.body.classList.add('body--' + theme)}", theme)
+    open_tab(page, 'ranking')
+    open_tools(page, 'ranking')
+    toggle = page.get_by_test_id('ranking-r18')
+    expect(toggle).to_be_visible()
+    values = toggle.evaluate('''el => {
+      const inner=el.querySelector('.q-toggle__inner'), track=el.querySelector('.q-toggle__track'), label=el.querySelector('.q-toggle__label');
+      const a=track.getBoundingClientRect(), b=label.getBoundingClientRect();
+      return {box:getComputedStyle(inner).boxSizing, height:inner.getBoundingClientRect().height,
+              offset:(a.top+a.height/2)-(b.top+b.height/2)};
+    }''')
+    print('NEON_SWITCH', theme, values)
+    assert values['box'] == 'border-box' and abs(values['offset']) < 2
+    open_tab(page, 'bookmarks')
+    open_tools(page, 'bookmarks')
+    button=page.get_by_test_id('bookmark-download')
+    expect(button).to_be_disabled()
+    assert 'q-btn--outline' in (button.get_attribute('class') or '')
+    open_tab(page, 'queue')
+    button=page.get_by_test_id('queue-select-mode')
+    expect(button).to_be_visible()
+    assert 'q-btn--outline' in (button.get_attribute('class') or '')
+
+@pytest.mark.parametrize('theme', ['light', 'dark'])
+def test_neon_cache_field_does_not_reserve_grid_space(library_page, theme):
+    from playwright.sync_api import expect
+    page = library_page
+    page.evaluate("theme => {document.body.classList.remove('body--dark', 'body--light'); document.body.classList.add('body--' + theme)}", theme)
+    page.get_by_test_id('preferences-open').click()
+    dialog = page.get_by_test_id('preferences-dialog')
+    expect(dialog).to_be_visible()
+    result = dialog.evaluate('''root => ['discovery_cache_size_mb', 'discovery_cache_size_count'].map(key => {
+        const field=root.querySelector(`[data-testid="preference-${key}"]`).closest('.pv-settings-field');
+        const rect=field.getBoundingClientRect();
+        return {display:getComputedStyle(field).display, width:rect.width, height:rect.height};
+    })''')
+    print('NEON_CACHE', theme, result)
+    assert sum(item['display'] == 'none' and item['width'] == 0 and item['height'] == 0 for item in result) == 1

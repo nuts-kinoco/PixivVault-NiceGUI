@@ -410,6 +410,7 @@ CSS += """
 .pv-period-chips .q-btn[aria-pressed=true] { background:rgba(33,150,243,.12) !important; }
 .pv-filter-switch { font-size:11px; color:var(--pv-muted); }
 .pv-filter-switch .q-toggle__inner { font-size:32px; }
+.pv-filter-switch:not(.q-toggle--dense) .q-toggle__inner { box-sizing:border-box; }
 @layer quasar_importants {
   .pv-period-chips .q-btn[aria-pressed=true] { background:rgba(33,150,243,.12) !important; color:var(--pv-text) !important; }
 }
@@ -475,6 +476,7 @@ CSS += """
 .pv-tone-learning .pv-trend-layout[data-mode=rail]:has(.pv-view-art:not(.hidden)) .pv-learning-art-frame { width:100%; max-width:none; height:100%; }
 .pv-tone-learning .pv-trend-layout[data-mode=rail]:has(.pv-view-art:not(.hidden)) .pv-view-art { width:100%; height:100%; max-width:none; max-height:none; }
 .pv-tone-learning .pv-trend-layout[data-mode=band] .pv-trend-side { height:112px; }
+.pv-learning-meta { width:100%; min-width:0; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; line-height:16px; }
 .pv-learning-work-title { min-width:0; max-width:calc(100% - 5rem); overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
 .pv-tone-learning .pv-learning-status:empty, .pv-tone-learning .pv-counter:empty { position:absolute; }
 .pv-tone-learning [data-testid=learning-reset-status]:empty { position:absolute; }

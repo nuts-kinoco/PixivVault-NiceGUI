@@ -193,6 +193,8 @@ class LearningView:
                         }""")
                     self.summary_status = ui.label('').classes('pv-subtitle pv-learning-summary-message').props(
                         'role=status data-testid=learning-summary-status')
+                self.candidate_author = ui.label().classes('pv-subtitle pv-learning-meta').props('data-testid=learning-candidate-author')
+                self.candidate_tags = ui.label().classes('pv-subtitle pv-learning-meta').props('data-testid=learning-candidate-tags')
                 with ui.card().classes('pv-learning-summary-board').props(
                         'role=region aria-label=作品の概要 data-testid=learning-summary-board').style(
                         'position:absolute;right:0;top:34px;z-index:25;'
@@ -1454,6 +1456,11 @@ class LearningView:
             self._render_candidate_status()
         self.title.props['title'] = item.title if item else None
         self.title.set_text(item.title if item else ("現在の候補がありません" if self._refill.armed else "初回候補を読み込んでいます") if self.discovery is not None else "判定が完了しました")
+        for label, text in ((self.candidate_author, item.author if item else ''),
+                            (self.candidate_tags, '・'.join(item.tags[:4]) if item else '')):
+            label.set_text(text or '')
+            label.props['title'] = text or ''
+            label.set_visibility(bool(text))
         self.progress.set_text(f"{self._baseline_count + self.state.index} / {len(self._artworks)} 件判定済み")
         if item is None:
             self._image_token = None

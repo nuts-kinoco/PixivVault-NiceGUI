@@ -338,7 +338,7 @@ class QueueView:
                             js_handler=f"() => emit({{epoch:document.getElementById('{self.root.html_id}').dataset.epoch}})")
                         self.chips[state] = button
                 with ui.row().classes("w-full items-center gap-2") as self.selection_toolbar:
-                    self.select_mode_button = ui.button("選択", color=None).classes('pv-focus-ring').props("flat data-testid=queue-select-mode")
+                    self.select_mode_button = ui.button("選択", color=None).classes('pv-focus-ring').props("outline data-testid=queue-select-mode")
                     self.select_all_button = ui.button("この絞り込みの全件を選ぶ", color=None).props("flat data-testid=queue-select-all")
                     self.select_clear_button = ui.button("選択を終了", color=None).props("flat data-testid=queue-select-clear")
                     self.bulk_delete_button = ui.button("まとめて削除", color=None).props("flat data-testid=queue-bulk-delete")
