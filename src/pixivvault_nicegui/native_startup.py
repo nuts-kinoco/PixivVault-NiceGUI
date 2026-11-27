@@ -77,6 +77,8 @@ class NativeProfileBinding:
         # A later preferences save must not redirect a queued folder action.
         self.launch_snapshot = (store.snapshot() if launch_snapshot is None
                                 and callable(getattr(store, 'snapshot', None)) else launch_snapshot)
+        self._auth_profile_revision = None if self.launch_snapshot is None else self.launch_snapshot.revision
+        self._recovery_restart_required = False
         self._closed = False
         self._closing = Event()
         self._picker_lock = asyncio.Lock()
@@ -159,7 +161,7 @@ class NativeProfileBinding:
                 return None
             if self.recheck_startup_stop is not None:
                 with _gate_storage_io('native profile revision unavailable'):
-                    if self.store.snapshot().revision != self.launch_snapshot.revision:
+                    if self.store.snapshot().revision != self._auth_profile_revision:
                         return None
             if not selected:
                 # A local observation can report an unreadable profile.
@@ -496,6 +498,8 @@ class NativeProfileBinding:
     def cookie_replaced_since_launch(self):
         """True when the saved Cookie differs from the one the readers were built with."""
         try:
+            if self._recovery_restart_required:
+                return True
             if self.launch_snapshot is None:
                 return False
             current = self.store.snapshot()
@@ -646,19 +650,24 @@ class NativeProfileBinding:
         @contextmanager
         def save(uid, local_revision, shared_revision):
             nonlocal installed, days
-            checkpoint()
             days = cookie_days_left(cookie_file)
             if self.launch_snapshot is not None and previous.save_parent != self.launch_snapshot.save_parent:
                 from .native_profile import NativeProfileConflict
                 raise NativeProfileConflict('storage selection changed since launch')
             saved = self.store.update(cookie_file=cookie_file, expected_revision=previous.revision)
-            with self.store.pinned_snapshot() as observed:
+            if self.recheck_startup_stop is not None:
+                self._auth_profile_revision = saved.revision
+            self._recovery_restart_required = True
+            with self.store.pinned_snapshot() as observed, ExitStack() as readers:
                 if saved != observed or observed.cookie_file != cookie_file:
                     raise ManagedNetworkGateStorageError('verified credential selection changed')
-                if coordinator is not None:
-                    installed = coordinator.install_verified_recovery(
-                        observed, uid, local_revision, shared_revision)
+                install = (readers.enter_context(coordinator.prepare_verified_recovery(
+                    observed, uid, local_revision, shared_revision)) if coordinator is not None else None)
                 yield
+                if install is not None:
+                    install()
+                    installed = True
+                    self._recovery_restart_required = False
                 gates = scope.gate, shared_owner.gate
                 self.auth_retry_policy.forget_recovered_401(gates)
                 services = getattr(self, '_shared_event_services', None)
@@ -697,7 +706,7 @@ class NativeProfileBinding:
                         return NativeAuthResult('closed'), None
                     if self.recheck_startup_stop is not None:
                         with _gate_storage_io('native profile revision unavailable'):
-                            if self.store.snapshot().revision != self.launch_snapshot.revision:
+                            if self.store.snapshot().revision != self._auth_profile_revision:
                                 record_gate_refusal('local')
                                 return NativeAuthResult('profile_changed'), None
                     scope, shared = self.managed_network_stop_scope, self.shared_network_stop_scope
@@ -748,7 +757,12 @@ class NativeProfileBinding:
                 if self._closed or stopped.is_set():
                     return NativeAuthResult('closed'), None
                 from .auth_status import cookie_days_left
-                return NativeAuthResult('verified'), (uid, cookie_days_left(cookie_file))
+                # A previous recovery may have opened the shared gate but
+                # failed its readback. Keep its restart guidance on recheck.
+                needs_restart = (committing is not None and self._recovery_restart_required
+                                 and self._configured_cookie() == cookie_file)
+                code = 'recovered_restart' if needs_restart else 'verified'
+                return NativeAuthResult(code), (uid, cookie_days_left(cookie_file))
         except ClientClosed:
             return NativeAuthResult('closed'), None
         except NativeProfileConflict:
@@ -816,7 +830,7 @@ class NativeProfileBinding:
         try:
             try:
                 deadline = startup_lock_deadline()
-                if self.store.snapshot().revision != self.launch_snapshot.revision:
+                if self.store.snapshot().revision != self._auth_profile_revision:
                     code = 'profile_changed'
                 else:
                     profile_scope, scope = self.recheck_startup_stop(deadline=deadline, cancel=cancel)
@@ -852,7 +866,7 @@ class NativeProfileBinding:
                     return None, 'closed'
                 if code == 'stop_rechecked':
                     try:
-                        if self.store.snapshot().revision != self.launch_snapshot.revision:
+                        if self.store.snapshot().revision != self._auth_profile_revision:
                             code = 'profile_changed'
                     except NativeProfileError:
                         code = 'local_unavailable'
@@ -942,7 +956,8 @@ def register_profile_recovery(binding, *, cookie_rejected=False,
                 from .ui.stop_recovery_view import StopRecoveryPanel
                 recovery = StopRecoveryPanel(binding)
                 ui.context.client.on_delete(recovery.close)
-            if stop_get_uncertain:
+            if (binding.shared_network_stop_scope is not None
+                    and (stop_get_uncertain or cookie_rejected and not stop_gate_busy)):
                 from .ui.shared_get_recovery_view import SharedGetRecoveryView
                 recovery = SharedGetRecoveryView(binding.shared_network_stop_scope)
                 ui.context.client.on_delete(recovery.close)

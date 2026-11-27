@@ -227,7 +227,12 @@ class ManagedProfileNetworkStopScope(ManagedNetworkStopIntegration):
         and the transport owner; deleting/changing the profile blocks a
         previously constructed reader before any further external dispatch.
         """
-        generation = self.gate._observed_revision // 2
+        with self.gate._exclusive():
+            state = self.gate._snapshot_locked()
+            return self._create_reader_locked(cookie_path, state.revision, transport=transport)
+
+    def _create_reader_locked(self, cookie_path, gate_revision, *, transport=None):
+        generation = gate_revision // 2
         selected = _require_selected_cookie(self.root, cookie_path, self.profile_identity, gate=self.gate)
         client = super().create_reader(selected, transport=transport)
         try:

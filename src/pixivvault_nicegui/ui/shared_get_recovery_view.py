@@ -114,7 +114,11 @@ class SharedGetRecoveryView:
         self.sync()
         try:
             await asyncio.to_thread(self.scope.recover_uncertain_get, plan, confirmed=True)
-            message = '送信中の記録を退避しました。元の画面で取得をやり直してください（自動再送はしていません）。'
+            message = ('送信中の記録を退避しました。認証エラーによる停止は続いています。'
+                       '設定で「選択したCookieの認証を確認」を押してください。'
+                       '起動設定の確認画面を開いている場合は、アプリを起動し直してください。'
+                       if getattr(plan, 'stop_status', None) == 401 else
+                       '送信中の記録を退避しました。元の画面で取得をやり直してください（自動再送はしていません）。')
         except Exception as error:
             message = self.failure_message(error)
         self.busy = False

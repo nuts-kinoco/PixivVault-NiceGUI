@@ -430,7 +430,8 @@ def test_bad_identity_does_not_clear_401(recovery):
     assert local.gate.snapshot().status_code == shared.gate.snapshot().status_code == 401
 
 
-def test_older_profile_stop_cannot_relatch_recovered_shared_owner(recovery, tmp_path, monkeypatch):
+@pytest.mark.parametrize('entry', ('request', 'startup', 'reader'))
+def test_other_profile_stop_is_transferred_after_shared_recovery(recovery, tmp_path, monkeypatch, entry):
     from contextlib import closing
     from pixivvault_nicegui import managed_network_stop_startup as startup
 
@@ -445,14 +446,325 @@ def test_older_profile_stop_cannot_relatch_recovered_shared_owner(recovery, tmp_
                 stale.require_identity()
             assert other.gate.snapshot().status_code == 401
             assert asyncio.run(binding.check_selected_authentication(chosen)).ok
-            with pytest.raises(ManagedNetworkStopped):
-                stale.require_identity()
+            if entry == 'request':
+                with pytest.raises(ManagedNetworkStopped):
+                    stale.require_identity()
 
         reopened = type(shared)(shared.root)
-        monkeypatch.setattr(startup.shared, 'open_existing_windows_user_stop', lambda: reopened)
-        startup.open_or_initialize_windows_user_stop(profile_scope=ManagedProfileNetworkStopScope(store.root))
-        assert not reopened.gate.snapshot().blocked
+        active = ManagedProfileNetworkStopScope(store.root)
+        if entry == 'startup':
+            monkeypatch.setattr(startup.shared, 'open_existing_windows_user_stop', lambda: reopened)
+            startup.open_or_initialize_windows_user_stop(profile_scope=active)
+        elif entry == 'reader':
+            with create_shared_profile_reader(active, saved, reopened.gate, transport=transport,
+                                              shared_owner_check=reopened._check_owner):
+                pass
+        assert reopened.gate.snapshot().status_code == 401
+        assert reopened.gate.snapshot().revision == 3
         assert sends == [HOME, IDENTITY]
+
+
+@pytest.mark.parametrize(('known', 'interim'), [(True, False), (False, False), (False, True)])
+def test_failed_confirmation_intent_outcome_and_explicit_retry(recovery, known, interim):
+    from pixivvault_nicegui.pixiv_read_client import ReadDeadlineExceeded
+
+    binding, local, shared, saved, chosen, sends, responses, _ = recovery
+    shared.gate.trip(401)
+    failure = HTTPStatusRejected(103) if interim else ReadDeadlineExceeded()
+    failure.get_outcome_known = known
+    responses[HOME] = failure
+    assert not asyncio.run(binding.check_selected_authentication(chosen)).ok
+    assert shared.gate.inflight_path.exists() is (not known)
+    if not known:
+        assert not asyncio.run(binding.check_selected_authentication(chosen)).ok
+        from nicegui import Client
+        from nicegui.page import page as Page
+        from pixivvault_nicegui.ui.shared_get_recovery_view import SharedGetRecoveryView
+
+        async def acknowledge():
+            client = Client(Page('/generated-401-intent'))
+            try:
+                with client:
+                    view = SharedGetRecoveryView(shared)
+                    await view.open()
+                    assert view.plan.stop_status == 401
+                    view.acknowledge.set_value(True)
+                    await view.recover()
+                    assert '認証エラーによる停止は続いています' in view.notice.text
+                    view.close()
+            finally:
+                client.delete()
+
+        asyncio.run(acknowledge())
+        assert len(list(shared.root.glob('acknowledged-get-*.v1'))) == 1
+        assert shared.gate.snapshot().status_code == 401
+        assert local.gate.snapshot().status_code == 401
+        assert sends == [HOME]
+    assert binding.store.snapshot().cookie_file == saved
+    del responses[HOME]
+    assert asyncio.run(binding.check_selected_authentication(chosen)).ok
+    assert sends == [HOME, HOME, IDENTITY]
+
+
+def test_second_local_401_stops_shared_only_traffic(recovery):
+    binding, local, shared, saved, _, sends, _, transport = recovery
+    local.gate.trip(401)
+    assert asyncio.run(binding.check_selected_authentication(saved)).ok
+    with create_shared_profile_reader(local, saved, shared.gate, transport=transport,
+                                      shared_owner_check=shared._check_owner) as reader:
+        local.gate.trip(401)
+        with pytest.raises(ManagedNetworkStopped):
+            reader.require_identity()
+        with pytest.raises(ManagedNetworkStopped):
+            shared.require_allowed()
+    assert shared.gate.snapshot().revision == 3
+    assert sends == [HOME, IDENTITY]
+
+
+def test_new_reader_binds_disk_generation_from_existing_scope(recovery):
+    binding, local, shared, _, chosen, sends, _, transport = recovery
+    stale_local = ManagedProfileNetworkStopScope(local.root)
+    stale_shared = type(shared)(shared.root)
+    shared.gate.trip(401)
+    assert asyncio.run(binding.check_selected_authentication(chosen)).ok
+    with create_shared_profile_reader(stale_local, chosen, stale_shared.gate, transport=transport,
+                                      shared_owner_check=stale_shared._check_owner) as reader:
+        assert reader.require_identity() == '55'
+    assert sends == [HOME, IDENTITY] * 2
+
+
+def test_reader_keeps_shared_generation_from_before_cookie_parse(recovery, monkeypatch):
+    binding, local, shared, saved, _, sends, _, transport = recovery
+    create = local._create_reader_locked
+
+    def recover_peer(*args, **kwargs):
+        reader = create(*args, **kwargs)
+        # A different local gate does not participate in this reader's lock.
+        with shared.gate._exclusive():
+            shared.gate._trip_locked(401)
+            shared.gate._advance_401_locked(None)
+        return reader
+
+    monkeypatch.setattr(local, '_create_reader_locked', recover_peer)
+    with create_shared_profile_reader(local, saved, shared.gate, transport=transport,
+                                      shared_owner_check=shared._check_owner) as reader:
+        with pytest.raises(ManagedNetworkGateStorageError):
+            reader.require_identity()
+    assert sends == []
+
+
+def test_cancel_during_cookie_save_finishes_commit(recovery, monkeypatch):
+    binding, local, shared, _, chosen, sends, _, _ = recovery
+    shared.gate.trip(401)
+    reached, resume = Event(), Event()
+    update = binding.store.update
+
+    def pause(**kwargs):
+        reached.set()
+        assert resume.wait(5)
+        return update(**kwargs)
+
+    monkeypatch.setattr(binding.store, 'update', pause)
+
+    async def cancel():
+        task = asyncio.create_task(binding.check_selected_authentication(chosen))
+        try:
+            assert await asyncio.to_thread(reached.wait, 5)
+            task.cancel()
+            await asyncio.sleep(0)
+        finally:
+            resume.set()
+        assert (await task).ok
+
+    asyncio.run(cancel())
+    assert sends == [HOME, IDENTITY]
+    assert not local.gate.snapshot().blocked
+    assert not shared.gate.snapshot().blocked
+
+
+def test_shared_clear_failure_does_not_replace_readers_or_invalidate_recheck(recovery, monkeypatch):
+    from pixivvault_nicegui.cookie_expiry_refresh import CookieExpiryCoordinator
+
+    binding, local, shared, saved, chosen, _, _, transport = recovery
+    binding.launch_snapshot = binding.store.snapshot()
+    binding.recheck_startup_stop = lambda **_: (local, shared)
+    with create_shared_profile_reader(local, saved, shared.gate, transport=transport,
+                                      shared_owner_check=shared._check_owner) as reader:
+        coordinator = CookieExpiryCoordinator(binding.store, None)
+        coordinator.register(reader)
+        binding._cookie_expiry_coordinator = coordinator
+        shared.gate.trip(401)
+
+        def reject(_):
+            raise ManagedNetworkGateStorageError('synthetic shared write failure')
+
+        with monkeypatch.context() as fault:
+            fault.setattr(shared.gate, '_advance_401_locked', reject)
+            assert not asyncio.run(binding.check_selected_authentication(chosen)).ok
+        assert reader._transport.cookie_path == saved
+        assert reader._transport.shared_generation == 0
+        assert asyncio.run(binding.check_selected_authentication(chosen)).ok
+        assert reader._transport.cookie_path == chosen
+
+
+def test_same_path_recovery_with_other_account_requires_restart(recovery):
+    binding, local, shared, saved, _, _, responses, _ = recovery
+    binding.launch_snapshot = binding.store.snapshot()
+    generated_cookie(saved, account='56')
+    responses[HOME] = lambda: (
+        b'<meta id="meta-global-data" content="{&quot;userData&quot;:{&quot;id&quot;:&quot;56&quot;}}">')
+    responses[IDENTITY] = lambda: b'{"error":false,"body":{"userId":"56"}}'
+    local.gate.trip(401)
+    result = asyncio.run(binding.check_selected_authentication(saved))
+    assert result.code == 'recovered_restart'
+    assert binding.cookie_replaced_since_launch()
+
+
+@pytest.mark.parametrize(('sent', 'response_status', 'known'), [
+    (False, None, True), (True, None, False), (True, 100, False), (True, 200, True),
+])
+def test_owned_transport_classifies_failed_get_without_socket(recovery, monkeypatch, sent, response_status, known):
+    from contextlib import nullcontext
+    from urllib.request import Request
+    from pixivvault_nicegui import pixiv_read_client as client
+
+    _, _, shared, _, _, _, _, _ = recovery
+    wire = client._OwnedReadTransport()
+    owner = SimpleNamespace(send_started=sent, connections=[], remaining=lambda: 1.0, deadline=time.monotonic() + 2)
+    monkeypatch.setattr(wire, 'session', lambda **_: nullcontext(owner))
+
+    def fail(*_, observe_status, **__):
+        if response_status is not None:
+            observe_status(response_status)
+        raise TimeoutError('synthetic read failure')
+
+    monkeypatch.setattr(client, '_read_response', fail)
+    try:
+        with pytest.raises(client.ReadDeadlineExceeded) as rejected, shared.gate.request():
+            wire(Request(HOME), 1.0, 100, time.monotonic() + 2)
+        assert rejected.value.get_outcome_known is known
+        assert shared.gate.inflight_path.exists() is (not known)
+    finally:
+        wire.close()
+
+
+@pytest.mark.parametrize('configured', [False, True])
+@pytest.mark.parametrize('known', [False, True])
+def test_ordinary_retry_uses_the_same_outcome_classification(recovery, configured, known):
+    from pixivvault_nicegui.pixiv_read_client import _PooledConnectionLost
+    from pixivvault_nicegui.request_policy import RequestRetryPolicy
+    from pixivvault_nicegui.managed_network_stop_shared_scope import SharedGetOutcomeUncertain
+
+    _, _, shared, saved, _, _, _, success = recovery
+    calls = []
+
+    def send(request, *args):
+        calls.append(request.full_url)
+        if len(calls) == 1:
+            error = _PooledConnectionLost()
+            error.get_outcome_known = known
+            raise error
+        return success(request, *args)
+
+    with shared.create_reader(saved, transport=send) as reader:
+        if configured:
+            reader.set_retry_policy(RequestRetryPolicy(lambda: SimpleNamespace(
+                retry_limit=3, rate_limit_wait_seconds=3.0)))
+        if known:
+            assert reader.require_identity() == '55'
+            assert calls == [HOME, HOME, IDENTITY]
+            assert not shared.gate.inflight_path.exists()
+        else:
+            with pytest.raises(_PooledConnectionLost):
+                reader.require_identity()
+            with pytest.raises(SharedGetOutcomeUncertain):
+                reader.require_identity()
+            assert calls == [HOME]
+            assert shared.gate.inflight_path.is_file()
+
+
+@pytest.mark.parametrize('status', [403, 429])
+@pytest.mark.parametrize('local_fails', [False, True])
+def test_failed_terminal_commit_cannot_be_acknowledged_as_no_response(recovery, monkeypatch, status, local_fails):
+    binding, local, shared, _, chosen, sends, responses, _ = recovery
+    shared.gate.trip(401)
+    responses[HOME] = HTTPStatusRejected(status)
+
+    def fail(_):
+        raise ManagedNetworkGateStorageError('synthetic terminal write failure')
+
+    with monkeypatch.context() as fault:
+        fault.setattr(shared.gate, '_advance_401_locked', fail)
+        if local_fails:
+            fault.setattr(local.gate, '_advance_401_locked', fail)
+        assert not asyncio.run(binding.check_selected_authentication(chosen)).ok
+
+    assert local.gate.snapshot().status_code == (401 if local_fails else status)
+    assert shared.gate.inflight_path.exists()
+    with pytest.raises(ManagedNetworkGateStorageError):
+        shared.preview_uncertain_get_recovery()
+    del responses[HOME]
+    assert not asyncio.run(binding.check_selected_authentication(chosen)).ok
+    assert sends == [HOME]
+
+
+def test_failed_shared_trip_leaves_pending_record_before_open_shared_owner(recovery, monkeypatch):
+    binding, local, shared, saved, _, sends, responses, _ = recovery
+    responses[HOME] = HTTPStatusRejected(401)
+
+    def fail(_):
+        raise ManagedNetworkGateStorageError('synthetic shared stop write failure')
+
+    with monkeypatch.context() as fault:
+        fault.setattr(shared.gate, '_trip_locked', fail)
+        assert not asyncio.run(binding.check_authentication(saved)).ok
+    assert local.gate.snapshot().status_code == 401
+    with pytest.raises(ManagedNetworkGateStorageError):
+        shared.preview_uncertain_get_recovery()
+    with pytest.raises(ManagedNetworkGateStorageError):
+        shared.require_allowed()
+    assert sends == [HOME]
+
+
+def test_shared_clear_readback_failure_keeps_restart_guidance(recovery, monkeypatch):
+    binding, _, shared, _, chosen, sends, _, _ = recovery
+    shared.gate.trip(401)
+    advance = shared.gate._advance_401_locked
+
+    def fail_after_commit(status):
+        advance(status)
+        raise ManagedNetworkGateStorageError('synthetic failure after shared commit')
+
+    with monkeypatch.context() as fault:
+        fault.setattr(shared.gate, '_advance_401_locked', fail_after_commit)
+        assert not asyncio.run(binding.check_selected_authentication(chosen)).ok
+    assert not shared.gate.snapshot().blocked
+    assert binding.cookie_replaced_since_launch()
+    result = asyncio.run(binding.check_selected_authentication(chosen))
+    assert result.code == 'recovered_restart'
+    assert sends == [HOME, IDENTITY] * 2
+
+
+@pytest.mark.parametrize(('line', 'complete'), [
+    (b'HTTP/1.1 200', False), (b'HTTP/1.1 403 Forbidden', False),
+    (b'HTTP/1.1 200 OK\r\n', True),
+])
+def test_http_status_requires_a_complete_line(line, complete):
+    import http.client
+    import io
+    from pixivvault_nicegui.owned_https import _EarlyObservedHTTPResponse
+
+    seen = []
+    owner = SimpleNamespace(response_started=False,
+                            _http_status_observer=lambda status, **info: seen.append((status, info['complete'])))
+    fake_socket = SimpleNamespace(makefile=lambda *_: io.BufferedReader(io.BytesIO(line)))
+    with _EarlyObservedHTTPResponse(fake_socket, owner=owner, method='GET') as response:
+        if complete:
+            assert response._read_status()[1] == 200
+        else:
+            with pytest.raises(http.client.BadStatusLine):
+                response._read_status()
+    assert seen == [(int(line[9:12]), complete)]
 
 
 def test_failed_401_teardown_preserves_unknown_intent(recovery):

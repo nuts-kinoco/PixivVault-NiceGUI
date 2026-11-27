@@ -6,14 +6,14 @@ from urllib.error import HTTPError
 
 from .managed_network_stop_gate import (
     ManagedNetworkStopped, ManagedNetworkGateStorageError, _http_gate_rejection,
-    _report_stop_authority,
+    _report_stop_authority, _attach_gate_cleanup,
 )
 from .frozen_source_pin import FrozenSourceError, _open_held
 from .managed_network_stop_profile_scope import _require_native_stop_owner
 from .native_profile import NativeProfileError, _assert_chain
 from .managed_network_stop_startup import selected_history_guard
 from .pixiv_read_client import (
-    API_ORIGIN, ClientClosed, CookieSourceRejected, HTTPStatusRejected,
+    API_ORIGIN, ClientClosed, CookieSourceRejected, HTTPStatusRejected, PixivReadError,
 )
 from .request_policy import request_scope
 
@@ -102,10 +102,25 @@ def recover_draft_auth_401(scope, shared_owner, cookie_file, save, checkpoint, c
                     except HTTPStatusRejected as error:
                         status = error.status_code
                         if status in (403, 429):
-                            shared._advance_401_locked(status)
+                            try:
+                                shared._advance_401_locked(status)
+                            except ManagedNetworkGateStorageError as failure:
+                                try:
+                                    with _report_stop_authority('local'):
+                                        local._advance_401_locked(status)
+                                except ManagedNetworkGateStorageError as local_error:
+                                    _attach_gate_cleanup(failure, local_error)
+                                raise
                             local._advance_401_locked(status)
-                        elif not (getattr(error, 'gate_cleanup_errors', ()) or getattr(error, 'cleanup_failed', False)):
-                            shared._finish_inflight(intent)
+                        else:
+                            uncertain = shared._settle_failed_get(intent, error)
+                            if uncertain is not None and status != 401:
+                                raise uncertain from None
+                        raise
+                    except PixivReadError as error:
+                        uncertain = shared._settle_failed_get(intent, error)
+                        if uncertain is not None:
+                            raise uncertain from None
                         raise
                     else:
                         shared._finish_inflight(intent)
@@ -117,16 +132,17 @@ def recover_draft_auth_401(scope, shared_owner, cookie_file, save, checkpoint, c
 
         if reader.shutdown_unverified:
             raise ManagedNetworkGateStorageError('authentication HTTPS cleanup unverified', authority='shared')
-        checkpoint()
         check_cookie()
+        _require_native_stop_owner(scope.root, scope.profile_identity)
+        shared_owner._check_owner()
+        shared._no_inflight()
+        commit_started.set()
+        checkpoint()
         with save(uid, local_state.revision + 1, shared_state.revision + 1):
-            checkpoint()
             check_cookie()
             _require_native_stop_owner(scope.root, scope.profile_identity)
             shared_owner._check_owner()
             shared._no_inflight()
             local._advance_401_locked(None)
-            commit_started.set()
-            checkpoint()
             shared._advance_401_locked(None)
         return uid

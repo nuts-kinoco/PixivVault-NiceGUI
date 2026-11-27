@@ -15,7 +15,7 @@ from pixivvault_nicegui.managed_network_stop_gate import (
     _file_identity,
 )
 from pixivvault_nicegui.managed_network_stop_shared_scope import (
-    ManagedUserNetworkStopScope, _INFLIGHT_BYTES, _OWNER_FILE,
+    ManagedUserNetworkStopScope, _INFLIGHT_BYTES, _OWNER_FILE, _UNANSWERED_GET_BYTES,
 )
 
 
@@ -79,9 +79,20 @@ def test_recovery_never_clears_a_latched_http_stop(tmp_path,status):
     state = scope.gate.trip(status)
     with pytest.raises(ManagedNetworkStopped):
         scope.recover_uncertain_get(plan, confirmed=True)
-    with pytest.raises(ManagedNetworkStopped):
-        scope.preview_uncertain_get_recovery()
-    assert scope.gate.inflight_path.exists() and scope.gate.snapshot() == state
+    if status == 401:
+        with pytest.raises(ManagedNetworkStopped):
+            scope.preview_uncertain_get_recovery()
+        scope.gate.inflight_path.write_bytes(_UNANSWERED_GET_BYTES)
+        current = scope.preview_uncertain_get_recovery()
+        assert current.stop_status == 401
+        scope.recover_uncertain_get(current, confirmed=True)
+        assert not scope.gate.inflight_path.exists()
+        assert len(list(scope.root.glob('acknowledged-get-*.v1'))) == 1
+    else:
+        with pytest.raises(ManagedNetworkStopped):
+            scope.preview_uncertain_get_recovery()
+        assert scope.gate.inflight_path.exists()
+    assert scope.gate.snapshot() == state
 
 
 @pytest.mark.parametrize('change',['in_place','replace'])

@@ -7,8 +7,9 @@ from threading import Event, Thread
 import pytest
 
 from pixivvault_nicegui.external_vault import VaultError
-from pixivvault_nicegui.external_vault_transport import ACCOUNT, INVALID, OAUTH, VaultResponse
+from pixivvault_nicegui.external_vault_transport import ACCOUNT, INVALID, OAUTH, RANKING, VaultResponse
 from pixivvault_nicegui.managed_network_stop_public_cdn import bind_public_cdn_shared_stop
+from pixivvault_nicegui.managed_network_stop_shared_scope import SharedGetOutcomeUncertain
 from pixivvault_nicegui.pixiv_read_client import PublicImageReadClient, _OwnedReadTransport
 from test_oauth_send_boundary import make_vault, payout
 
@@ -68,6 +69,22 @@ def test_first_account_gate_busy_consumes_no_failure_or_wait(tmp_path, monkeypat
         update()
         assert wire.calls == [ACCOUNT] and charges == ['payout']
         assert vault.status()['slots'][0]['failures'] == 0
+    finally:
+        vault.close()
+
+
+@pytest.mark.parametrize('reply', [VaultError('transport-failed'), VaultResponse(103, {}), VaultResponse(600, {})])
+def test_borrowed_pixiv_get_without_final_reply_preserves_shared_record(tmp_path, reply):
+    vault, wire, scope = make_vault(tmp_path, [reply])
+    try:
+        with vault.transport.session_guard(lambda: True):
+            with pytest.raises(VaultError, match='pixiv-outcome-uncertain'):
+                vault.transport._request('GET', RANKING, {})
+        assert wire.calls == [RANKING]
+        with pytest.raises(SharedGetOutcomeUncertain):
+            scope.require_allowed()
+        plan = scope.preview_uncertain_get_recovery()
+        assert plan is not None and scope.gate.inflight_path.is_file()
     finally:
         vault.close()
 

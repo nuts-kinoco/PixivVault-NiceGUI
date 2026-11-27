@@ -272,12 +272,14 @@ class ShaftTransport:
         if scope is None:
             raise VaultError('shared-stop-migration-required')
         status_seen=None
+        status_complete=False
         send_attempted=False
 
-        def observe_status(status):
-            nonlocal status_seen
+        def observe_status(status, *, complete=True):
+            nonlocal status_seen, status_complete
             if type(status) is int and 100<=status<=599:
                 status_seen=status
+                status_complete=complete
 
         def observe_send():
             nonlocal send_attempted
@@ -285,8 +287,9 @@ class ShaftTransport:
             send_attempted=True
 
         class _NonfatalCarrier(PixivReadError):
-            """Recognized by the existing shared-gate nonfatal cleanup."""
-            def __init__(self, vault_error):
+            """A Vault result handled by the separate Vault outcome policy."""
+            def __init__(self, vault_error, *, known=True):
+                self.get_outcome_known=known
                 self.original=vault_error
                 Exception.__init__(self,'bounded Pixiv response nonfatal')
 
@@ -299,6 +302,8 @@ class ShaftTransport:
                         observe_status=observe_status,observe_send=observe_send)
                     if not direct_pixiv:
                         return result
+                    if method == 'GET' and not 200 <= result.status <= 599:
+                        raise VaultError('pixiv-outcome-uncertain')
                     # A complete 408/425/5xx HTTP response does not establish
                     # whether the already-sent Pixiv operation took effect.
                     # Keep the shared gate's ordinary-error marker cleanup,
@@ -315,12 +320,11 @@ class ShaftTransport:
                     if direct_pixiv and status_seen in STOP_STATUSES and not (route==OAUTH and status_seen in (400,403)):
                         # Header status always overrides body, timeout and
                         # even cleanup faults, before the durable gate unlock.
-                        raise HTTPStatusRejected(status_seen) from None
-                    # An ordinary error completes the bounded transport's
-                    # in-flight marker, but the request may have been sent
-                    # without a usable HTTP result (including a status line
-                    # read before header parsing failed). Preserve that
-                    # uncertainty for retry policy at the caller: never send
+                        rejected = HTTPStatusRejected(status_seen)
+                        rejected.get_outcome_known = status_complete
+                        rejected.cleanup_failed = self.revocation_unverified
+                        raise rejected from None
+                    # Preserve the Vault caller's uncertainty policy: never send
                     # another OAuth profile or repeat this operation when
                     # its result is unknown. A pre-send error retains its
                     # original code and existing retry policy.
@@ -331,7 +335,9 @@ class ShaftTransport:
                         if (send_attempted
                                 and error.code!='stale-session'):
                             error=VaultError('pixiv-outcome-uncertain')
-                        raise _NonfatalCarrier(error) from None
+                        known = method != 'GET' or not send_attempted or (
+                            status_complete and status_seen >= 200)
+                        raise _NonfatalCarrier(error, known=known) from None
                     raise
                 if route==OAUTH and result.status in (401,429):
                     self._oauth_result_known()
@@ -706,6 +712,18 @@ class UrlopenVaultRequest:
             connection.sock=tls.wrap_socket(raw,server_hostname=host)
             raw=None  # SSLSocket owns the original handle; the fence owns its duplicate.
             connection.auto_open=0  # no reconnect or unregistered second socket
+            if method == 'GET':
+                from types import SimpleNamespace
+                from .owned_https import _EarlyObservedHTTPResponse
+
+                def observe_header(status, *, complete):
+                    if observe_status is not None and (complete or status in (401, 403, 429)):
+                        observe_status(status, complete=complete)
+
+                owner = SimpleNamespace(response_started=False, remaining=lambda: timeout,
+                                        _http_status_observer=observe_header)
+                connection.response_class = lambda sock, *args, **kwargs: _EarlyObservedHTTPResponse(
+                    sock, *args, owner=owner, **kwargs)
             path=parsed.path or '/'
             if parsed.query:path+='?'+parsed.query
             if observe_send is not None:observe_send()
@@ -715,6 +733,8 @@ class UrlopenVaultRequest:
             # response body may be HTML, oversized, empty or unreadable; a
             # subsequent cleanup failure must not hide 401/403/429.
             if observe_status is not None:observe_status(response.status)
+            if method == 'GET' and not 200 <= response.status <= 599:
+                raise VaultError('pixiv-outcome-uncertain')
             payload=response.read(2*1024*1024+1)
             if len(payload)>2*1024*1024:raise VaultError('response-too-large')
             decoded=json.loads(payload.decode('utf-8'))

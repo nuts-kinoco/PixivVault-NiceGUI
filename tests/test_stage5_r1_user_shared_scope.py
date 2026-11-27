@@ -226,7 +226,9 @@ def test_nonfatal_owned_read_errors_do_not_permanently_poison_shared_owner(
 
     def fail_once(request, *_):
         calls.append("generated failed GET")
-        raise error_type()
+        error = error_type()
+        error.get_outcome_known = True  # The fake represents a confirmed transport outcome.
+        raise error
 
     reader = scope.create_reader(cookie, transport=fail_once)
     try:

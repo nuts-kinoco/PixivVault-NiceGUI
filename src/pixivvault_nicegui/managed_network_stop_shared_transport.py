@@ -94,23 +94,6 @@ def _trip_local_after_shared_failure(local_gate, status, error):
         _attach_gate_cleanup(error, local_error)
 
 
-def _mirror_local_stop(shared_gate, status):
-    if status != 401:
-        shared_gate.trip(status)
-        return True
-    # After a verified shared recovery, an unrelated profile may still have
-    # a local 401. Its own fence remains closed. A new observed shared 401
-    # is persisted by the actual request; an unfinished send has its intent.
-    with shared_gate._exclusive():
-        state = shared_gate._snapshot_locked()
-        if state.blocked:
-            return True
-        if state.revision != 0:
-            return False
-        shared_gate._trip_locked(401)
-        return True
-
-
 def transfer_current_local_stop(local_gate, shared_gate, *, expected_revision=None):
     """Read and copy under the local lock so a cleared STOP cannot be re-latched."""
     with _report_stop_authority('local'), local_gate._exclusive():
@@ -118,7 +101,8 @@ def transfer_current_local_stop(local_gate, shared_gate, *, expected_revision=No
         if not state.blocked or (expected_revision is not None and state.revision != expected_revision):
             return False
         with _report_stop_authority('shared'):
-            return _mirror_local_stop(shared_gate, state.status_code)
+            shared_gate.trip(state.status_code)
+        return True
 
 
 def _transfer_known_stop(local_gate, shared_gate, stopped):
@@ -201,8 +185,9 @@ class SharedProfileStopTransport(_ProfileBoundTransport):
                          previous.profile_identity, previous, previous.local_generation)
         self.shared_gate = shared_gate
         self.shared_owner_check = shared_owner_check
-        self.shared_generation = (shared_gate._observed_revision // 2
-                                  if shared_generation is None else shared_generation)
+        with _report_stop_authority('shared'):
+            self.shared_generation = (ManagedNetworkStopGate.snapshot(shared_gate).revision // 2
+                                      if shared_generation is None else shared_generation)
 
     def _require_generation(self, local_revision, shared_revision=None):
         super()._require_generation(local_revision)
@@ -300,28 +285,36 @@ def create_shared_profile_reader(scope, cookie_path, shared_gate, *, transport=N
         raise TypeError("shared owner validation callable required")
     if shared_owner_check is not None:
         shared_owner_check()
-    shared_generation = shared_gate._observed_revision // 2
-    reader = scope.create_reader(cookie_path, transport=transport)
+    reader = None
     try:
-        # Do not offer a callable that retrofits an already-published reader:
-        # a GET between its local snapshot and transport replacement could
-        # trip only local STOP and leave the shared owner unblocked.
-        if type(reader) is not LivePixivReadClient:
-            raise TypeError("exact managed Pixiv reader required")
-        previous = reader._transport
-        if not isinstance(previous, _ProfileBoundTransport):
-            raise TypeError("owned native profile transport required")
-        shared_transport = SharedProfileStopTransport(
-            previous, shared_gate, shared_owner_check=shared_owner_check,
-            shared_generation=shared_generation)
-        with _report_stop_authority('local'), previous.gate._exclusive():
+        with _report_stop_authority('local'), scope.gate._exclusive():
+            stopped = None
             try:
-                previous.gate._require_open_locked()
-            except ManagedNetworkStopped as stopped:
+                scope.gate._require_open_locked()
+            except ManagedNetworkStopped as error:
+                stopped = error
+                if stopped.status_code == 401:
+                    with _report_stop_authority('shared'):
+                        _trip_before_admission(shared_gate.trip, stopped)
+            # Capture the shared generation before reading the credential.
+            # A different profile can recover while this local lock is held.
+            shared_generation = None
+            if stopped is None or stopped.status_code == 401:
                 with _report_stop_authority('shared'):
-                    _trip_before_admission(lambda status: _mirror_local_stop(shared_gate, status), stopped)
-        reader._transport = shared_transport
+                    shared_generation = ManagedNetworkStopGate.snapshot(shared_gate).revision // 2
+            # _require_open_locked just read the local generation from disk.
+            reader = scope._create_reader_locked(cookie_path, scope.gate._observed_revision,
+                                                 transport=transport)
+            if stopped is not None and stopped.status_code != 401:
+                with _report_stop_authority('shared'):
+                    _trip_before_admission(shared_gate.trip, stopped)
+            if type(reader) is not LivePixivReadClient:
+                raise TypeError("exact managed Pixiv reader required")
+            reader._transport = SharedProfileStopTransport(
+                reader._transport, shared_gate, shared_owner_check=shared_owner_check,
+                shared_generation=shared_generation)
         return reader
     except BaseException as error:
-        _run_gate_cleanup(reader.close, 'managed reader close failed', primary=error, authority='shared')
+        if reader is not None:
+            _run_gate_cleanup(reader.close, 'managed reader close failed', primary=error, authority='shared')
         raise

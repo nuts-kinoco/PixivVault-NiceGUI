@@ -612,26 +612,33 @@ class _OwnedReadTransport(OwnedHTTPSPool):
                 or type(limit) is not int or limit <= 0):
             raise ResponseRejected()
         effective_deadline = min(deadline, time.monotonic() + MAX_REQUEST_SECONDS)
-        from .request_policy import _FRESH_GET, record_request_rate_stop, request_send_checkpoint
+        from .request_policy import _FRESH_GET, record_request_rate_stop, request_checkpoint, request_send_checkpoint
         api = parsed.netloc == "www.pixiv.net" and port == 443
         keep_alive = api and not _FRESH_GET.get()
         if api and limit == JSON_LIMIT:
             request.add_header("Accept-Encoding", "gzip")
         fatal_status_seen = None
+        response_status_seen = False
         owner = None
 
-        def observe_status(status):
-            nonlocal fatal_status_seen
+        def observe_status(status, *, complete=True):
+            nonlocal fatal_status_seen, response_status_seen
+            if complete and type(status) is int and 200 <= status <= 599:
+                response_status_seen = True
             if type(status) is int and status in (401, 403, 429):
                 fatal_status_seen = status
                 record_request_rate_stop(status)
+
+        def before_send():
+            request_checkpoint()
+            request_send_checkpoint()
 
         try:
             with self.session(
                     timeout=min(timeout, MAX_REQUEST_SECONDS), deadline=effective_deadline,
                     host=parsed.hostname, port=port, keep_alive=keep_alive) as owner:
                 owner._http_status_observer = observe_status
-                owner._before_send = request_send_checkpoint
+                owner._before_send = before_send
                 opener = build_opener(ProxyHandler({}), _NoRedirects(), OwnedHTTPSHandler(owner))
                 token = _CAPTURE_COOKIE_RESPONSE.set(True)
                 try:
@@ -641,42 +648,52 @@ class _OwnedReadTransport(OwnedHTTPSPool):
                 finally:
                     _CAPTURE_COOKIE_RESPONSE.reset(token)
         except Exception as error:
-            from .managed_network_stop_gate import (
-                ManagedNetworkGateStorageError, _attach_gate_cleanup, _carry_gate_cleanup,
-            )
-            if fatal_status_seen is not None:
-                # This takes priority over ClientClosed, cleanup uncertainty,
-                # and deadline errors: an already-observed fatal HTTP response
-                # must reach the durable STOP gate, even if teardown fails.
-                if isinstance(error, HTTPStatusRejected) and error.status_code == fatal_status_seen:
-                    raise
-                rejected = _carry_gate_cleanup(error, HTTPStatusRejected(fatal_status_seen))
-                if isinstance(error, ManagedNetworkGateStorageError):
-                    _attach_gate_cleanup(rejected, error)
-                raise rejected from None
-            if isinstance(error, _PeerRateStopped):
+            try:
+                self._raise_read_error(error, owner, fatal_status_seen, effective_deadline)
+            except PixivReadError as rejected:
+                if self.revocation_unverified:
+                    rejected.cleanup_failed = True
+                rejected.get_outcome_known = (
+                    response_status_seen or owner is None or not getattr(owner, 'send_started', True))
                 raise
-            if isinstance(error, ManagedNetworkGateStorageError) and error.authority is not None:
-                raise
-            if self.closed:
-                raise _carry_gate_cleanup(error, ClientClosed()) from None
-            if self.revocation_unverified:
-                # Cleanup uncertainty is not a transient GET eligible for retry.
-                raise _carry_gate_cleanup(error, ResponseRejected()) from None
-            _check_time(effective_deadline)
-            if isinstance(error, TimeoutError):
-                # Timeout during DNS/connect/TLS/fence checks is likewise
-                # bounded by this owner's absolute request deadline.
-                raise _carry_gate_cleanup(error, ReadDeadlineExceeded()) from None
-            if isinstance(error, PixivReadError) and not isinstance(error, TransportFailed):
-                raise
-            if getattr(owner, "reused_disconnect", False):
-                raise _carry_gate_cleanup(error, _PooledConnectionLost()) from None
-            if getattr(owner, "response_started", False) or getattr(owner, "reused_dispatch", False):
-                raise _carry_gate_cleanup(error, _InterruptedRead()) from None
-            if isinstance(error, PixivReadError):
-                raise
-            raise _carry_gate_cleanup(error, TransportFailed()) from None
+
+    def _raise_read_error(self, error, owner, fatal_status_seen, effective_deadline):
+        from .managed_network_stop_gate import (
+            ManagedNetworkGateStorageError, _attach_gate_cleanup, _carry_gate_cleanup,
+        )
+        if fatal_status_seen is not None:
+            # This takes priority over ClientClosed, cleanup uncertainty,
+            # and deadline errors: an already-observed fatal HTTP response
+            # must reach the durable STOP gate, even if teardown fails.
+            if isinstance(error, HTTPStatusRejected) and error.status_code == fatal_status_seen:
+                raise error
+            rejected = _carry_gate_cleanup(error, HTTPStatusRejected(fatal_status_seen))
+            if isinstance(error, ManagedNetworkGateStorageError):
+                _attach_gate_cleanup(rejected, error)
+            raise rejected from None
+        if isinstance(error, _PeerRateStopped):
+            raise error
+        if isinstance(error, ManagedNetworkGateStorageError) and error.authority is not None:
+            raise error
+        if self.closed:
+            raise _carry_gate_cleanup(error, ClientClosed()) from None
+        if self.revocation_unverified:
+            # Cleanup uncertainty is not a transient GET eligible for retry.
+            raise _carry_gate_cleanup(error, ResponseRejected()) from None
+        _check_time(effective_deadline)
+        if isinstance(error, TimeoutError):
+            # Timeout during DNS/connect/TLS/fence checks is likewise
+            # bounded by this owner's absolute request deadline.
+            raise _carry_gate_cleanup(error, ReadDeadlineExceeded()) from None
+        if isinstance(error, PixivReadError) and not isinstance(error, TransportFailed):
+            raise error
+        if getattr(owner, "reused_disconnect", False):
+            raise _carry_gate_cleanup(error, _PooledConnectionLost()) from None
+        if getattr(owner, "response_started", False) or getattr(owner, "reused_dispatch", False):
+            raise _carry_gate_cleanup(error, _InterruptedRead()) from None
+        if isinstance(error, PixivReadError):
+            raise error
+        raise _carry_gate_cleanup(error, TransportFailed()) from None
 
 
 

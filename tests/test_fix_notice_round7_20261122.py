@@ -470,7 +470,9 @@ def test_failed_intent_completion_keeps_primary_and_refuses_retry(tmp_path, monk
         sent.append(True)
         if outcome == '429':
             raise HTTPStatusRejected(429)
-        raise TransportFailed()
+        error = TransportFailed()
+        error.get_outcome_known = True
+        raise error
 
     with create_shared_profile_reader(local, credential, shared.gate,
                                       shared_owner_check=shared._check_owner, transport=send) as reader:
