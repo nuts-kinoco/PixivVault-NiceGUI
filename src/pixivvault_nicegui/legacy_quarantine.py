@@ -154,6 +154,14 @@ class LegacyQuarantine:
                     raise ValueError('legacy active archive changed')
             return result
 
+    def _mutation_state(self, *, verify_outputs=True):
+        state = self.state(verify_outputs=verify_outputs)
+        # A pending restore has a prepared CURRENT update. Do not let another
+        # legacy mutation change its revision while the conflict is unresolved.
+        if self._physical is not None:
+            self._physical.restores.require_settled()
+        return state
+
     def _ensure(self):
         self._check()
         if self.root is None:raise ValueError('managed quarantine root required')
@@ -350,7 +358,7 @@ class LegacyQuarantine:
         with self._lock:
             self._check()
             if self.root is None or not _OP.fullmatch(operation_id):raise ValueError('legacy operation rejected')
-            state=self.state()
+            state=self._mutation_state()
             revision=self.owner._generations.state_snapshot()['revision']+':'+state['revision']
             if (not plan.mutation_allowed or not plan.items or plan.state_revision!=revision
                     or any(item.source!='legacy' for item in plan.items)):
@@ -492,7 +500,7 @@ class LegacyQuarantine:
             self._check()
             if self.root is None:raise ValueError('managed quarantine root required')
             self.finish_purges()
-            state=self.state(verify_outputs=False)
+            state=self._mutation_state(verify_outputs=False)
             candidates=[]
             for key,item in state['exclusions'].items():
                 if item.get('purged'):continue

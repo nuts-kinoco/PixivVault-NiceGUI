@@ -496,7 +496,7 @@ class ManagedDuplicateInspection:
             return self.owner.root
 
     def recoverable_moves(self):
-        """UI-safe list of owned v4 move operations; no original paths."""
+        """List owned physical moves without exposing original paths."""
         with self._lock:
             self._check()
             if self.owner is None:return ()
@@ -510,18 +510,37 @@ class ManagedDuplicateInspection:
                 manifest = self.owner.quarantine._manifest(operation_id, operation)
                 results.append((operation_id, operation['state'],
                                 len(manifest['items']), state['revision']))
+            physical = getattr(self.legacy, '_physical', None)
+            if physical is not None:
+                results.extend(physical.restores.candidates())
             return tuple(results)
 
     def restore_move(self, operation_id, *, expected_revision):
-        """Restore only a confirmed managed move, maintaining scan lifetime."""
+        """Restore a confirmed move and invalidate the existing scan."""
+        from .legacy_physical_restore import LEGACY_RESTORE_PREFIX
+
         with self._lock:
             self._check()
-            state = self.owner._generations.state_snapshot()
-            operation = state['operations'].get(operation_id)
-            if operation is None or operation.get('mode') != 'move':
+            if self.owner is None or not isinstance(operation_id, str):
                 raise DuplicateInspectionError()
-            result = self.owner.quarantine.restore(
-                operation_id, expected_revision=expected_revision)
+            if operation_id.startswith(LEGACY_RESTORE_PREFIX):
+                physical = getattr(self.legacy, '_physical', None)
+                if physical is None:
+                    raise DuplicateInspectionError()
+                try:
+                    return physical.restores.restore(
+                        operation_id.removeprefix(LEGACY_RESTORE_PREFIX), expected_revision)
+                finally:
+                    # An interrupted restore can publish during later recovery.
+                    self._latest = None
+                    self._planned = None
+            else:
+                state = self.owner._generations.state_snapshot()
+                operation = state['operations'].get(operation_id)
+                if operation is None or operation.get('mode') != 'move':
+                    raise DuplicateInspectionError()
+                result = self.owner.quarantine.restore(
+                    operation_id, expected_revision=expected_revision)
             self._latest = None
             self._planned = None
             return result
@@ -618,13 +637,16 @@ class ManagedDuplicateInspection:
             if self.legacy is None or self.legacy._physical is None:raise DuplicateInspectionError()
             self.legacy._physical.recover(strict=True)
             self.legacy.catalog.replace_snapshot(self.legacy.original_snapshot)
+            self._planned=None
+            if self._latest is None:
+                self._scan_proofs=()
+                return None
             rows,signature=self._catalog()
             proofs={relative:digest for relative,_,digest in rows}
-            if self._latest is not None:
-                groups=tuple(replace(g,items=tuple(replace(p,receipt_sha256=proofs[p.relative_receipt])
-                    for p in g.items)) for g in self._latest.groups)
-                self._latest=replace(self._latest,scan_id=uuid4().hex,groups=groups,snapshot_sha256=signature)
-            self._scan_proofs=tuple(proofs.items());self._planned=None
+            groups=tuple(replace(g,items=tuple(replace(p,receipt_sha256=proofs[p.relative_receipt])
+                for p in g.items)) for g in self._latest.groups)
+            self._latest=replace(self._latest,scan_id=uuid4().hex,groups=groups,snapshot_sha256=signature)
+            self._scan_proofs=tuple(proofs.items())
             return self._latest
     def close(self):
         self._closing.set()

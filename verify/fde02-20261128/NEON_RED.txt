@@ -1,0 +1,20 @@
+Pytest summary excerpt from S:\Work\_tmp\PV\fde02\neon-red02.txt
+=========================== short test summary info ===========================
+FAILED tests/test_fde02_restore.py::test_zip_new_file_after_displacement_is_never_overwritten
+FAILED tests/test_fde02_restore.py::test_legacy_restore_failure_can_resume_from_existing_ui_button[False]
+FAILED tests/test_fde02_restore.py::test_legacy_restore_failure_can_resume_from_existing_ui_button[True]
+FAILED tests/test_fde02_restore.py::test_neon_1_restore_survives_inode_change_on_cross_directory_rename[1-False]
+FAILED tests/test_fde02_restore.py::test_neon_1_restore_survives_inode_change_on_cross_directory_rename[2-True]
+FAILED tests/test_fde02_restore.py::test_neon_2_rebuilt_zip_regenerates_zip64_headers_and_keeps_metadata
+FAILED tests/test_fde02_restore.py::test_neon_3_missing_file_parent_does_not_leave_restore_pending[False]
+FAILED tests/test_fde02_restore.py::test_neon_3_missing_file_parent_does_not_leave_restore_pending[True]
+FAILED tests/test_fde02_restore.py::test_neon_4_bookmark_alias_retains_inode_or_restore_refuses[True]
+FAILED tests/test_fde02_restore.py::test_neon_4_bookmark_alias_retains_inode_or_restore_refuses[False]
+====================== 10 failed, 14 deselected in 7.54s ======================
+
+Pytest summary excerpt from S:\Work\_tmp\PV\fde02\neon-red03.txt
+=========================== short test summary info ===========================
+FAILED tests/test_fde02_restore.py::test_neon_4_old_copy_intent_cannot_publish_split_bookmark_alias[False]
+FAILED tests/test_fde02_restore.py::test_neon_4_old_copy_intent_cannot_publish_split_bookmark_alias[True]
+FAILED tests/test_fde02_restore.py::test_neon_6_new_view_exposes_recovery_for_known_pending_source
+====================== 3 failed, 26 deselected in 3.85s =======================
