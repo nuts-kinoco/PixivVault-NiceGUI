@@ -1,0 +1,107 @@
+.......................FFFFFFFF...                                       [100%]
+================================== FAILURES ===================================
+________ test_other_profile_stop_is_transferred_after_shared_recovery _________
+tests\test_h2_401_recovery.py:454: in test_other_profile_stop_is_transferred_after_shared_recovery
+    assert reopened.gate.snapshot().status_code == 401
+E   assert None == 401
+E    +  where None = NetworkStopState(blocked=False, status_code=None, revision=2).status_code
+E    +    where NetworkStopState(blocked=False, status_code=None, revision=2) = snapshot()
+E    +      where snapshot = <pixivvault_nicegui.managed_network_stop_shared_scope.ManagedUserNetworkStopGate object at 0x0000016BBF332CC0>.snapshot
+E    +        where <pixivvault_nicegui.managed_network_stop_shared_scope.ManagedUserNetworkStopGate object at 0x0000016BBF332CC0> = <pixivvault_nicegui.managed_network_stop_shared_scope.ManagedUserNetworkStopScope object at 0x0000016BBF3DBA50>.gate
+______ test_failed_confirmation_intent_outcome_and_explicit_retry[True] _______
+tests\test_h2_401_recovery.py:469: in test_failed_confirmation_intent_outcome_and_explicit_retry
+    assert shared.gate.inflight_path.exists() is (not known)
+E   AssertionError: assert True is not True
+E    +  where True = exists()
+E    +    where exists = WindowsPath('S:/Work/_tmp/PV/h2/r1-red/test_failed_confirmation_inten0/generated-reviewed-user-stop/.pixivvault-user-stop-inflight.v1').exists
+E    +      where WindowsPath('S:/Work/_tmp/PV/h2/r1-red/test_failed_confirmation_inten0/generated-reviewed-user-stop/.pixivvault-user-stop-inflight.v1') = <pixivvault_nicegui.managed_network_stop_shared_scope.ManagedUserNetworkStopGate object at 0x0000016BBF1BFE30>.inflight_path
+E    +        where <pixivvault_nicegui.managed_network_stop_shared_scope.ManagedUserNetworkStopGate object at 0x0000016BBF1BFE30> = <pixivvault_nicegui.managed_network_stop_shared_scope.ManagedUserNetworkStopScope object at 0x0000016BBF45D3D0>.gate
+______ test_failed_confirmation_intent_outcome_and_explicit_retry[False] ______
+tests\test_h2_401_recovery.py:472: in test_failed_confirmation_intent_outcome_and_explicit_retry
+    plan = shared.preview_uncertain_get_recovery()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_shared_scope.py:335: in preview_uncertain_get_recovery
+    return self._recovery_plan_locked()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_shared_scope.py:310: in _recovery_plan_locked
+    raise ManagedNetworkStopped(state.status_code)
+E   pixivvault_nicegui.managed_network_stop_gate.ManagedNetworkStopped: managed network stopped (401)
+_______________ test_second_local_401_stops_shared_only_traffic _______________
+tests\test_h2_401_recovery.py:493: in test_second_local_401_stops_shared_only_traffic
+    with pytest.raises(ManagedNetworkStopped):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   Failed: DID NOT RAISE <class 'pixivvault_nicegui.managed_network_stop_gate.ManagedNetworkStopped'>
+__________ test_new_reader_binds_disk_generation_from_existing_scope __________
+tests\test_h2_401_recovery.py:507: in test_new_reader_binds_disk_generation_from_existing_scope
+    assert reader.require_identity() == '55'
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\pixiv_read_client.py:1039: in require_identity
+    else self._verify_identity_locked())
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\pixiv_read_client.py:1045: in _verify_identity_locked
+    homepage = self._get("home", API_ORIGIN + "/", deadline=deadline)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\pixiv_read_client.py:927: in _get
+    return execute_single_get(attempt, deadline=deadline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\request_policy.py:372: in execute_single_get
+    return operation()
+           ^^^^^^^^^^^
+src\pixivvault_nicegui\pixiv_read_client.py:920: in attempt
+    return self._get_once(kind, url, deadline=deadline, capture_cookies=capture_cookies)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\pixiv_read_client.py:973: in _get_once
+    response = self._transport(request, timeout, limit, per_request_deadline)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\pixivvault_nicegui\managed_network_stop_shared_transport.py:224: in __call__
+    return _dispatch_dual_stop(self.gate, self.shared_gate, self.transport,
+src\pixivvault_nicegui\managed_network_stop_shared_transport.py:46: in _dispatch_dual_stop
+    before_send(local_gate._observed_revision, shared_gate._observed_revision)
+src\pixivvault_nicegui\managed_network_stop_shared_transport.py:208: in _require_generation
+    super()._require_generation(local_revision)
+src\pixivvault_nicegui\managed_network_stop_profile_scope.py:125: in _require_generation
+    raise StaleCredentialReader('reader predates credential recovery', authority='local')
+E   pixivvault_nicegui.managed_network_stop_transport.StaleCredentialReader: reader predates credential recovery
+_______________ test_cancel_during_cookie_save_finishes_commit ________________
+tests\test_h2_401_recovery.py:534: in test_cancel_during_cookie_save_finishes_commit
+    asyncio.run(cancel())
+C:\Users\nat\miniconda3\envs\stenv\Lib\asyncio\runners.py:195: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\asyncio\runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\nat\miniconda3\envs\stenv\Lib\asyncio\base_events.py:725: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+tests\test_h2_401_recovery.py:532: in cancel
+    assert (await task).ok
+            ^^^^^^^^^^
+src\pixivvault_nicegui\native_startup.py:322: in check_selected_authentication
+    result, identity = await self._check_authentication_with_identity(
+src\pixivvault_nicegui\native_startup.py:360: in _check_authentication_with_identity
+    result, identity = await asyncio.shield(worker)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   asyncio.exceptions.CancelledError
+__ test_shared_clear_failure_does_not_replace_readers_or_invalidate_recheck ___
+tests\test_h2_401_recovery.py:559: in test_shared_clear_failure_does_not_replace_readers_or_invalidate_recheck
+    assert reader._transport.cookie_path == saved
+E   AssertionError: assert WindowsPath('S:/Work/_tmp/PV/h2/r1-red/test_shared_clear_failure_does0/credential/chosen.txt') == WindowsPath('S:/Work/_tmp/PV/h2/r1-red/test_shared_clear_failure_does0/credential/saved.txt')
+E    +  where WindowsPath('S:/Work/_tmp/PV/h2/r1-red/test_shared_clear_failure_does0/credential/chosen.txt') = <pixivvault_nicegui.managed_network_stop_shared_transport.SharedProfileStopTransport object at 0x0000016BBC6926C0>.cookie_path
+E    +    where <pixivvault_nicegui.managed_network_stop_shared_transport.SharedProfileStopTransport object at 0x0000016BBC6926C0> = <pixivvault_nicegui.pixiv_read_client.LivePixivReadClient object at 0x0000016BBF25F590>._transport
+_________ test_same_path_recovery_with_other_account_requires_restart _________
+tests\test_h2_401_recovery.py:575: in test_same_path_recovery_with_other_account_requires_restart
+    assert binding.cookie_replaced_since_launch()
+E   assert False
+E    +  where False = cookie_replaced_since_launch()
+E    +    where cookie_replaced_since_launch = <pixivvault_nicegui.native_startup.NativeProfileBinding object at 0x0000016BBF3520D0>.cookie_replaced_since_launch
+=========================== short test summary info ===========================
+FAILED tests/test_h2_401_recovery.py::test_other_profile_stop_is_transferred_after_shared_recovery
+FAILED tests/test_h2_401_recovery.py::test_failed_confirmation_intent_outcome_and_explicit_retry[True]
+FAILED tests/test_h2_401_recovery.py::test_failed_confirmation_intent_outcome_and_explicit_retry[False]
+FAILED tests/test_h2_401_recovery.py::test_second_local_401_stops_shared_only_traffic
+FAILED tests/test_h2_401_recovery.py::test_new_reader_binds_disk_generation_from_existing_scope
+FAILED tests/test_h2_401_recovery.py::test_cancel_during_cookie_save_finishes_commit
+FAILED tests/test_h2_401_recovery.py::test_shared_clear_failure_does_not_replace_readers_or_invalidate_recheck
+FAILED tests/test_h2_401_recovery.py::test_same_path_recovery_with_other_account_requires_restart
+8 failed, 26 passed in 9.00s
