@@ -1041,6 +1041,8 @@ def test_shell_zoom_matrix(zoom_page, tmp_path):
             assert page.evaluate('[innerWidth, innerHeight, devicePixelRatio]') == [
                 width * 100 // zoom, height * 100 // zoom, zoom / 100]
             navigate_extra(page, 'shared-log', 'port')
+            # The dialog owns the scroll: with the scheduler detail shown, the log is reached by scrolling.
+            page.get_by_test_id('shared-log').scroll_into_view_if_needed(timeout=5000)
             shared = shell_layout(page)
             screenshot(page, tmp_path, 'shared-log-' + name)
             p5.navigate_port(page, 'bookmarks', specs, tone_mode=True, show_tools=False)
