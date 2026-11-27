@@ -340,7 +340,7 @@ class LearningView:
                     else:
                         element.move(self.trend_main)
                 self.trend_button.set_visibility(False)
-            self.review_button = ui.button('振り返り', on_click=self.open_review).props('flat dense no-caps data-testid=learning-review-open')
+            self.review_button = ui.button('振り返り', on_click=self.open_review).classes('pv-learning-mode').props('flat dense no-caps data-testid=learning-review-open')
             from .view_history_view import ViewHistoryView
             self.view_history = ViewHistoryView(self, self.storage)
 
@@ -350,7 +350,7 @@ class LearningView:
                 if element is not self.swipe_area and element is not self.review_button:
                     element.move(self.swipe_area)
             with ui.row().classes('pv-toolbar pv-tone-toolbar gap-1') as self.review_modes:
-                self.swipe_button = ui.button('めくる', on_click=self.return_to_swipe).props(
+                self.swipe_button = ui.button('めくる', on_click=self.return_to_swipe).classes('pv-learning-mode').props(
                     'flat dense no-caps aria-pressed=true data-testid=learning-swipe-mode')
                 self.review_button.props('aria-pressed=false')
                 self.review_button.move(self.review_modes)

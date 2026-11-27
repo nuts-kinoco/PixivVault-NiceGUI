@@ -624,3 +624,31 @@ if __name__ == '__main__':
 
     with patch.object(LibraryView, '__init__', library_with_projection_controls):
         serve_port(int(sys.argv[2]), sys.argv[3].removeprefix('--nonce='))
+
+@pytest.mark.parametrize('theme', ['light', 'dark'])
+def test_neon_library_work_list_sort_and_bookmark_sizes(library_page, theme):
+    from playwright.sync_api import expect
+    page = library_page
+    is_dark = page.locator('body').evaluate("el => el.classList.contains('body--dark')")
+    if is_dark != (theme == 'dark'):
+        page.get_by_test_id('theme-toggle').click()
+    open_tab(page, 'library')
+    open_tools(page, 'library')
+    page.locator('.pv-library-author-card').filter(has_text='synthetic author').get_by_test_id('library-author-open').first.click()
+    sort = page.get_by_test_id('library-sort-capacity').filter(visible=True)
+    sort.click()
+    expect(sort).to_have_attribute('aria-pressed', 'true')
+    assert sort.evaluate('e => getComputedStyle(e).backgroundColor') == 'rgba(33, 150, 243, 0.12)'
+    open_tab(page, 'bookmarks')
+    open_tools(page, 'bookmarks')
+    selected = page.locator('.pv-card-size[aria-pressed=true]').filter(visible=True).first
+    unselected = page.locator('.pv-card-size[aria-pressed=false]').filter(visible=True).first
+    expect(selected).to_be_visible()
+    assert selected.evaluate('e => getComputedStyle(e).backgroundColor') == 'rgba(33, 150, 243, 0.12)'
+    assert unselected.evaluate('e => getComputedStyle(e).backgroundColor') != 'rgba(33, 150, 243, 0.12)'
+    page.get_by_test_id('tab-history').click()
+    selected = page.locator('.pv-card-size[aria-pressed=true]').filter(visible=True).first
+    unselected = page.locator('.pv-card-size[aria-pressed=false]').filter(visible=True).first
+    expect(selected).to_be_visible()
+    assert selected.evaluate('e => getComputedStyle(e).backgroundColor') == 'rgba(33, 150, 243, 0.12)'
+    assert unselected.evaluate('e => getComputedStyle(e).backgroundColor') != 'rgba(33, 150, 243, 0.12)'

@@ -178,7 +178,7 @@ class LibraryView(ViewerController):
                 for key in ("view_count", "last_backup", "capacity"):
                     self.sort_buttons[key] = ui.button(
                         "", color=None, on_click=lambda _, value=key: self.sort(value),
-                    ).classes('pv-hit28').props(f"flat dense no-caps data-testid=library-sort-{key}")
+                    ).classes('pv-hit28 pv-library-sort').props(f"flat dense no-caps data-testid=library-sort-{key}")
                 with ui.row().classes("pv-library-sizes"):
                     self.size_buttons = size_buttons(self.change_size, prefix="library")
                     for size_button in self.size_buttons.values():

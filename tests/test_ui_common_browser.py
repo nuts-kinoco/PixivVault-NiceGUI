@@ -1041,6 +1041,8 @@ def test_shell_zoom_matrix(zoom_page, tmp_path):
             assert page.evaluate('[innerWidth, innerHeight, devicePixelRatio]') == [
                 width * 100 // zoom, height * 100 // zoom, zoom / 100]
             navigate_extra(page, 'shared-log', 'port')
+            # The dialog owns the scroll: with the scheduler detail shown, the log is reached by scrolling.
+            page.get_by_test_id('shared-log').scroll_into_view_if_needed(timeout=5000)
             shared = shell_layout(page)
             screenshot(page, tmp_path, 'shared-log-' + name)
             p5.navigate_port(page, 'bookmarks', specs, tone_mode=True, show_tools=False)
@@ -1355,3 +1357,68 @@ if __name__ == '__main__':
     assert len(sys.argv) == 4 and sys.argv[1] == '--serve-port'
     assert os.environ.get('PV_UIUX_STATE') == 'normal' and Path('fixture.json').is_file()
     serve(int(sys.argv[2]), sys.argv[3].split('=', 1)[1])
+
+@pytest.mark.parametrize('height', [500, 800])
+def test_neon_scheduler_content_reachable(zoom_page, height):
+    from playwright.sync_api import expect
+    page, origin, _ = zoom_page
+    page.set_viewport_size({'width': 1280, 'height': height})
+    audit.load_page(page, origin, audit.Cell('metadata', 'normal', 'light', 1280, height, 100, None))
+    page.get_by_test_id('automation-open').click()
+    page.get_by_test_id('automation-scheduler').click()
+    view = page.locator('.pv-automation-dialog .pv-scheduler-view')
+    expect(view).to_be_visible()
+    print('scheduler', height, view.bounding_box())
+    assert view.bounding_box()['height'] > 200
+    for control in view.locator('button:visible, input:visible, [role=checkbox]:visible').all():
+        control.scroll_into_view_if_needed()
+        assert control.evaluate('''e => { const r=e.getBoundingClientRect(); const d=e.closest('.pv-automation-dialog').getBoundingClientRect(); return r.top >= d.top && r.bottom <= d.bottom; }''')
+
+
+@pytest.mark.parametrize('theme', ['light', 'dark'])
+def test_neon_library_and_card_selection_styles(zoom_page, theme):
+    from playwright.sync_api import expect
+    page, origin, _ = zoom_page
+    for screen in ('library', 'ranking', 'personal', 'dedup', 'recommend', 'learning'):
+        audit.load_page(page, origin, audit.Cell(screen, 'normal', theme, 1280, 800, 100, None))
+        uiux_fixture.open_port(page, audit.Cell(screen, 'normal', theme, 1280, 800, 100, None), p5.helpers.load_expectations()['screens'])
+        if screen == 'library':
+            toggle = page.get_by_test_id('toolbar-toggle-library')
+            if toggle.get_attribute('aria-expanded') != 'true': toggle.click()
+            selector = '.pv-library-sort'
+        elif screen == 'learning': selector = '.pv-learning-mode'
+        else: selector = '.pv-card-size'
+        controls = page.locator(selector).filter(visible=True)
+        expect(controls.first).to_be_visible()
+        selected = page.locator(selector + '[aria-pressed=true]').filter(visible=True)
+        unselected = page.locator(selector + '[aria-pressed=false]').filter(visible=True)
+        expect(selected.first).to_be_visible()
+        expect(unselected.first).to_be_visible()
+        colors = [x.evaluate('e => getComputedStyle(e).backgroundColor') for x in (selected.first, unselected.first)]
+        print('selection', theme, screen, colors)
+        assert colors[0] == 'rgba(33, 150, 243, 0.12)' and colors[0] != colors[1]
+        target = unselected.first
+        testid = target.get_attribute('data-testid')
+        target.click()
+        expect(page.get_by_test_id(testid).filter(visible=True)).to_have_attribute('aria-pressed', 'true')
+        assert page.get_by_test_id(testid).filter(visible=True).evaluate('e => getComputedStyle(e).backgroundColor') == colors[0]
+
+@pytest.mark.parametrize('theme', ['light', 'dark'])
+def test_neon_failed_search_recovery(zoom_page, theme):
+    from playwright.sync_api import expect
+    page, origin, _ = zoom_page
+    cell = audit.Cell('failed', 'normal', theme, 1280, 800, 100, None)
+    audit.load_page(page, origin, cell)
+    uiux_fixture.open_port(page, cell, p5.helpers.load_expectations()['screens'])
+    page.get_by_test_id('failed-search').fill('no-such-synthetic-result-987654321')
+    empty = page.get_by_test_id('failed-empty')
+    button = page.get_by_test_id('failed-clear-search')
+    expect(empty).to_be_visible()
+    expect(button).to_be_visible()
+    values = button.evaluate('''e => {const s=getComputedStyle(e, '::before'), r=e.getBoundingClientRect(), parent=e.closest('.pv-failure-records').getBoundingClientRect(); return {border:s.borderTopStyle, width:s.borderTopWidth, center:r.x+r.width/2-parent.x-parent.width/2};}''')
+    print('failure', theme, values)
+    assert values['border'] != 'none' and values['width'] != '0px'
+    assert abs(values['center']) < 2
+    assert empty.evaluate('e => getComputedStyle(e).textAlign') == 'center'
+    button.click()
+    expect(button).to_be_hidden()

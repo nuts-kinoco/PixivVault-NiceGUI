@@ -52,7 +52,7 @@ body {
 .pv-automation-dialog > :not(.pv-automation-scroll) { flex:none; }
 .pv-automation-scroll { overflow:auto; min-height:0; flex:1 1 auto; }
 /* The hosted detail sizes to its content. The dialog owns the scroll area. */
-.pv-automation-scroll [data-testid=metadata-view] { flex:none; overflow:visible; }
+.pv-automation-scroll [data-testid=metadata-view], .pv-automation-scroll .pv-scheduler-view { flex:none; overflow:visible; }
 .pv-automation-dialog [role="tab"][aria-selected="true"] { background:var(--pv-tab-selected); color:var(--pv-primary); }
 .pv-automation-status [data-testid="automation-status"] {
   position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%);
@@ -403,7 +403,9 @@ CSS += """
 .pv-preferences-card { border-radius:16px !important; }
 .pv-preferences-group { border:1px solid var(--pv-border); border-radius:12px; padding:12px; width:100%; background:var(--pv-bg); }
 .pv-retry-action { border-radius:999px; background:rgba(33,150,243,.12); color:var(--pv-text); padding:6px 12px !important; }
-.pv-toolbar .q-btn.pv-size-selected, .pv-library .q-btn.pv-size-selected { background:rgba(33,150,243,.12) !important; color:var(--pv-text) !important; border-color:transparent !important; }
+.pv-toolbar .q-btn.pv-size-selected, .pv-library .q-btn.pv-size-selected,
+.q-btn.pv-card-size.pv-size-selected, .pv-library .q-btn.pv-library-sort[aria-pressed=true],
+.pv-toolbar .q-btn.pv-learning-mode[aria-pressed=true] { background:rgba(33,150,243,.12) !important; color:var(--pv-text) !important; border-color:transparent !important; }
 .pv-period-chips .q-btn { background:transparent !important; color:var(--pv-text) !important; }
 .pv-period-chips .q-btn[aria-pressed=true] { background:rgba(33,150,243,.12) !important; }
 .pv-filter-switch { font-size:11px; color:var(--pv-muted); }
