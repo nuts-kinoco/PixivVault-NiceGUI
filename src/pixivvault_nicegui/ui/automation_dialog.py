@@ -57,7 +57,7 @@ def summaries(services):
                   '実行中' if phase == 'running' else '停止（設定 OFF）' if not enabled else
                   '取得停止中' if blocked else '停止しました' if phase == 'stopped' else
                   '要確認' if failure else '予定待ち')
-        periodic = Summary(status, state.last_due_utc, state.next_due_utc, failure,
+        periodic = Summary(status, state.last_due_utc, None if status == '停止（設定 OFF）' else state.next_due_utc, failure,
                            blocked and enabled, phase in {'running', 'stopping'})
     if services.managed_downloads is None:
         metadata = Summary('利用不可')
@@ -84,7 +84,7 @@ def summaries(services):
             state = '停止しました'
         else:
             state = '要確認' if failure else '予定待ち'
-        metadata = Summary(state, last, getattr(auto, 'next_run_display', None), failure,
+        metadata = Summary(state, last, None if state == '停止（設定 OFF）' else getattr(auto, 'next_run_display', None), failure,
                            blocked and enabled is True, running)
     return {'scheduler': periodic, 'metadata': metadata}
 

@@ -94,7 +94,7 @@ class BookmarkView:
                         "data-testid=bookmark-selection")
                     self.download_button = ui.button("選択をダウンロード", color=None,
                         on_click=self.download_selected).classes('pv-hit28').props(
-                        "flat dense data-testid=bookmark-download")
+                        "outline dense data-testid=bookmark-download")
                     self.download_button.disable()
                     if self.on_enqueue is None:
                         self.download_button.tooltip("この起動では作品の保存先が未接続です")

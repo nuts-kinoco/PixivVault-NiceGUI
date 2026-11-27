@@ -658,7 +658,8 @@ class DuplicateView:
                                     title=ui.label(filename).classes('pv-card-title')
                                     title.props['title'] = filename
                                 quality = 'この組で最大' if group.items.index(item)==best_item_index(group.items) else '低画質候補'
-                                ui.label(f'{item.width}×{item.height} · {item.file_size} bytes · {quality}').classes('pv-subtitle')
+                                ui.badge(quality).classes('pv-dedup-quality').props('data-testid=duplicate-quality')
+                                ui.label(f'{item.width}×{item.height} · {item.file_size} bytes').classes('pv-subtitle')
                         if len(group.items)>5:ui.label(f'+{len(group.items)-5}枚（非表示の画像は選択しません）')
                     with ui.column().classes('pv-dedup-card-actions gap-1'):
                         self.group_move_buttons[group.group_id]=ui.button(

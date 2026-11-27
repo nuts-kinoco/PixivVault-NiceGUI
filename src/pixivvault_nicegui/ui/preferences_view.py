@@ -199,6 +199,7 @@ class PreferencesView:
         self.snapshot=None
         self.controls={}
         self._cache_limit_notes={}
+        self._cache_limit_fields={}
         self.dialog=managed_dialog().props('persistent no-shake data-testid=preferences-dialog')
         self.dialog.on('keyup', self._on_dialog_key, js_handler="(event) => { if (event.key === 'Escape') emit({key: event.key}); }")
 
@@ -397,7 +398,9 @@ class PreferencesView:
                 for spec in specs:
                     wide = (spec.key in ('meta_backfill_enabled', 'embed_auto_on_download', 'extension_bridge_enabled')
                             or spec.key.startswith('visual_preference_'))
-                    with ui.column().classes('pv-settings-field' + (' pv-settings-wide' if wide else '')):
+                    with ui.column().classes('pv-settings-field' + (' pv-settings-wide' if wide else '')) as field:
+                        if spec.key in CACHE_LIMIT_FIELDS.values():
+                            self._cache_limit_fields[spec.key] = field
                         value = self.snapshot.values[spec.key]
                         if spec.key == 'pixiv_actions_enabled' and self.pixiv_actions_mode != 'preferences':
                             value = '1' if self.pixiv_actions_mode == 'enabled' else '0'
@@ -604,7 +607,7 @@ class PreferencesView:
         mode=self.controls['discovery_cache_limit_mode'].value
         for unit,key in CACHE_LIMIT_FIELDS.items():
             visible=mode == unit
-            self.controls[key].set_visibility(visible)
+            self._cache_limit_fields[key].set_visibility(visible)
             note=self._cache_limit_notes.get(key)
             if note is not None:
                 note.set_visibility(visible)

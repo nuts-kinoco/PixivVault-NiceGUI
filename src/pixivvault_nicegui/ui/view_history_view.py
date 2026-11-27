@@ -68,6 +68,7 @@ class ViewHistoryView:
             self.more = secondary_button('もっと見る', self.load_more, testid='view-history-more')
             with ui.column().classes('w-full').props('data-testid=view-history-danger') as danger:
                 self.delete_summary = ui.label().classes('pv-subtitle')
+                ui.label('削除すると元に戻せません。件数を入力すると「全件削除」が押せます。').classes('pv-subtitle')
                 with ui.row().classes('w-full items-center gap-2'):
                     self.confirm = outlined_input('削除する履歴の件数を入力').props(
                         'inputmode=numeric data-testid=view-history-confirm')
