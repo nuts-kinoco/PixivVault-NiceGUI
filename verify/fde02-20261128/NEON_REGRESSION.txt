@@ -1,0 +1,31 @@
+============================= test session starts =============================
+platform win32 -- Python 3.13.11, pytest-8.4.2, pluggy-1.7.0
+rootdir: S:\Work\PV\fde02-20261128
+configfile: pyproject.toml
+plugins: anyio-4.15.1, asyncio-1.2.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function
+collected 199 items
+
+tests\test_fde02_restore.py ..............................               [ 15%]
+tests\test_original_physical_quarantine.py ................              [ 23%]
+tests\test_required_legacy_duplicates.py ..................              [ 32%]
+tests\test_managed_quarantine_move.py ................                   [ 40%]
+tests\test_managed_quarantine.py .............                           [ 46%]
+tests\test_managed_quarantine_ui.py .....                                [ 49%]
+tests\test_f_trash_empty.py ...................................          [ 66%]
+tests\test_duplicate_inspection.py ................                      [ 74%]
+tests\test_duplicate_view.py .....                                       [ 77%]
+tests\test_original_duplicate_contract.py .....                          [ 79%]
+tests\test_ae_duplicate_log_safety_20261119.py ...                       [ 81%]
+tests\test_ah_physical_20261119.py ...                                   [ 82%]
+tests\test_x09_payload_summary_20261115.py .........................     [ 95%]
+tests\test_x09_missing_entries_20261117.py ......                        [ 98%]
+tests\test_x09_combined_trash_status.py ...                              [100%]
+
+============================== warnings summary ===============================
+tests/test_required_legacy_duplicates.py::test_unsafe_or_duplicate_zip_members_do_not_publish[same.png]
+  C:\Users\nat\miniconda3\envs\stenv\Lib\zipfile\__init__.py:1655: UserWarning: Duplicate name: 'same.png'
+    return self._open_to_write(zinfo, force_zip64=force_zip64)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================= 199 passed, 1 warning in 241.10s (0:04:01) ==================

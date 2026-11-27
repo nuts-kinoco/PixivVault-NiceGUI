@@ -75,6 +75,8 @@ class DuplicateView:
             self.skipped_notice=ui.label('').classes('whitespace-pre-line').props('role=alert data-testid=duplicate-skipped-authors')
             self.scan_progress.set_visibility(False);self.scan_bar.set_visibility(False);self.skipped_notice.set_visibility(False)
             self.recovery_notice=ui.label('').classes('pv-subtitle').props('role=status data-testid=duplicate-recovery-status')
+            self.legacy_recover_button=ui.button('未完了の操作を復旧・再確認',on_click=self.recover_legacy).props('flat dense no-caps data-testid=duplicate-legacy-recover')
+            self.legacy_recover_button.set_visibility(False)
             with ui.column().classes('w-full gap-1').props('data-testid=duplicate-undecidable-panel') as self.undecidable_panel:
                 with ui.row().classes('w-full items-center gap-2'):
                     with ui.column().classes('flex-1 min-w-0 gap-0'):
@@ -95,8 +97,6 @@ class DuplicateView:
                     ui.space()
                     self.plan_button=ui.button('隔離計画を確認',on_click=self.plan).props('outline dense no-caps data-testid=duplicate-plan')
                     self.move_button=primary_button('選んだものをごみ箱へ移す…',on_click=lambda _:self.confirm(),testid='duplicate-move')
-                self.legacy_recover_button=ui.button('未完了の操作を復旧・再確認',on_click=self.recover_legacy).props('flat dense no-caps data-testid=duplicate-legacy-recover')
-                self.legacy_recover_button.set_visibility(False)
         with managed_dialog(focus_after_update=True, cancel=self.cancel_confirmation).props('persistent transition-duration=150 data-testid=duplicate-confirm-dialog') as self.confirm_dialog:
             with ui.card().classes('w-full').style('max-width:640px') as confirm_card:
                 self.confirm_title=ui.label().classes('text-lg').props('data-testid=duplicate-confirm-title')
@@ -186,7 +186,11 @@ class DuplicateView:
         legacy=getattr(self.source,'legacy',None)
         notice=getattr(legacy,'recovery_notice',None)
         self.recovery_notice.set_text(notice() if callable(notice) else '')
+        recovery_status=getattr(legacy,'recovery_status',None)
+        if callable(recovery_status) and recovery_status()['blocked_sources']:
+            self.legacy_recover_button.set_visibility(True)
         enabled=self.active and not self.closed and not self.busy
+        self.legacy_recover_button.set_enabled(enabled)
         self.scan_button.set_enabled(enabled)
         self.trash_button.set_enabled(enabled and not self._trash_reading
             and callable(getattr(self.source,'quarantine_snapshot',None)))

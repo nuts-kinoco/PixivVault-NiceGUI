@@ -3,6 +3,7 @@
 The existing physical recovery entry point rolls a durable restore intent
 forward. The displaced ZIP remains on disk and public names are never replaced.
 """
+from copy import copy
 from hashlib import sha256
 import json
 import os
@@ -10,6 +11,7 @@ from pathlib import PurePosixPath
 import re
 import shutil
 import stat
+from struct import unpack_from
 from uuid import uuid4
 from zipfile import ZipFile
 
@@ -40,6 +42,26 @@ def _checked_digest(path, *, legacy=False):
     return _digest(path)
 
 
+def _new_zip_info(original):
+    # A Zip64 field describes the source generation's sizes and offsets.
+    # zipfile writes new fields for the output, including in local headers.
+    extra = bytearray()
+    offset = 0
+    while offset < len(original.extra):
+        if len(original.extra) - offset < 4:
+            raise ValueError('legacy restore archive extra field rejected')
+        tag, size = unpack_from('<HH', original.extra, offset)
+        end = offset + 4 + size
+        if end > len(original.extra):
+            raise ValueError('legacy restore archive extra field rejected')
+        if tag != 0x0001:
+            extra.extend(original.extra[offset:end])
+        offset = end
+    info = copy(original)
+    info.extra = bytes(extra)
+    return info
+
+
 def _restore_member(archive, target, info, data):
     """Keep all entries in this generation and add only the selected member."""
     with ZipFile(archive) as current, target.open('xb') as output:
@@ -47,21 +69,27 @@ def _restore_member(archive, target, info, data):
         names = {entry.filename for entry in entries}
         if len(entries) > 100000 or len(names) != len(entries) or info.filename in names:
             raise ValueError('legacy restore archive members conflict')
+        expected = [(e.filename, e.file_size, e.CRC) for e in (*entries, info)]
         with ZipFile(output, 'w', allowZip64=True) as updated:
             updated.comment = current.comment
             for entry in entries:
                 if (not _safe_entry(entry.filename) or entry.flag_bits & 1
                         or stat.S_IFMT(entry.external_attr >> 16) == stat.S_IFLNK):
                     raise ValueError('legacy restore archive member rejected')
+                new_entry = _new_zip_info(entry)
                 if entry.is_dir():
-                    updated.writestr(entry, b'')
+                    updated.writestr(new_entry, b'')
                 else:
                     with current.open(entry) as source, updated.open(
-                            entry, 'w', force_zip64=entry.file_size >= 2 * 1024**3) as destination:
+                            new_entry, 'w', force_zip64=entry.file_size >= 2 * 1024**3) as destination:
                         shutil.copyfileobj(source, destination, 1024 * 1024)
-            updated.writestr(info, data)
+            updated.writestr(_new_zip_info(info), data)
         output.flush()
         os.fsync(output.fileno())
+    with ZipFile(target) as rebuilt:
+        if ([(e.filename, e.file_size, e.CRC) for e in rebuilt.infolist()] != expected
+                or rebuilt.testzip() is not None):
+            raise ValueError('legacy restore archive readback failed')
 
 
 class LegacyPhysicalRestore:
@@ -117,7 +145,9 @@ class LegacyPhysicalRestore:
                     move = self._move(unit, state, required=False)
                     if move is None:
                         continue
-                    _, item, _ = move
+                    intent, item, _ = move
+                    if intent['source'] in self.blocked_sources:
+                        continue
                     self._selected(item)
                     before = self.physical._unit(unit) / 'before'
                     _safe_path(before, file=True)
@@ -142,6 +172,25 @@ class LegacyPhysicalRestore:
             raise ValueError('legacy restore workspace missing')
         return workspace / 'ready', workspace / 'displaced'
 
+    def _image_donor(self, intent):
+        return self.physical._unit(intent['unit']) / intent['filename']
+
+    def _stage_image(self, intent, ready, data):
+        donor = self._image_donor(intent)
+        if _checked_digest(donor, legacy=True) != intent['before_sha256']:
+            raise ValueError('legacy restore original image changed')
+        try:
+            os.link(donor, ready)
+        except OSError:
+            # Copying an image with another name would split the bookmark
+            # alias into two inodes and make the catalog entry ambiguous.
+            _legacy_input(donor)
+            if donor.stat().st_nlink != 1:
+                raise ValueError('legacy restore cannot preserve image aliases') from None
+            _write(ready, data)
+            return False
+        return True
+
     def _stage(self, unit, state):
         intent, item, move_digest = self._move(unit, state, required=True)
         before_path = self.physical._unit(unit) / 'before'
@@ -150,6 +199,8 @@ class LegacyPhysicalRestore:
                 or intent['source'] in self.physical.blocked_sources):
             raise ValueError('legacy restore evidence changed')
         source = self.physical._source(intent['source'])
+        if not source.parent.is_dir():
+            raise ValueError('legacy restore destination folder missing')
         before = None
         active = None
         if intent['kind'] == 'zip':
@@ -209,10 +260,11 @@ class LegacyPhysicalRestore:
                 'sha256': _checked_digest(stage / 'active.zip'),
             }
         else:
-            _write(ready, data)
+            record['ready_linked'] = self._stage_image(intent, ready, data)
             record['after'] = item['sha256']
         info = ready.stat()
         record['ready_identity'] = [info.st_dev, info.st_ino]
+        record['ready_size'] = info.st_size
         _fsync_dir(workspace)
         _fsync_dir(workspace.parent)
         raw = _packet(updated)
@@ -229,8 +281,7 @@ class LegacyPhysicalRestore:
         os.rename(journal / 'restore.next', path)
         _fsync_dir(journal)
         _fsync_dir(journal.parent)
-        self.store._checkpoint('restore-intent:' + intent['key'])
-        return path
+        return path, record
 
     def _read(self, path):
         raw = _read_bounded(path, 16384)
@@ -240,6 +291,9 @@ class LegacyPhysicalRestore:
                 or not _ID.fullmatch(revision) or not _ID.fullmatch(record['move'])
                 or not _safe_entry(record['source']) or type(record['beside_source']) is not bool):
             raise ValueError('legacy restore intent rejected')
+        if ('ready_size' in record and (type(record['ready_size']) is not int or record['ready_size'] <= 0)
+                or type(record.get('ready_linked', False)) is not bool):
+            raise ValueError('legacy restore staged file record rejected')
         return record, sha256(raw).hexdigest()
 
     def _finish(self, path, record, digest, state=None):
@@ -277,6 +331,7 @@ class LegacyPhysicalRestore:
             next_state = _read_bounded(state_path, LIMIT)
             if sha256(next_state).hexdigest() != record['state_sha256']:
                 raise ValueError('legacy restore staged state changed')
+            donor = None
             if record['before'] is not None:
                 relative = intent['source']
                 previous_archive = state['archives'][relative]
@@ -286,20 +341,35 @@ class LegacyPhysicalRestore:
                         or archive['path'] != f'operations/{revision}/active.zip'
                         or _checked_digest(self.store._path(archive['path'])) != archive['sha256']):
                     raise ValueError('legacy restore staged ZIP changed')
-            elif record['after'] != item['sha256']:
-                raise ValueError('legacy restore image proof changed')
-            ref = _packet({'path': f'operations/{revision}/state.json', 'sha256': record['state_sha256']})
-            next_ref = state_path.parent / ('restore-' + uuid4().hex + '.next')
-            _write(next_ref, ref)
-            _fsync_dir(next_ref.parent)
-            if self._install(source, ready, displaced, record, intent['key']):
-                self.store._check()
-                self._check_ready(source, record, legacy=True)
-                os.replace(next_ref, native_io_path(self.store.root / 'CURRENT'))
-                _fsync_dir(native_io_path(self.store.root))
-                self.store._checkpoint('restore-published:' + intent['key'])
             else:
-                status = 'cancelled'  # The collision occurred before any source change.
+                if record['after'] != item['sha256']:
+                    raise ValueError('legacy restore image proof changed')
+                retained = self._image_donor(intent)
+                _legacy_input(retained)
+                if record.get('ready_linked', False):
+                    donor = retained
+                elif retained.stat().st_nlink != 1:
+                    # Old intents may contain a standalone copy of a linked
+                    # image. Keep a placed copy until it is moved out of the way.
+                    if ready.exists() or not source.exists():
+                        status = 'cancelled'
+                    elif not os.path.samefile(source, retained):
+                        raise ValueError('legacy restore cannot preserve image aliases')
+            if status == 'committed':
+                ref = _packet({'path': f'operations/{revision}/state.json', 'sha256': record['state_sha256']})
+                next_ref = state_path.parent / ('restore-' + uuid4().hex + '.next')
+                _write(next_ref, ref)
+                _fsync_dir(next_ref.parent)
+                if self._install(source, ready, displaced, record, intent['key']):
+                    self.store._check()
+                    self._check_ready(source, record, installed=True)
+                    if donor is not None and not os.path.samefile(source, donor):
+                        raise ValueError('legacy restore installed image lost its hardlink')
+                    os.replace(next_ref, native_io_path(self.store.root / 'CURRENT'))
+                    _fsync_dir(native_io_path(self.store.root))
+                    self.store._checkpoint('restore-published:' + intent['key'])
+                else:
+                    status = 'cancelled'  # The collision occurred before any source change.
         if status == 'committed':
             self.store.catalog.replace_snapshot(self.store.original_snapshot)
         seal = {'intent': digest, 'status': status}
@@ -309,10 +379,15 @@ class LegacyPhysicalRestore:
         _fsync_dir(marker.parent)
         return status
 
-    def _check_ready(self, path, record, *, legacy=False):
-        actual = _checked_digest(path, legacy=legacy)
+    def _check_ready(self, path, record, *, installed=False):
+        actual = _checked_digest(path, legacy=installed or record.get('ready_linked', False))
         info = path.stat()
-        if actual != record['after'] or [info.st_dev, info.st_ino] != record['ready_identity']:
+        device, inode = record['ready_identity']
+        # FAT filesystems can change the ID during a move across directories.
+        # Compare it while the file is staged; use volume and payload after rename.
+        if (actual != record['after'] or info.st_dev != device
+                or info.st_size != record.get('ready_size', info.st_size)
+                or (not installed and info.st_ino != inode)):
             raise ValueError('legacy restore source or staged data changed')
 
     def _install(self, source, ready, displaced, record, key):
@@ -321,6 +396,8 @@ class LegacyPhysicalRestore:
         is_zip = record['before'] is not None
         if ready.exists():
             self._check_ready(ready, record)
+            if not is_zip and not source.parent.is_dir():
+                return False
             if is_zip and not displaced.exists():
                 if not source.exists() or _checked_digest(source, legacy=True) != record['before']:
                     return False
@@ -341,6 +418,10 @@ class LegacyPhysicalRestore:
                 os.rename(ready, source)
             except FileExistsError:
                 if not is_zip:
+                    return False
+                raise
+            except FileNotFoundError:
+                if not is_zip and ready.is_file() and not source.parent.is_dir():
                     return False
                 raise
             _fsync_dir(ready.parent)
@@ -370,8 +451,17 @@ class LegacyPhysicalRestore:
             if expected_revision != state['revision']:
                 raise ValueError('legacy restore revision changed')
             self._identity()
-            path = self._stage(unit, state)
-            record, digest = self._read(path)
-            if self._finish(path, record, digest, state) != 'committed':
+            path, staged = self._stage(unit, state)
+            try:
+                record, digest = self._read(path)
+                self.store._checkpoint('restore-intent:' + record['key'])
+                status = self._finish(path, record, digest, state)
+            except BaseException:
+                # The intent is durable. Read-only callers must observe the
+                # unresolved source before any later recovery has a chance to run.
+                self.blocked_sources |= {staged['source']}
+                self.physical.blocked_sources |= self.blocked_sources
+                raise
+            if status != 'committed':
                 raise ValueError('legacy restore destination changed')
             return self.store.state(verify_outputs=False, recover=False)
