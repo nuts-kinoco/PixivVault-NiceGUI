@@ -43,7 +43,8 @@ CSS = """
 .pv-failure-title {flex:1 1 240px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;}
 .pv-failure-reason {font-size:13px;color:var(--pv-muted);white-space:pre-wrap;overflow-wrap:anywhere;width:100%;}
 .pv-failure-meta {font-size:11px;color:var(--pv-text);}
-.pv-failure-empty {padding:24px 14px;white-space:pre-wrap;}
+.pv-failure-empty {width:100%;padding:24px 14px 0;white-space:pre-wrap;text-align:center;}
+.pv-failure-recovery {justify-content:center;}
 .pv-failure-pages {width:100%;justify-content:flex-end;align-items:center;gap:4px;}
 """
 
@@ -140,9 +141,9 @@ class FailedRecordsView:
             self.alert = ui.label("失敗記録を読み込めませんでした。最後に取得できた一覧を保持しています。リスト更新で再試行できます。"
                                   ).classes("pv-viewer-error").props("role=alert data-testid=failed-error")
             self.empty = ui.label().classes("pv-failure-empty").props("data-testid=failed-empty")
-            with ui.row().classes("w-full") as self.recovery:
-                self.clear_search = ui.button("検索を消す", color=None).props("flat dense data-testid=failed-clear-search")
-                self.clear_category = ui.button("すべて", color=None).props("flat dense data-testid=failed-clear-category")
+            with ui.row().classes("w-full pv-failure-recovery") as self.recovery:
+                self.clear_search = ui.button("検索を消す", color=None).props("outline dense data-testid=failed-clear-search")
+                self.clear_category = ui.button("すべて", color=None).props("outline dense data-testid=failed-clear-category")
             self.rows = ui.column().classes("pv-failure-rows").props("data-testid=failed-rows")
             with ui.row().classes("pv-failure-pages"):
                 self.page_label = ui.label().classes("pv-counter").props("data-testid=failed-page")
