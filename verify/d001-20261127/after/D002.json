@@ -1,0 +1,452 @@
+{
+  "samples": [
+    {
+      "screen": "download/dark",
+      "name": "author-name",
+      "selector": ".pv-ud-list .pv-ud-c-name",
+      "role": "body",
+      "min_px": 13,
+      "frozen": false,
+      "info": {
+        "font_px": 13,
+        "weight": "400",
+        "text": "P5合成データ 長文の表示と折り返しを検証する合成文字列長文",
+        "w": 210,
+        "h": 19.5,
+        "scrollW": 2163,
+        "clientW": 210
+      }
+    },
+    {
+      "screen": "queue/dark",
+      "name": "job-title",
+      "selector": "[data-testid=queue-list] .pv-job-title",
+      "role": "body",
+      "min_px": 13,
+      "frozen": false,
+      "info": {
+        "font_px": 13,
+        "weight": "500",
+        "text": "P5合成データ 長文の表示と折り返しを検証する合成文字列長文",
+        "w": 534.1,
+        "h": 19.5,
+        "scrollW": 2840,
+        "clientW": 534
+      }
+    },
+    {
+      "screen": "queue/dark",
+      "name": "heading-hint",
+      "selector": "[data-testid=queue-heading] > div:nth-of-type(2)",
+      "role": "aux",
+      "min_px": 11,
+      "frozen": true,
+      "info": {
+        "font_px": 10.5,
+        "weight": "400",
+        "text": "2秒毎に自動更新",
+        "w": 79.3,
+        "h": 15.8,
+        "scrollW": 79,
+        "clientW": 79
+      }
+    },
+    {
+      "screen": "failed/dark",
+      "name": "failure-title",
+      "selector": "[data-testid=failed-rows] .pv-failure-title",
+      "role": "body",
+      "min_px": 13,
+      "frozen": false,
+      "info": {
+        "font_px": 13,
+        "weight": "400",
+        "text": "P5合成データ 長文の表示と折り返しを検証する合成文字列長文",
+        "w": 968.5,
+        "h": 19.5,
+        "scrollW": 5401,
+        "clientW": 968
+      }
+    },
+    {
+      "screen": "failed/dark",
+      "name": "failure-reason",
+      "selector": "[data-testid=failed-rows] .pv-failure-reason",
+      "role": "body",
+      "min_px": 13,
+      "frozen": false,
+      "info": {
+        "font_px": 13,
+        "weight": "400",
+        "text": "P5合成データ 長文の表示と折り返しを検証する合成文字列長文",
+        "w": 1236,
+        "h": 117,
+        "scrollW": 1236,
+        "clientW": 1236
+      }
+    },
+    {
+      "screen": "bookmarks/dark",
+      "name": "card-title",
+      "selector": "[data-testid=bookmark-card] .pv-card-title",
+      "role": "body",
+      "min_px": 13,
+      "frozen": false,
+      "info": {
+        "font_px": 13,
+        "weight": "400",
+        "text": "P5合成データ 長文の表示と折り返しを検証する合成文字列長文",
+        "w": 186.7,
+        "h": 15.6,
+        "scrollW": 5283,
+        "clientW": 187
+      }
+    },
+    {
+      "screen": "bookmarks/dark",
+      "name": "card-author",
+      "selector": "[data-testid=bookmark-card] .pv-card-author",
+      "role": "aux",
+      "min_px": 11,
+      "frozen": true,
+      "info": {
+        "font_px": 10,
+        "weight": "400",
+        "text": "synthetic author",
+        "w": 186.7,
+        "h": 12,
+        "scrollW": 187,
+        "clientW": 187
+      }
+    },
+    {
+      "screen": "personal/dark",
+      "name": "card-title",
+      "selector": "[data-testid=personal-ranking-view] .pv-card .pv-card-title",
+      "role": "body",
+      "min_px": 13,
+      "frozen": false,
+      "info": {
+        "font_px": 13,
+        "weight": "400",
+        "text": "P5合成データ 長文の表示と折り返しを検証する合成文字列長文",
+        "w": 186.7,
+        "h": 31.2,
+        "scrollW": 187,
+        "clientW": 187
+      }
+    },
+    {
+      "screen": "personal/dark",
+      "name": "card-author",
+      "selector": "[data-testid=personal-ranking-view] .pv-card .pv-card-author",
+      "role": "aux",
+      "min_px": 11,
+      "frozen": true,
+      "info": {
+        "font_px": 10,
+        "weight": "400",
+        "text": "synthetic author",
+        "w": 186.7,
+        "h": 12,
+        "scrollW": 187,
+        "clientW": 187
+      }
+    },
+    {
+      "screen": "recommend/dark",
+      "name": "card-title",
+      "selector": "[data-testid=recommend-section-certain] .pv-card .pv-card-title",
+      "role": "body",
+      "min_px": 13,
+      "frozen": false,
+      "info": {
+        "font_px": 13,
+        "weight": "400",
+        "text": "P5合成データ 長文の表示と折り返しを検証する合成文字列長文",
+        "w": 185.3,
+        "h": 15.6,
+        "scrollW": 5283,
+        "clientW": 185
+      }
+    },
+    {
+      "screen": "recommend/dark",
+      "name": "card-author",
+      "selector": "[data-testid=recommend-section-certain] .pv-card .pv-card-author",
+      "role": "aux",
+      "min_px": 11,
+      "frozen": true,
+      "info": {
+        "font_px": 9.5,
+        "weight": "400",
+        "text": "Synth author",
+        "w": 185.3,
+        "h": 11.4,
+        "scrollW": 185,
+        "clientW": 185
+      }
+    },
+    {
+      "screen": "library/dark",
+      "name": "author-info",
+      "selector": "[data-testid=library-authors-scroll] .pv-library-card-info > div",
+      "role": "aux",
+      "min_px": 11,
+      "frozen": true,
+      "info": {
+        "font_px": 9.5,
+        "weight": "400",
+        "text": "1点",
+        "w": 14.8,
+        "h": 11.4,
+        "scrollW": 15,
+        "clientW": 15
+      }
+    },
+    {
+      "screen": "history/dark",
+      "name": "size-large",
+      "selector": "[data-testid=backup-size-large] > span:nth-of-type(2) > span:nth-of-type(1)",
+      "role": "aux",
+      "min_px": 11,
+      "frozen": true,
+      "info": {
+        "font_px": 9,
+        "weight": "500",
+        "text": "大",
+        "w": 9,
+        "h": 10.8,
+        "scrollW": 9,
+        "clientW": 9
+      }
+    },
+    {
+      "screen": "download/light",
+      "name": "author-name",
+      "selector": ".pv-ud-list .pv-ud-c-name",
+      "role": "body",
+      "min_px": 13,
+      "frozen": false,
+      "info": {
+        "font_px": 13,
+        "weight": "400",
+        "text": "P5合成データ 長文の表示と折り返しを検証する合成文字列長文",
+        "w": 210,
+        "h": 19.5,
+        "scrollW": 2163,
+        "clientW": 210
+      }
+    },
+    {
+      "screen": "queue/light",
+      "name": "job-title",
+      "selector": "[data-testid=queue-list] .pv-job-title",
+      "role": "body",
+      "min_px": 13,
+      "frozen": false,
+      "info": {
+        "font_px": 13,
+        "weight": "500",
+        "text": "P5合成データ 長文の表示と折り返しを検証する合成文字列長文",
+        "w": 534.1,
+        "h": 19.5,
+        "scrollW": 2840,
+        "clientW": 534
+      }
+    },
+    {
+      "screen": "queue/light",
+      "name": "heading-hint",
+      "selector": "[data-testid=queue-heading] > div:nth-of-type(2)",
+      "role": "aux",
+      "min_px": 11,
+      "frozen": true,
+      "info": {
+        "font_px": 10.5,
+        "weight": "400",
+        "text": "2秒毎に自動更新",
+        "w": 79.3,
+        "h": 15.8,
+        "scrollW": 79,
+        "clientW": 79
+      }
+    },
+    {
+      "screen": "failed/light",
+      "name": "failure-title",
+      "selector": "[data-testid=failed-rows] .pv-failure-title",
+      "role": "body",
+      "min_px": 13,
+      "frozen": false,
+      "info": {
+        "font_px": 13,
+        "weight": "400",
+        "text": "P5合成データ 長文の表示と折り返しを検証する合成文字列長文",
+        "w": 968.5,
+        "h": 19.5,
+        "scrollW": 5401,
+        "clientW": 968
+      }
+    },
+    {
+      "screen": "failed/light",
+      "name": "failure-reason",
+      "selector": "[data-testid=failed-rows] .pv-failure-reason",
+      "role": "body",
+      "min_px": 13,
+      "frozen": false,
+      "info": {
+        "font_px": 13,
+        "weight": "400",
+        "text": "P5合成データ 長文の表示と折り返しを検証する合成文字列長文",
+        "w": 1236,
+        "h": 117,
+        "scrollW": 1236,
+        "clientW": 1236
+      }
+    },
+    {
+      "screen": "bookmarks/light",
+      "name": "card-title",
+      "selector": "[data-testid=bookmark-card] .pv-card-title",
+      "role": "body",
+      "min_px": 13,
+      "frozen": false,
+      "info": {
+        "font_px": 13,
+        "weight": "400",
+        "text": "P5合成データ 長文の表示と折り返しを検証する合成文字列長文",
+        "w": 186.7,
+        "h": 15.6,
+        "scrollW": 5283,
+        "clientW": 187
+      }
+    },
+    {
+      "screen": "bookmarks/light",
+      "name": "card-author",
+      "selector": "[data-testid=bookmark-card] .pv-card-author",
+      "role": "aux",
+      "min_px": 11,
+      "frozen": true,
+      "info": {
+        "font_px": 10,
+        "weight": "400",
+        "text": "synthetic author",
+        "w": 186.7,
+        "h": 12,
+        "scrollW": 187,
+        "clientW": 187
+      }
+    },
+    {
+      "screen": "personal/light",
+      "name": "card-title",
+      "selector": "[data-testid=personal-ranking-view] .pv-card .pv-card-title",
+      "role": "body",
+      "min_px": 13,
+      "frozen": false,
+      "info": {
+        "font_px": 13,
+        "weight": "400",
+        "text": "P5合成データ 長文の表示と折り返しを検証する合成文字列長文",
+        "w": 186.7,
+        "h": 31.2,
+        "scrollW": 187,
+        "clientW": 187
+      }
+    },
+    {
+      "screen": "personal/light",
+      "name": "card-author",
+      "selector": "[data-testid=personal-ranking-view] .pv-card .pv-card-author",
+      "role": "aux",
+      "min_px": 11,
+      "frozen": true,
+      "info": {
+        "font_px": 10,
+        "weight": "400",
+        "text": "synthetic author",
+        "w": 186.7,
+        "h": 12,
+        "scrollW": 187,
+        "clientW": 187
+      }
+    },
+    {
+      "screen": "recommend/light",
+      "name": "card-title",
+      "selector": "[data-testid=recommend-section-certain] .pv-card .pv-card-title",
+      "role": "body",
+      "min_px": 13,
+      "frozen": false,
+      "info": {
+        "font_px": 13,
+        "weight": "400",
+        "text": "P5合成データ 長文の表示と折り返しを検証する合成文字列長文",
+        "w": 185.3,
+        "h": 15.6,
+        "scrollW": 5283,
+        "clientW": 185
+      }
+    },
+    {
+      "screen": "recommend/light",
+      "name": "card-author",
+      "selector": "[data-testid=recommend-section-certain] .pv-card .pv-card-author",
+      "role": "aux",
+      "min_px": 11,
+      "frozen": true,
+      "info": {
+        "font_px": 9.5,
+        "weight": "400",
+        "text": "Synth author",
+        "w": 185.3,
+        "h": 11.4,
+        "scrollW": 185,
+        "clientW": 185
+      }
+    },
+    {
+      "screen": "library/light",
+      "name": "author-info",
+      "selector": "[data-testid=library-authors-scroll] .pv-library-card-info > div",
+      "role": "aux",
+      "min_px": 11,
+      "frozen": true,
+      "info": {
+        "font_px": 9.5,
+        "weight": "400",
+        "text": "1点",
+        "w": 14.8,
+        "h": 11.4,
+        "scrollW": 15,
+        "clientW": 15
+      }
+    },
+    {
+      "screen": "history/light",
+      "name": "size-large",
+      "selector": "[data-testid=backup-size-large] > span:nth-of-type(2) > span:nth-of-type(1)",
+      "role": "aux",
+      "min_px": 11,
+      "frozen": true,
+      "info": {
+        "font_px": 9,
+        "weight": "500",
+        "text": "大",
+        "w": 9,
+        "h": 10.8,
+        "scrollW": 9,
+        "clientW": 9
+      }
+    }
+  ],
+  "browser_errors": 0,
+  "foreign_requests": 0,
+  "server_network_denied": 0,
+  "owned_remaining_count": 0,
+  "owned_ports_closed": true,
+  "seconds": 17.98
+}

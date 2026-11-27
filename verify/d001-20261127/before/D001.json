@@ -1,0 +1,3022 @@
+{
+  "cells": [
+    {
+      "device": [
+        640,
+        400
+      ],
+      "zoom": 100,
+      "browser_zoom": 1,
+      "theme": "dark",
+      "variant": "stress",
+      "safety": {
+        "db_warning": {
+          "x": 8,
+          "y": 8,
+          "w": 624,
+          "h": 28,
+          "scrollH": 28,
+          "clientH": 28,
+          "overflowY": "visible",
+          "maxHeight": "none"
+        },
+        "db_details_btn": {
+          "x": 590,
+          "y": 8,
+          "w": 36,
+          "h": 28,
+          "scrollH": 28,
+          "clientH": 28,
+          "overflowY": "visible",
+          "maxHeight": "none"
+        },
+        "recovery": null,
+        "retry_status": {
+          "x": 8,
+          "y": 72,
+          "w": 558,
+          "h": 84,
+          "scrollH": 82,
+          "clientH": 82,
+          "overflowY": "visible",
+          "maxHeight": "none"
+        },
+        "stop_details_toggle": {
+          "x": 8,
+          "y": 157,
+          "w": 71,
+          "h": 24.5,
+          "scrollH": 26,
+          "clientH": 25,
+          "overflowY": "visible",
+          "maxHeight": "none"
+        },
+        "retry_dismiss": {
+          "x": 570,
+          "y": 98,
+          "w": 62,
+          "h": 32,
+          "scrollH": 32,
+          "clientH": 32,
+          "overflowY": "visible",
+          "maxHeight": "none"
+        },
+        "unresolved": {
+          "x": 246,
+          "y": 189.2,
+          "w": 97,
+          "h": 16.5,
+          "scrollH": 17,
+          "clientH": 17,
+          "overflowY": "visible",
+          "maxHeight": "none"
+        },
+        "horizontal_overflow": false
+      },
+      "screens": {
+        "ranking": {
+          "viewport": [
+            640,
+            400
+          ],
+          "visible_rect": [
+            8,
+            304.453125,
+            624,
+            88
+          ],
+          "area_ratio": 0.2145,
+          "first_image_y": 327.640625,
+          "image_rect": [
+            24.416666666666664,
+            327.640625,
+            114.16666666666669,
+            64.8125
+          ],
+          "image_ratio": 0.02890401204427084,
+          "first_image_complete": false,
+          "complete_images": 0,
+          "rendered_images": 2,
+          "visible_images": 2,
+          "first_item_y": 304.453125,
+          "items": 30,
+          "scroll_top": 0,
+          "chrome": {
+            "banner": {
+              "height": 28,
+              "elements": [
+                {
+                  "selector": "[data-testid=db-status-banner]",
+                  "y": 8,
+                  "height": 28
+                }
+              ]
+            },
+            "header": {
+              "height": 54,
+              "elements": [
+                {
+                  "selector": ".pv-header .pv-title",
+                  "y": 41.984375,
+                  "height": 26
+                },
+                {
+                  "selector": "[data-testid=auth-status]",
+                  "y": 48.390625,
+                  "height": 13.1875
+                },
+                {
+                  "selector": ".pv-header-actions",
+                  "y": 183.484375,
+                  "height": 28
+                }
+              ]
+            },
+            "api": {
+              "height": 115.984375,
+              "elements": [
+                {
+                  "selector": ".pv-conn-row",
+                  "y": 39,
+                  "height": 31.984375
+                },
+                {
+                  "selector": ".pv-header [data-testid=request-retry-status]",
+                  "y": 71.984375,
+                  "height": 84
+                }
+              ]
+            },
+            "tabs": {
+              "height": 0,
+              "elements": []
+            },
+            "heading": {
+              "height": 22.5,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-library-heading",
+                  "y": 250.21875,
+                  "height": 22.5
+                }
+              ]
+            },
+            "toolbar": {
+              "height": 0,
+              "elements": []
+            },
+            "candidates": {
+              "height": 0,
+              "elements": []
+            },
+            "status": {
+              "height": 15,
+              "elements": [
+                {
+                  "selector": ".pv-content [role=status]",
+                  "y": 283.453125,
+                  "height": 15
+                }
+              ]
+            },
+            "search": {
+              "height": 0,
+              "elements": []
+            }
+          },
+          "chrome_boundary": 304.453125,
+          "chrome_union_height": 209.484375,
+          "chrome_unassigned_height": 94.96875,
+          "png": "png/640x400-100-dark-stress-ranking.png"
+        },
+        "dedup": {
+          "viewport": [
+            640,
+            400
+          ],
+          "visible_rect": [
+            8,
+            296.984375,
+            616,
+            57
+          ],
+          "area_ratio": 0.13715625,
+          "first_image_y": 319.984375,
+          "image_rect": [
+            173,
+            319.984375,
+            144,
+            34
+          ],
+          "image_ratio": 0.019125,
+          "first_image_complete": false,
+          "complete_images": 0,
+          "rendered_images": 1,
+          "visible_images": 1,
+          "first_item_y": 296.984375,
+          "items": 1,
+          "scroll_top": 0,
+          "chrome": {
+            "banner": {
+              "height": 28,
+              "elements": [
+                {
+                  "selector": "[data-testid=db-status-banner]",
+                  "y": 8,
+                  "height": 28
+                }
+              ]
+            },
+            "header": {
+              "height": 54,
+              "elements": [
+                {
+                  "selector": ".pv-header .pv-title",
+                  "y": 41.984375,
+                  "height": 26
+                },
+                {
+                  "selector": "[data-testid=auth-status]",
+                  "y": 48.390625,
+                  "height": 13.1875
+                },
+                {
+                  "selector": ".pv-header-actions",
+                  "y": 183.484375,
+                  "height": 28
+                }
+              ]
+            },
+            "api": {
+              "height": 115.984375,
+              "elements": [
+                {
+                  "selector": ".pv-conn-row",
+                  "y": 39,
+                  "height": 31.984375
+                },
+                {
+                  "selector": ".pv-header [data-testid=request-retry-status]",
+                  "y": 71.984375,
+                  "height": 84
+                }
+              ]
+            },
+            "tabs": {
+              "height": 0,
+              "elements": []
+            },
+            "heading": {
+              "height": 1,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-library-heading",
+                  "y": 259.984375,
+                  "height": 1
+                }
+              ]
+            },
+            "toolbar": {
+              "height": 30,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-manual-toolbar",
+                  "y": 245.484375,
+                  "height": 30
+                }
+              ]
+            },
+            "candidates": {
+              "height": 0,
+              "elements": []
+            },
+            "status": {
+              "height": 19.5,
+              "elements": [
+                {
+                  "selector": ".pv-content [role=status]",
+                  "y": 276.484375,
+                  "height": 19.5
+                }
+              ]
+            },
+            "search": {
+              "height": 0,
+              "elements": []
+            }
+          },
+          "chrome_boundary": 296.984375,
+          "chrome_union_height": 221.484375,
+          "chrome_unassigned_height": 75.5,
+          "png": "png/640x400-100-dark-stress-dedup.png"
+        }
+      }
+    },
+    {
+      "device": [
+        640,
+        400
+      ],
+      "zoom": 100,
+      "browser_zoom": 1,
+      "theme": "light",
+      "variant": "stress",
+      "safety": {
+        "db_warning": {
+          "x": 8,
+          "y": 8,
+          "w": 624,
+          "h": 28,
+          "scrollH": 28,
+          "clientH": 28,
+          "overflowY": "visible",
+          "maxHeight": "none"
+        },
+        "db_details_btn": {
+          "x": 590,
+          "y": 8,
+          "w": 36,
+          "h": 28,
+          "scrollH": 28,
+          "clientH": 28,
+          "overflowY": "visible",
+          "maxHeight": "none"
+        },
+        "recovery": null,
+        "retry_status": {
+          "x": 8,
+          "y": 72,
+          "w": 558,
+          "h": 84,
+          "scrollH": 82,
+          "clientH": 82,
+          "overflowY": "visible",
+          "maxHeight": "none"
+        },
+        "stop_details_toggle": {
+          "x": 8,
+          "y": 157,
+          "w": 71,
+          "h": 24.5,
+          "scrollH": 26,
+          "clientH": 25,
+          "overflowY": "visible",
+          "maxHeight": "none"
+        },
+        "retry_dismiss": {
+          "x": 570,
+          "y": 98,
+          "w": 62,
+          "h": 32,
+          "scrollH": 32,
+          "clientH": 32,
+          "overflowY": "visible",
+          "maxHeight": "none"
+        },
+        "unresolved": {
+          "x": 246,
+          "y": 189.2,
+          "w": 97,
+          "h": 16.5,
+          "scrollH": 17,
+          "clientH": 17,
+          "overflowY": "visible",
+          "maxHeight": "none"
+        },
+        "horizontal_overflow": false
+      },
+      "screens": {
+        "ranking": {
+          "viewport": [
+            640,
+            400
+          ],
+          "visible_rect": [
+            8,
+            304.453125,
+            624,
+            88
+          ],
+          "area_ratio": 0.2145,
+          "first_image_y": 327.640625,
+          "image_rect": [
+            24.416666666666664,
+            327.640625,
+            114.16666666666669,
+            64.8125
+          ],
+          "image_ratio": 0.02890401204427084,
+          "first_image_complete": false,
+          "complete_images": 0,
+          "rendered_images": 5,
+          "visible_images": 3,
+          "first_item_y": 304.453125,
+          "items": 30,
+          "scroll_top": 0,
+          "chrome": {
+            "banner": {
+              "height": 28,
+              "elements": [
+                {
+                  "selector": "[data-testid=db-status-banner]",
+                  "y": 8,
+                  "height": 28
+                }
+              ]
+            },
+            "header": {
+              "height": 54,
+              "elements": [
+                {
+                  "selector": ".pv-header .pv-title",
+                  "y": 41.984375,
+                  "height": 26
+                },
+                {
+                  "selector": "[data-testid=auth-status]",
+                  "y": 48.390625,
+                  "height": 13.1875
+                },
+                {
+                  "selector": ".pv-header-actions",
+                  "y": 183.484375,
+                  "height": 28
+                }
+              ]
+            },
+            "api": {
+              "height": 115.984375,
+              "elements": [
+                {
+                  "selector": ".pv-conn-row",
+                  "y": 39,
+                  "height": 31.984375
+                },
+                {
+                  "selector": ".pv-header [data-testid=request-retry-status]",
+                  "y": 71.984375,
+                  "height": 84
+                }
+              ]
+            },
+            "tabs": {
+              "height": 0,
+              "elements": []
+            },
+            "heading": {
+              "height": 22.5,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-library-heading",
+                  "y": 250.21875,
+                  "height": 22.5
+                }
+              ]
+            },
+            "toolbar": {
+              "height": 0,
+              "elements": []
+            },
+            "candidates": {
+              "height": 0,
+              "elements": []
+            },
+            "status": {
+              "height": 15,
+              "elements": [
+                {
+                  "selector": ".pv-content [role=status]",
+                  "y": 283.453125,
+                  "height": 15
+                }
+              ]
+            },
+            "search": {
+              "height": 0,
+              "elements": []
+            }
+          },
+          "chrome_boundary": 304.453125,
+          "chrome_union_height": 209.484375,
+          "chrome_unassigned_height": 94.96875,
+          "png": "png/640x400-100-light-stress-ranking.png"
+        },
+        "library": {
+          "viewport": [
+            640,
+            400
+          ],
+          "visible_rect": [
+            8,
+            315.59375,
+            624,
+            76
+          ],
+          "area_ratio": 0.18525,
+          "first_image_y": 322.59375,
+          "image_rect": [
+            15,
+            322.59375,
+            133,
+            69
+          ],
+          "image_ratio": 0.03584765625,
+          "first_image_complete": false,
+          "complete_images": 0,
+          "rendered_images": 2,
+          "visible_images": 2,
+          "first_item_y": 315.59375,
+          "items": 2,
+          "scroll_top": 0,
+          "chrome": {
+            "banner": {
+              "height": 28,
+              "elements": [
+                {
+                  "selector": "[data-testid=db-status-banner]",
+                  "y": 8,
+                  "height": 28
+                }
+              ]
+            },
+            "header": {
+              "height": 54,
+              "elements": [
+                {
+                  "selector": ".pv-header .pv-title",
+                  "y": 41.984375,
+                  "height": 26
+                },
+                {
+                  "selector": "[data-testid=auth-status]",
+                  "y": 48.390625,
+                  "height": 13.1875
+                },
+                {
+                  "selector": ".pv-header-actions",
+                  "y": 183.484375,
+                  "height": 28
+                }
+              ]
+            },
+            "api": {
+              "height": 115.984375,
+              "elements": [
+                {
+                  "selector": ".pv-conn-row",
+                  "y": 39,
+                  "height": 31.984375
+                },
+                {
+                  "selector": ".pv-header [data-testid=request-retry-status]",
+                  "y": 71.984375,
+                  "height": 84
+                }
+              ]
+            },
+            "tabs": {
+              "height": 0,
+              "elements": []
+            },
+            "heading": {
+              "height": 22.5,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-library-heading",
+                  "y": 249.234375,
+                  "height": 22.5
+                }
+              ]
+            },
+            "toolbar": {
+              "height": 25.109375,
+              "elements": [
+                {
+                  "selector": ".pv-library-summary",
+                  "y": 284.484375,
+                  "height": 25.109375
+                }
+              ]
+            },
+            "candidates": {
+              "height": 0,
+              "elements": []
+            },
+            "status": {
+              "height": 19.5,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-counter",
+                  "y": 287.28125,
+                  "height": 19.5
+                }
+              ]
+            },
+            "search": {
+              "height": 0,
+              "elements": []
+            }
+          },
+          "chrome_boundary": 315.59375,
+          "chrome_union_height": 219.59375,
+          "chrome_unassigned_height": 96,
+          "png": "png/640x400-100-light-stress-library.png"
+        },
+        "library-works": {
+          "viewport": [
+            640,
+            400
+          ],
+          "visible_rect": [
+            8,
+            342.375,
+            624,
+            50
+          ],
+          "area_ratio": 0.121875,
+          "first_image_y": 349.375,
+          "image_rect": [
+            15,
+            349.375,
+            133,
+            43
+          ],
+          "image_ratio": 0.02233984375,
+          "first_image_complete": false,
+          "complete_images": 0,
+          "rendered_images": 1,
+          "visible_images": 1,
+          "first_item_y": 342.375,
+          "items": 1,
+          "scroll_top": 0,
+          "chrome": {
+            "banner": {
+              "height": 28,
+              "elements": [
+                {
+                  "selector": "[data-testid=db-status-banner]",
+                  "y": 8,
+                  "height": 28
+                }
+              ]
+            },
+            "header": {
+              "height": 54,
+              "elements": [
+                {
+                  "selector": ".pv-header .pv-title",
+                  "y": 41.984375,
+                  "height": 26
+                },
+                {
+                  "selector": "[data-testid=auth-status]",
+                  "y": 48.390625,
+                  "height": 13.1875
+                },
+                {
+                  "selector": ".pv-header-actions",
+                  "y": 183.484375,
+                  "height": 28
+                }
+              ]
+            },
+            "api": {
+              "height": 115.984375,
+              "elements": [
+                {
+                  "selector": ".pv-conn-row",
+                  "y": 39,
+                  "height": 31.984375
+                },
+                {
+                  "selector": ".pv-header [data-testid=request-retry-status]",
+                  "y": 71.984375,
+                  "height": 84
+                }
+              ]
+            },
+            "tabs": {
+              "height": 0,
+              "elements": []
+            },
+            "heading": {
+              "height": 48.890625,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-library-heading",
+                  "y": 249.234375,
+                  "height": 22.5
+                },
+                {
+                  "selector": ".pv-library-detail-header",
+                  "y": 284.484375,
+                  "height": 26.390625
+                }
+              ]
+            },
+            "toolbar": {
+              "height": 0,
+              "elements": []
+            },
+            "candidates": {
+              "height": 0,
+              "elements": []
+            },
+            "status": {
+              "height": 19.5,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-counter",
+                  "y": 316.875,
+                  "height": 19.5
+                }
+              ]
+            },
+            "search": {
+              "height": 0,
+              "elements": []
+            }
+          },
+          "chrome_boundary": 342.375,
+          "chrome_union_height": 240.375,
+          "chrome_unassigned_height": 102,
+          "png": "png/640x400-100-light-stress-library-works.png"
+        },
+        "bookmarks": {
+          "viewport": [
+            640,
+            400
+          ],
+          "visible_rect": [
+            8,
+            306.09375,
+            624,
+            86.390625
+          ],
+          "area_ratio": 0.2105771484375,
+          "first_image_y": 313.09375,
+          "image_rect": [
+            15,
+            313.09375,
+            133,
+            79.390625
+          ],
+          "image_ratio": 0.04124591064453125,
+          "first_image_complete": false,
+          "complete_images": 0,
+          "rendered_images": 1,
+          "visible_images": 1,
+          "first_item_y": 306.09375,
+          "items": 1,
+          "scroll_top": 0,
+          "chrome": {
+            "banner": {
+              "height": 28,
+              "elements": [
+                {
+                  "selector": "[data-testid=db-status-banner]",
+                  "y": 8,
+                  "height": 28
+                }
+              ]
+            },
+            "header": {
+              "height": 54,
+              "elements": [
+                {
+                  "selector": ".pv-header .pv-title",
+                  "y": 41.984375,
+                  "height": 26
+                },
+                {
+                  "selector": "[data-testid=auth-status]",
+                  "y": 48.390625,
+                  "height": 13.1875
+                },
+                {
+                  "selector": ".pv-header-actions",
+                  "y": 183.484375,
+                  "height": 28
+                }
+              ]
+            },
+            "api": {
+              "height": 115.984375,
+              "elements": [
+                {
+                  "selector": ".pv-conn-row",
+                  "y": 39,
+                  "height": 31.984375
+                },
+                {
+                  "selector": ".pv-header [data-testid=request-retry-status]",
+                  "y": 71.984375,
+                  "height": 84
+                }
+              ]
+            },
+            "tabs": {
+              "height": 0,
+              "elements": []
+            },
+            "heading": {
+              "height": 22.5,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-library-heading",
+                  "y": 248.484375,
+                  "height": 22.5
+                }
+              ]
+            },
+            "toolbar": {
+              "height": 49.609375,
+              "elements": [
+                {
+                  "selector": ".pv-library-summary",
+                  "y": 248.484375,
+                  "height": 49.609375
+                }
+              ]
+            },
+            "candidates": {
+              "height": 0,
+              "elements": []
+            },
+            "status": {
+              "height": 39,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-counter",
+                  "y": 249.984375,
+                  "height": 19.5
+                },
+                {
+                  "selector": ".pv-content .pv-counter",
+                  "y": 249.984375,
+                  "height": 19.5
+                },
+                {
+                  "selector": ".pv-content .pv-counter",
+                  "y": 275.78125,
+                  "height": 19.5
+                }
+              ]
+            },
+            "search": {
+              "height": 0,
+              "elements": []
+            }
+          },
+          "chrome_boundary": 306.09375,
+          "chrome_union_height": 221.59375,
+          "chrome_unassigned_height": 84.5,
+          "png": "png/640x400-100-light-stress-bookmarks.png"
+        },
+        "recommend": {
+          "viewport": [
+            640,
+            400
+          ],
+          "visible_rect": [
+            8,
+            357.4375,
+            616,
+            35.03125
+          ],
+          "area_ratio": 0.0842939453125,
+          "first_image_y": 365.5234375,
+          "image_rect": [
+            15,
+            365.5234375,
+            131,
+            26.9453125
+          ],
+          "image_ratio": 0.013788421630859376,
+          "first_image_complete": false,
+          "complete_images": 0,
+          "rendered_images": 2,
+          "visible_images": 2,
+          "first_item_y": 357.4375,
+          "items": 2,
+          "scroll_top": 0,
+          "chrome": {
+            "banner": {
+              "height": 28,
+              "elements": [
+                {
+                  "selector": "[data-testid=db-status-banner]",
+                  "y": 8,
+                  "height": 28
+                }
+              ]
+            },
+            "header": {
+              "height": 54,
+              "elements": [
+                {
+                  "selector": ".pv-header .pv-title",
+                  "y": 41.984375,
+                  "height": 26
+                },
+                {
+                  "selector": "[data-testid=auth-status]",
+                  "y": 48.390625,
+                  "height": 13.1875
+                },
+                {
+                  "selector": ".pv-header-actions",
+                  "y": 183.484375,
+                  "height": 28
+                }
+              ]
+            },
+            "api": {
+              "height": 115.984375,
+              "elements": [
+                {
+                  "selector": ".pv-conn-row",
+                  "y": 39,
+                  "height": 31.984375
+                },
+                {
+                  "selector": ".pv-header [data-testid=request-retry-status]",
+                  "y": 71.984375,
+                  "height": 84
+                }
+              ]
+            },
+            "tabs": {
+              "height": 0,
+              "elements": []
+            },
+            "heading": {
+              "height": 45,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-library-heading",
+                  "y": 250.21875,
+                  "height": 22.5
+                },
+                {
+                  "selector": ".pv-content .pv-library-heading",
+                  "y": 290.203125,
+                  "height": 22.5
+                }
+              ]
+            },
+            "toolbar": {
+              "height": 61.984375,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-manual-toolbar",
+                  "y": 246.46875,
+                  "height": 30
+                },
+                {
+                  "selector": ".pv-recommend-shelf-header",
+                  "y": 285.46875,
+                  "height": 31.984375
+                }
+              ]
+            },
+            "candidates": {
+              "height": 0,
+              "elements": []
+            },
+            "status": {
+              "height": 19.5,
+              "elements": [
+                {
+                  "selector": ".pv-content [role=status]",
+                  "y": 251.71875,
+                  "height": 19.5
+                }
+              ]
+            },
+            "search": {
+              "height": 0,
+              "elements": []
+            }
+          },
+          "chrome_boundary": 357.4375,
+          "chrome_union_height": 233.96875,
+          "chrome_unassigned_height": 123.46875,
+          "png": "png/640x400-100-light-stress-recommend.png"
+        },
+        "dedup": {
+          "viewport": [
+            640,
+            400
+          ],
+          "visible_rect": [
+            8,
+            296.984375,
+            616,
+            57
+          ],
+          "area_ratio": 0.13715625,
+          "first_image_y": 319.984375,
+          "image_rect": [
+            173,
+            319.984375,
+            144,
+            34
+          ],
+          "image_ratio": 0.019125,
+          "first_image_complete": false,
+          "complete_images": 0,
+          "rendered_images": 2,
+          "visible_images": 2,
+          "first_item_y": 296.984375,
+          "items": 1,
+          "scroll_top": 0,
+          "chrome": {
+            "banner": {
+              "height": 28,
+              "elements": [
+                {
+                  "selector": "[data-testid=db-status-banner]",
+                  "y": 8,
+                  "height": 28
+                }
+              ]
+            },
+            "header": {
+              "height": 54,
+              "elements": [
+                {
+                  "selector": ".pv-header .pv-title",
+                  "y": 41.984375,
+                  "height": 26
+                },
+                {
+                  "selector": "[data-testid=auth-status]",
+                  "y": 48.390625,
+                  "height": 13.1875
+                },
+                {
+                  "selector": ".pv-header-actions",
+                  "y": 183.484375,
+                  "height": 28
+                }
+              ]
+            },
+            "api": {
+              "height": 115.984375,
+              "elements": [
+                {
+                  "selector": ".pv-conn-row",
+                  "y": 39,
+                  "height": 31.984375
+                },
+                {
+                  "selector": ".pv-header [data-testid=request-retry-status]",
+                  "y": 71.984375,
+                  "height": 84
+                }
+              ]
+            },
+            "tabs": {
+              "height": 0,
+              "elements": []
+            },
+            "heading": {
+              "height": 1,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-library-heading",
+                  "y": 259.984375,
+                  "height": 1
+                }
+              ]
+            },
+            "toolbar": {
+              "height": 30,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-manual-toolbar",
+                  "y": 245.484375,
+                  "height": 30
+                }
+              ]
+            },
+            "candidates": {
+              "height": 0,
+              "elements": []
+            },
+            "status": {
+              "height": 19.5,
+              "elements": [
+                {
+                  "selector": ".pv-content [role=status]",
+                  "y": 276.484375,
+                  "height": 19.5
+                }
+              ]
+            },
+            "search": {
+              "height": 0,
+              "elements": []
+            }
+          },
+          "chrome_boundary": 296.984375,
+          "chrome_union_height": 221.484375,
+          "chrome_unassigned_height": 75.5,
+          "png": "png/640x400-100-light-stress-dedup.png"
+        }
+      }
+    },
+    {
+      "device": [
+        1280,
+        800
+      ],
+      "zoom": 200,
+      "browser_zoom": 2,
+      "theme": "dark",
+      "variant": "stress",
+      "safety": {
+        "db_warning": {
+          "x": 8,
+          "y": 8,
+          "w": 624,
+          "h": 28,
+          "scrollH": 28,
+          "clientH": 28,
+          "overflowY": "visible",
+          "maxHeight": "none"
+        },
+        "db_details_btn": {
+          "x": 590,
+          "y": 8,
+          "w": 36,
+          "h": 28,
+          "scrollH": 28,
+          "clientH": 28,
+          "overflowY": "visible",
+          "maxHeight": "none"
+        },
+        "recovery": null,
+        "retry_status": {
+          "x": 8,
+          "y": 72,
+          "w": 558,
+          "h": 84,
+          "scrollH": 82,
+          "clientH": 82,
+          "overflowY": "visible",
+          "maxHeight": "none"
+        },
+        "stop_details_toggle": {
+          "x": 8,
+          "y": 157,
+          "w": 71,
+          "h": 24.5,
+          "scrollH": 26,
+          "clientH": 25,
+          "overflowY": "visible",
+          "maxHeight": "none"
+        },
+        "retry_dismiss": {
+          "x": 570,
+          "y": 98,
+          "w": 62,
+          "h": 32,
+          "scrollH": 32,
+          "clientH": 32,
+          "overflowY": "visible",
+          "maxHeight": "none"
+        },
+        "unresolved": {
+          "x": 246,
+          "y": 189.2,
+          "w": 97,
+          "h": 16.5,
+          "scrollH": 17,
+          "clientH": 17,
+          "overflowY": "visible",
+          "maxHeight": "none"
+        },
+        "horizontal_overflow": false
+      },
+      "screens": {
+        "ranking": {
+          "viewport": [
+            640,
+            400
+          ],
+          "visible_rect": [
+            8,
+            304.453125,
+            624,
+            88
+          ],
+          "area_ratio": 0.2145,
+          "first_image_y": 327.6484375,
+          "image_rect": [
+            24.42708333333333,
+            327.6484375,
+            114.14583333333336,
+            64.8046875
+          ],
+          "image_ratio": 0.028895254135131842,
+          "first_image_complete": false,
+          "complete_images": 0,
+          "rendered_images": 8,
+          "visible_images": 3,
+          "first_item_y": 304.453125,
+          "items": 30,
+          "scroll_top": 0,
+          "chrome": {
+            "banner": {
+              "height": 28,
+              "elements": [
+                {
+                  "selector": "[data-testid=db-status-banner]",
+                  "y": 8,
+                  "height": 28
+                }
+              ]
+            },
+            "header": {
+              "height": 54,
+              "elements": [
+                {
+                  "selector": ".pv-header .pv-title",
+                  "y": 41.984375,
+                  "height": 26
+                },
+                {
+                  "selector": "[data-testid=auth-status]",
+                  "y": 48.390625,
+                  "height": 13.1953125
+                },
+                {
+                  "selector": ".pv-header-actions",
+                  "y": 183.4765625,
+                  "height": 28
+                }
+              ]
+            },
+            "api": {
+              "height": 115.9765625,
+              "elements": [
+                {
+                  "selector": ".pv-conn-row",
+                  "y": 39,
+                  "height": 31.9765625
+                },
+                {
+                  "selector": ".pv-header [data-testid=request-retry-status]",
+                  "y": 71.9765625,
+                  "height": 84
+                }
+              ]
+            },
+            "tabs": {
+              "height": 0,
+              "elements": []
+            },
+            "heading": {
+              "height": 22.5,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-library-heading",
+                  "y": 250.2109375,
+                  "height": 22.5
+                }
+              ]
+            },
+            "toolbar": {
+              "height": 0,
+              "elements": []
+            },
+            "candidates": {
+              "height": 0,
+              "elements": []
+            },
+            "status": {
+              "height": 15,
+              "elements": [
+                {
+                  "selector": ".pv-content [role=status]",
+                  "y": 283.453125,
+                  "height": 15
+                }
+              ]
+            },
+            "search": {
+              "height": 0,
+              "elements": []
+            }
+          },
+          "chrome_boundary": 304.453125,
+          "chrome_union_height": 209.4765625,
+          "chrome_unassigned_height": 94.9765625,
+          "png": "png/1280x800-200-dark-stress-ranking.png"
+        },
+        "library": {
+          "viewport": [
+            640,
+            400
+          ],
+          "visible_rect": [
+            8,
+            315.609375,
+            624,
+            76
+          ],
+          "area_ratio": 0.18525,
+          "first_image_y": 322.609375,
+          "image_rect": [
+            15,
+            322.609375,
+            133,
+            69
+          ],
+          "image_ratio": 0.03584765625,
+          "first_image_complete": false,
+          "complete_images": 0,
+          "rendered_images": 2,
+          "visible_images": 2,
+          "first_item_y": 315.609375,
+          "items": 2,
+          "scroll_top": 0,
+          "chrome": {
+            "banner": {
+              "height": 28,
+              "elements": [
+                {
+                  "selector": "[data-testid=db-status-banner]",
+                  "y": 8,
+                  "height": 28
+                }
+              ]
+            },
+            "header": {
+              "height": 54,
+              "elements": [
+                {
+                  "selector": ".pv-header .pv-title",
+                  "y": 41.984375,
+                  "height": 26
+                },
+                {
+                  "selector": "[data-testid=auth-status]",
+                  "y": 48.390625,
+                  "height": 13.1953125
+                },
+                {
+                  "selector": ".pv-header-actions",
+                  "y": 183.4765625,
+                  "height": 28
+                }
+              ]
+            },
+            "api": {
+              "height": 115.9765625,
+              "elements": [
+                {
+                  "selector": ".pv-conn-row",
+                  "y": 39,
+                  "height": 31.9765625
+                },
+                {
+                  "selector": ".pv-header [data-testid=request-retry-status]",
+                  "y": 71.9765625,
+                  "height": 84
+                }
+              ]
+            },
+            "tabs": {
+              "height": 0,
+              "elements": []
+            },
+            "heading": {
+              "height": 22.5,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-library-heading",
+                  "y": 249.2265625,
+                  "height": 22.5
+                }
+              ]
+            },
+            "toolbar": {
+              "height": 25.1328125,
+              "elements": [
+                {
+                  "selector": ".pv-library-summary",
+                  "y": 284.4765625,
+                  "height": 25.1328125
+                }
+              ]
+            },
+            "candidates": {
+              "height": 0,
+              "elements": []
+            },
+            "status": {
+              "height": 19.5,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-counter",
+                  "y": 287.2890625,
+                  "height": 19.5
+                }
+              ]
+            },
+            "search": {
+              "height": 0,
+              "elements": []
+            }
+          },
+          "chrome_boundary": 315.609375,
+          "chrome_union_height": 219.609375,
+          "chrome_unassigned_height": 96,
+          "png": "png/1280x800-200-dark-stress-library.png"
+        },
+        "library-works": {
+          "viewport": [
+            640,
+            400
+          ],
+          "visible_rect": [
+            8,
+            342.375,
+            624,
+            50
+          ],
+          "area_ratio": 0.121875,
+          "first_image_y": 349.375,
+          "image_rect": [
+            15,
+            349.375,
+            133,
+            43
+          ],
+          "image_ratio": 0.02233984375,
+          "first_image_complete": false,
+          "complete_images": 0,
+          "rendered_images": 1,
+          "visible_images": 1,
+          "first_item_y": 342.375,
+          "items": 1,
+          "scroll_top": 0,
+          "chrome": {
+            "banner": {
+              "height": 28,
+              "elements": [
+                {
+                  "selector": "[data-testid=db-status-banner]",
+                  "y": 8,
+                  "height": 28
+                }
+              ]
+            },
+            "header": {
+              "height": 54,
+              "elements": [
+                {
+                  "selector": ".pv-header .pv-title",
+                  "y": 41.984375,
+                  "height": 26
+                },
+                {
+                  "selector": "[data-testid=auth-status]",
+                  "y": 48.390625,
+                  "height": 13.1953125
+                },
+                {
+                  "selector": ".pv-header-actions",
+                  "y": 183.4765625,
+                  "height": 28
+                }
+              ]
+            },
+            "api": {
+              "height": 115.9765625,
+              "elements": [
+                {
+                  "selector": ".pv-conn-row",
+                  "y": 39,
+                  "height": 31.9765625
+                },
+                {
+                  "selector": ".pv-header [data-testid=request-retry-status]",
+                  "y": 71.9765625,
+                  "height": 84
+                }
+              ]
+            },
+            "tabs": {
+              "height": 0,
+              "elements": []
+            },
+            "heading": {
+              "height": 48.8984375,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-library-heading",
+                  "y": 249.2265625,
+                  "height": 22.5
+                },
+                {
+                  "selector": ".pv-library-detail-header",
+                  "y": 284.4765625,
+                  "height": 26.3984375
+                }
+              ]
+            },
+            "toolbar": {
+              "height": 0,
+              "elements": []
+            },
+            "candidates": {
+              "height": 0,
+              "elements": []
+            },
+            "status": {
+              "height": 19.5,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-counter",
+                  "y": 316.875,
+                  "height": 19.5
+                }
+              ]
+            },
+            "search": {
+              "height": 0,
+              "elements": []
+            }
+          },
+          "chrome_boundary": 342.375,
+          "chrome_union_height": 240.375,
+          "chrome_unassigned_height": 102,
+          "png": "png/1280x800-200-dark-stress-library-works.png"
+        },
+        "bookmarks": {
+          "viewport": [
+            640,
+            400
+          ],
+          "visible_rect": [
+            8,
+            306.109375,
+            624,
+            86.3671875
+          ],
+          "area_ratio": 0.21052001953125,
+          "first_image_y": 313.109375,
+          "image_rect": [
+            15,
+            313.109375,
+            133,
+            79.3671875
+          ],
+          "image_ratio": 0.04123373413085937,
+          "first_image_complete": false,
+          "complete_images": 0,
+          "rendered_images": 1,
+          "visible_images": 1,
+          "first_item_y": 306.109375,
+          "items": 1,
+          "scroll_top": 0,
+          "chrome": {
+            "banner": {
+              "height": 28,
+              "elements": [
+                {
+                  "selector": "[data-testid=db-status-banner]",
+                  "y": 8,
+                  "height": 28
+                }
+              ]
+            },
+            "header": {
+              "height": 54,
+              "elements": [
+                {
+                  "selector": ".pv-header .pv-title",
+                  "y": 41.984375,
+                  "height": 26
+                },
+                {
+                  "selector": "[data-testid=auth-status]",
+                  "y": 48.390625,
+                  "height": 13.1953125
+                },
+                {
+                  "selector": ".pv-header-actions",
+                  "y": 183.4765625,
+                  "height": 28
+                }
+              ]
+            },
+            "api": {
+              "height": 115.9765625,
+              "elements": [
+                {
+                  "selector": ".pv-conn-row",
+                  "y": 39,
+                  "height": 31.9765625
+                },
+                {
+                  "selector": ".pv-header [data-testid=request-retry-status]",
+                  "y": 71.9765625,
+                  "height": 84
+                }
+              ]
+            },
+            "tabs": {
+              "height": 0,
+              "elements": []
+            },
+            "heading": {
+              "height": 22.5,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-library-heading",
+                  "y": 248.4765625,
+                  "height": 22.5
+                }
+              ]
+            },
+            "toolbar": {
+              "height": 49.6328125,
+              "elements": [
+                {
+                  "selector": ".pv-library-summary",
+                  "y": 248.4765625,
+                  "height": 49.6328125
+                }
+              ]
+            },
+            "candidates": {
+              "height": 0,
+              "elements": []
+            },
+            "status": {
+              "height": 39,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-counter",
+                  "y": 249.9765625,
+                  "height": 19.5
+                },
+                {
+                  "selector": ".pv-content .pv-counter",
+                  "y": 249.9765625,
+                  "height": 19.5
+                },
+                {
+                  "selector": ".pv-content .pv-counter",
+                  "y": 275.7890625,
+                  "height": 19.5
+                }
+              ]
+            },
+            "search": {
+              "height": 0,
+              "elements": []
+            }
+          },
+          "chrome_boundary": 306.109375,
+          "chrome_union_height": 221.609375,
+          "chrome_unassigned_height": 84.5,
+          "png": "png/1280x800-200-dark-stress-bookmarks.png"
+        },
+        "recommend": {
+          "viewport": [
+            640,
+            400
+          ],
+          "visible_rect": [
+            8,
+            357.40625,
+            616,
+            35.046875
+          ],
+          "area_ratio": 0.08433154296875,
+          "first_image_y": 365.484375,
+          "image_rect": [
+            15,
+            365.484375,
+            131,
+            26.96875
+          ],
+          "image_ratio": 0.0138004150390625,
+          "first_image_complete": false,
+          "complete_images": 0,
+          "rendered_images": 2,
+          "visible_images": 2,
+          "first_item_y": 357.40625,
+          "items": 2,
+          "scroll_top": 0,
+          "chrome": {
+            "banner": {
+              "height": 28,
+              "elements": [
+                {
+                  "selector": "[data-testid=db-status-banner]",
+                  "y": 8,
+                  "height": 28
+                }
+              ]
+            },
+            "header": {
+              "height": 54,
+              "elements": [
+                {
+                  "selector": ".pv-header .pv-title",
+                  "y": 41.984375,
+                  "height": 26
+                },
+                {
+                  "selector": "[data-testid=auth-status]",
+                  "y": 48.390625,
+                  "height": 13.1953125
+                },
+                {
+                  "selector": ".pv-header-actions",
+                  "y": 183.4765625,
+                  "height": 28
+                }
+              ]
+            },
+            "api": {
+              "height": 115.9765625,
+              "elements": [
+                {
+                  "selector": ".pv-conn-row",
+                  "y": 39,
+                  "height": 31.9765625
+                },
+                {
+                  "selector": ".pv-header [data-testid=request-retry-status]",
+                  "y": 71.9765625,
+                  "height": 84
+                }
+              ]
+            },
+            "tabs": {
+              "height": 0,
+              "elements": []
+            },
+            "heading": {
+              "height": 45,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-library-heading",
+                  "y": 250.2109375,
+                  "height": 22.5
+                },
+                {
+                  "selector": ".pv-content .pv-library-heading",
+                  "y": 290.1875,
+                  "height": 22.5
+                }
+              ]
+            },
+            "toolbar": {
+              "height": 61.9765625,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-manual-toolbar",
+                  "y": 246.4609375,
+                  "height": 30
+                },
+                {
+                  "selector": ".pv-recommend-shelf-header",
+                  "y": 285.453125,
+                  "height": 31.9765625
+                }
+              ]
+            },
+            "candidates": {
+              "height": 0,
+              "elements": []
+            },
+            "status": {
+              "height": 19.5,
+              "elements": [
+                {
+                  "selector": ".pv-content [role=status]",
+                  "y": 251.7109375,
+                  "height": 19.5
+                }
+              ]
+            },
+            "search": {
+              "height": 0,
+              "elements": []
+            }
+          },
+          "chrome_boundary": 357.40625,
+          "chrome_union_height": 233.953125,
+          "chrome_unassigned_height": 123.453125,
+          "png": "png/1280x800-200-dark-stress-recommend.png"
+        },
+        "dedup": {
+          "viewport": [
+            640,
+            400
+          ],
+          "visible_rect": [
+            8,
+            296.9765625,
+            616,
+            57
+          ],
+          "area_ratio": 0.13715625,
+          "first_image_y": 319.9765625,
+          "image_rect": [
+            173,
+            319.9765625,
+            144,
+            34
+          ],
+          "image_ratio": 0.019125,
+          "first_image_complete": false,
+          "complete_images": 0,
+          "rendered_images": 2,
+          "visible_images": 2,
+          "first_item_y": 296.9765625,
+          "items": 1,
+          "scroll_top": 0,
+          "chrome": {
+            "banner": {
+              "height": 28,
+              "elements": [
+                {
+                  "selector": "[data-testid=db-status-banner]",
+                  "y": 8,
+                  "height": 28
+                }
+              ]
+            },
+            "header": {
+              "height": 54,
+              "elements": [
+                {
+                  "selector": ".pv-header .pv-title",
+                  "y": 41.984375,
+                  "height": 26
+                },
+                {
+                  "selector": "[data-testid=auth-status]",
+                  "y": 48.390625,
+                  "height": 13.1953125
+                },
+                {
+                  "selector": ".pv-header-actions",
+                  "y": 183.4765625,
+                  "height": 28
+                }
+              ]
+            },
+            "api": {
+              "height": 115.9765625,
+              "elements": [
+                {
+                  "selector": ".pv-conn-row",
+                  "y": 39,
+                  "height": 31.9765625
+                },
+                {
+                  "selector": ".pv-header [data-testid=request-retry-status]",
+                  "y": 71.9765625,
+                  "height": 84
+                }
+              ]
+            },
+            "tabs": {
+              "height": 0,
+              "elements": []
+            },
+            "heading": {
+              "height": 1,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-library-heading",
+                  "y": 259.9765625,
+                  "height": 1
+                }
+              ]
+            },
+            "toolbar": {
+              "height": 30,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-manual-toolbar",
+                  "y": 245.4765625,
+                  "height": 30
+                }
+              ]
+            },
+            "candidates": {
+              "height": 0,
+              "elements": []
+            },
+            "status": {
+              "height": 19.5,
+              "elements": [
+                {
+                  "selector": ".pv-content [role=status]",
+                  "y": 276.4765625,
+                  "height": 19.5
+                }
+              ]
+            },
+            "search": {
+              "height": 0,
+              "elements": []
+            }
+          },
+          "chrome_boundary": 296.9765625,
+          "chrome_union_height": 221.4765625,
+          "chrome_unassigned_height": 75.5,
+          "png": "png/1280x800-200-dark-stress-dedup.png"
+        }
+      }
+    },
+    {
+      "device": [
+        1280,
+        800
+      ],
+      "zoom": 200,
+      "browser_zoom": 2,
+      "theme": "light",
+      "variant": "stress",
+      "safety": {
+        "db_warning": {
+          "x": 8,
+          "y": 8,
+          "w": 624,
+          "h": 28,
+          "scrollH": 28,
+          "clientH": 28,
+          "overflowY": "visible",
+          "maxHeight": "none"
+        },
+        "db_details_btn": {
+          "x": 590,
+          "y": 8,
+          "w": 36,
+          "h": 28,
+          "scrollH": 28,
+          "clientH": 28,
+          "overflowY": "visible",
+          "maxHeight": "none"
+        },
+        "recovery": null,
+        "retry_status": {
+          "x": 8,
+          "y": 72,
+          "w": 558,
+          "h": 84,
+          "scrollH": 82,
+          "clientH": 82,
+          "overflowY": "visible",
+          "maxHeight": "none"
+        },
+        "stop_details_toggle": {
+          "x": 8,
+          "y": 157,
+          "w": 71,
+          "h": 24.5,
+          "scrollH": 26,
+          "clientH": 25,
+          "overflowY": "visible",
+          "maxHeight": "none"
+        },
+        "retry_dismiss": {
+          "x": 570,
+          "y": 98,
+          "w": 62,
+          "h": 32,
+          "scrollH": 32,
+          "clientH": 32,
+          "overflowY": "visible",
+          "maxHeight": "none"
+        },
+        "unresolved": {
+          "x": 246,
+          "y": 189.2,
+          "w": 97,
+          "h": 16.5,
+          "scrollH": 17,
+          "clientH": 17,
+          "overflowY": "visible",
+          "maxHeight": "none"
+        },
+        "horizontal_overflow": false
+      },
+      "screens": {
+        "ranking": {
+          "viewport": [
+            640,
+            400
+          ],
+          "visible_rect": [
+            8,
+            304.453125,
+            624,
+            88
+          ],
+          "area_ratio": 0.2145,
+          "first_image_y": 327.6484375,
+          "image_rect": [
+            24.42708333333333,
+            327.6484375,
+            114.14583333333336,
+            64.8046875
+          ],
+          "image_ratio": 0.028895254135131842,
+          "first_image_complete": false,
+          "complete_images": 0,
+          "rendered_images": 6,
+          "visible_images": 3,
+          "first_item_y": 304.453125,
+          "items": 30,
+          "scroll_top": 0,
+          "chrome": {
+            "banner": {
+              "height": 28,
+              "elements": [
+                {
+                  "selector": "[data-testid=db-status-banner]",
+                  "y": 8,
+                  "height": 28
+                }
+              ]
+            },
+            "header": {
+              "height": 54,
+              "elements": [
+                {
+                  "selector": ".pv-header .pv-title",
+                  "y": 41.984375,
+                  "height": 26
+                },
+                {
+                  "selector": "[data-testid=auth-status]",
+                  "y": 48.390625,
+                  "height": 13.1953125
+                },
+                {
+                  "selector": ".pv-header-actions",
+                  "y": 183.4765625,
+                  "height": 28
+                }
+              ]
+            },
+            "api": {
+              "height": 115.9765625,
+              "elements": [
+                {
+                  "selector": ".pv-conn-row",
+                  "y": 39,
+                  "height": 31.9765625
+                },
+                {
+                  "selector": ".pv-header [data-testid=request-retry-status]",
+                  "y": 71.9765625,
+                  "height": 84
+                }
+              ]
+            },
+            "tabs": {
+              "height": 0,
+              "elements": []
+            },
+            "heading": {
+              "height": 22.5,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-library-heading",
+                  "y": 250.2109375,
+                  "height": 22.5
+                }
+              ]
+            },
+            "toolbar": {
+              "height": 0,
+              "elements": []
+            },
+            "candidates": {
+              "height": 0,
+              "elements": []
+            },
+            "status": {
+              "height": 15,
+              "elements": [
+                {
+                  "selector": ".pv-content [role=status]",
+                  "y": 283.453125,
+                  "height": 15
+                }
+              ]
+            },
+            "search": {
+              "height": 0,
+              "elements": []
+            }
+          },
+          "chrome_boundary": 304.453125,
+          "chrome_union_height": 209.4765625,
+          "chrome_unassigned_height": 94.9765625,
+          "png": "png/1280x800-200-light-stress-ranking.png"
+        },
+        "library": {
+          "viewport": [
+            640,
+            400
+          ],
+          "visible_rect": [
+            8,
+            315.609375,
+            624,
+            76
+          ],
+          "area_ratio": 0.18525,
+          "first_image_y": 322.609375,
+          "image_rect": [
+            15,
+            322.609375,
+            133,
+            69
+          ],
+          "image_ratio": 0.03584765625,
+          "first_image_complete": false,
+          "complete_images": 0,
+          "rendered_images": 2,
+          "visible_images": 2,
+          "first_item_y": 315.609375,
+          "items": 2,
+          "scroll_top": 0,
+          "chrome": {
+            "banner": {
+              "height": 28,
+              "elements": [
+                {
+                  "selector": "[data-testid=db-status-banner]",
+                  "y": 8,
+                  "height": 28
+                }
+              ]
+            },
+            "header": {
+              "height": 54,
+              "elements": [
+                {
+                  "selector": ".pv-header .pv-title",
+                  "y": 41.984375,
+                  "height": 26
+                },
+                {
+                  "selector": "[data-testid=auth-status]",
+                  "y": 48.390625,
+                  "height": 13.1953125
+                },
+                {
+                  "selector": ".pv-header-actions",
+                  "y": 183.4765625,
+                  "height": 28
+                }
+              ]
+            },
+            "api": {
+              "height": 115.9765625,
+              "elements": [
+                {
+                  "selector": ".pv-conn-row",
+                  "y": 39,
+                  "height": 31.9765625
+                },
+                {
+                  "selector": ".pv-header [data-testid=request-retry-status]",
+                  "y": 71.9765625,
+                  "height": 84
+                }
+              ]
+            },
+            "tabs": {
+              "height": 0,
+              "elements": []
+            },
+            "heading": {
+              "height": 22.5,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-library-heading",
+                  "y": 249.2265625,
+                  "height": 22.5
+                }
+              ]
+            },
+            "toolbar": {
+              "height": 25.1328125,
+              "elements": [
+                {
+                  "selector": ".pv-library-summary",
+                  "y": 284.4765625,
+                  "height": 25.1328125
+                }
+              ]
+            },
+            "candidates": {
+              "height": 0,
+              "elements": []
+            },
+            "status": {
+              "height": 19.5,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-counter",
+                  "y": 287.2890625,
+                  "height": 19.5
+                }
+              ]
+            },
+            "search": {
+              "height": 0,
+              "elements": []
+            }
+          },
+          "chrome_boundary": 315.609375,
+          "chrome_union_height": 219.609375,
+          "chrome_unassigned_height": 96,
+          "png": "png/1280x800-200-light-stress-library.png"
+        },
+        "library-works": {
+          "viewport": [
+            640,
+            400
+          ],
+          "visible_rect": [
+            8,
+            342.375,
+            624,
+            50
+          ],
+          "area_ratio": 0.121875,
+          "first_image_y": 349.375,
+          "image_rect": [
+            15,
+            349.375,
+            133,
+            43
+          ],
+          "image_ratio": 0.02233984375,
+          "first_image_complete": false,
+          "complete_images": 0,
+          "rendered_images": 1,
+          "visible_images": 1,
+          "first_item_y": 342.375,
+          "items": 1,
+          "scroll_top": 0,
+          "chrome": {
+            "banner": {
+              "height": 28,
+              "elements": [
+                {
+                  "selector": "[data-testid=db-status-banner]",
+                  "y": 8,
+                  "height": 28
+                }
+              ]
+            },
+            "header": {
+              "height": 54,
+              "elements": [
+                {
+                  "selector": ".pv-header .pv-title",
+                  "y": 41.984375,
+                  "height": 26
+                },
+                {
+                  "selector": "[data-testid=auth-status]",
+                  "y": 48.390625,
+                  "height": 13.1953125
+                },
+                {
+                  "selector": ".pv-header-actions",
+                  "y": 183.4765625,
+                  "height": 28
+                }
+              ]
+            },
+            "api": {
+              "height": 115.9765625,
+              "elements": [
+                {
+                  "selector": ".pv-conn-row",
+                  "y": 39,
+                  "height": 31.9765625
+                },
+                {
+                  "selector": ".pv-header [data-testid=request-retry-status]",
+                  "y": 71.9765625,
+                  "height": 84
+                }
+              ]
+            },
+            "tabs": {
+              "height": 0,
+              "elements": []
+            },
+            "heading": {
+              "height": 48.8984375,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-library-heading",
+                  "y": 249.2265625,
+                  "height": 22.5
+                },
+                {
+                  "selector": ".pv-library-detail-header",
+                  "y": 284.4765625,
+                  "height": 26.3984375
+                }
+              ]
+            },
+            "toolbar": {
+              "height": 0,
+              "elements": []
+            },
+            "candidates": {
+              "height": 0,
+              "elements": []
+            },
+            "status": {
+              "height": 19.5,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-counter",
+                  "y": 316.875,
+                  "height": 19.5
+                }
+              ]
+            },
+            "search": {
+              "height": 0,
+              "elements": []
+            }
+          },
+          "chrome_boundary": 342.375,
+          "chrome_union_height": 240.375,
+          "chrome_unassigned_height": 102,
+          "png": "png/1280x800-200-light-stress-library-works.png"
+        },
+        "bookmarks": {
+          "viewport": [
+            640,
+            400
+          ],
+          "visible_rect": [
+            8,
+            306.109375,
+            624,
+            86.3671875
+          ],
+          "area_ratio": 0.21052001953125,
+          "first_image_y": 313.109375,
+          "image_rect": [
+            15,
+            313.109375,
+            133,
+            79.3671875
+          ],
+          "image_ratio": 0.04123373413085937,
+          "first_image_complete": false,
+          "complete_images": 0,
+          "rendered_images": 1,
+          "visible_images": 1,
+          "first_item_y": 306.109375,
+          "items": 1,
+          "scroll_top": 0,
+          "chrome": {
+            "banner": {
+              "height": 28,
+              "elements": [
+                {
+                  "selector": "[data-testid=db-status-banner]",
+                  "y": 8,
+                  "height": 28
+                }
+              ]
+            },
+            "header": {
+              "height": 54,
+              "elements": [
+                {
+                  "selector": ".pv-header .pv-title",
+                  "y": 41.984375,
+                  "height": 26
+                },
+                {
+                  "selector": "[data-testid=auth-status]",
+                  "y": 48.390625,
+                  "height": 13.1953125
+                },
+                {
+                  "selector": ".pv-header-actions",
+                  "y": 183.4765625,
+                  "height": 28
+                }
+              ]
+            },
+            "api": {
+              "height": 115.9765625,
+              "elements": [
+                {
+                  "selector": ".pv-conn-row",
+                  "y": 39,
+                  "height": 31.9765625
+                },
+                {
+                  "selector": ".pv-header [data-testid=request-retry-status]",
+                  "y": 71.9765625,
+                  "height": 84
+                }
+              ]
+            },
+            "tabs": {
+              "height": 0,
+              "elements": []
+            },
+            "heading": {
+              "height": 22.5,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-library-heading",
+                  "y": 248.4765625,
+                  "height": 22.5
+                }
+              ]
+            },
+            "toolbar": {
+              "height": 49.6328125,
+              "elements": [
+                {
+                  "selector": ".pv-library-summary",
+                  "y": 248.4765625,
+                  "height": 49.6328125
+                }
+              ]
+            },
+            "candidates": {
+              "height": 0,
+              "elements": []
+            },
+            "status": {
+              "height": 39,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-counter",
+                  "y": 249.9765625,
+                  "height": 19.5
+                },
+                {
+                  "selector": ".pv-content .pv-counter",
+                  "y": 249.9765625,
+                  "height": 19.5
+                },
+                {
+                  "selector": ".pv-content .pv-counter",
+                  "y": 275.7890625,
+                  "height": 19.5
+                }
+              ]
+            },
+            "search": {
+              "height": 0,
+              "elements": []
+            }
+          },
+          "chrome_boundary": 306.109375,
+          "chrome_union_height": 221.609375,
+          "chrome_unassigned_height": 84.5,
+          "png": "png/1280x800-200-light-stress-bookmarks.png"
+        },
+        "recommend": {
+          "viewport": [
+            640,
+            400
+          ],
+          "visible_rect": [
+            8,
+            357.40625,
+            616,
+            35.046875
+          ],
+          "area_ratio": 0.08433154296875,
+          "first_image_y": 365.484375,
+          "image_rect": [
+            15,
+            365.484375,
+            131,
+            26.96875
+          ],
+          "image_ratio": 0.0138004150390625,
+          "first_image_complete": false,
+          "complete_images": 0,
+          "rendered_images": 2,
+          "visible_images": 2,
+          "first_item_y": 357.40625,
+          "items": 2,
+          "scroll_top": 0,
+          "chrome": {
+            "banner": {
+              "height": 28,
+              "elements": [
+                {
+                  "selector": "[data-testid=db-status-banner]",
+                  "y": 8,
+                  "height": 28
+                }
+              ]
+            },
+            "header": {
+              "height": 54,
+              "elements": [
+                {
+                  "selector": ".pv-header .pv-title",
+                  "y": 41.984375,
+                  "height": 26
+                },
+                {
+                  "selector": "[data-testid=auth-status]",
+                  "y": 48.390625,
+                  "height": 13.1953125
+                },
+                {
+                  "selector": ".pv-header-actions",
+                  "y": 183.4765625,
+                  "height": 28
+                }
+              ]
+            },
+            "api": {
+              "height": 115.9765625,
+              "elements": [
+                {
+                  "selector": ".pv-conn-row",
+                  "y": 39,
+                  "height": 31.9765625
+                },
+                {
+                  "selector": ".pv-header [data-testid=request-retry-status]",
+                  "y": 71.9765625,
+                  "height": 84
+                }
+              ]
+            },
+            "tabs": {
+              "height": 0,
+              "elements": []
+            },
+            "heading": {
+              "height": 45,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-library-heading",
+                  "y": 250.2109375,
+                  "height": 22.5
+                },
+                {
+                  "selector": ".pv-content .pv-library-heading",
+                  "y": 290.1875,
+                  "height": 22.5
+                }
+              ]
+            },
+            "toolbar": {
+              "height": 61.9765625,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-manual-toolbar",
+                  "y": 246.4609375,
+                  "height": 30
+                },
+                {
+                  "selector": ".pv-recommend-shelf-header",
+                  "y": 285.453125,
+                  "height": 31.9765625
+                }
+              ]
+            },
+            "candidates": {
+              "height": 0,
+              "elements": []
+            },
+            "status": {
+              "height": 19.5,
+              "elements": [
+                {
+                  "selector": ".pv-content [role=status]",
+                  "y": 251.7109375,
+                  "height": 19.5
+                }
+              ]
+            },
+            "search": {
+              "height": 0,
+              "elements": []
+            }
+          },
+          "chrome_boundary": 357.40625,
+          "chrome_union_height": 233.953125,
+          "chrome_unassigned_height": 123.453125,
+          "png": "png/1280x800-200-light-stress-recommend.png"
+        },
+        "dedup": {
+          "viewport": [
+            640,
+            400
+          ],
+          "visible_rect": [
+            8,
+            296.9765625,
+            616,
+            57
+          ],
+          "area_ratio": 0.13715625,
+          "first_image_y": 319.9765625,
+          "image_rect": [
+            173,
+            319.9765625,
+            144,
+            34
+          ],
+          "image_ratio": 0.019125,
+          "first_image_complete": false,
+          "complete_images": 0,
+          "rendered_images": 1,
+          "visible_images": 1,
+          "first_item_y": 296.9765625,
+          "items": 1,
+          "scroll_top": 0,
+          "chrome": {
+            "banner": {
+              "height": 28,
+              "elements": [
+                {
+                  "selector": "[data-testid=db-status-banner]",
+                  "y": 8,
+                  "height": 28
+                }
+              ]
+            },
+            "header": {
+              "height": 54,
+              "elements": [
+                {
+                  "selector": ".pv-header .pv-title",
+                  "y": 41.984375,
+                  "height": 26
+                },
+                {
+                  "selector": "[data-testid=auth-status]",
+                  "y": 48.390625,
+                  "height": 13.1953125
+                },
+                {
+                  "selector": ".pv-header-actions",
+                  "y": 183.4765625,
+                  "height": 28
+                }
+              ]
+            },
+            "api": {
+              "height": 115.9765625,
+              "elements": [
+                {
+                  "selector": ".pv-conn-row",
+                  "y": 39,
+                  "height": 31.9765625
+                },
+                {
+                  "selector": ".pv-header [data-testid=request-retry-status]",
+                  "y": 71.9765625,
+                  "height": 84
+                }
+              ]
+            },
+            "tabs": {
+              "height": 0,
+              "elements": []
+            },
+            "heading": {
+              "height": 1,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-library-heading",
+                  "y": 259.9765625,
+                  "height": 1
+                }
+              ]
+            },
+            "toolbar": {
+              "height": 30,
+              "elements": [
+                {
+                  "selector": ".pv-content .pv-manual-toolbar",
+                  "y": 245.4765625,
+                  "height": 30
+                }
+              ]
+            },
+            "candidates": {
+              "height": 0,
+              "elements": []
+            },
+            "status": {
+              "height": 19.5,
+              "elements": [
+                {
+                  "selector": ".pv-content [role=status]",
+                  "y": 276.4765625,
+                  "height": 19.5
+                }
+              ]
+            },
+            "search": {
+              "height": 0,
+              "elements": []
+            }
+          },
+          "chrome_boundary": 296.9765625,
+          "chrome_union_height": 221.4765625,
+          "chrome_unassigned_height": 75.5,
+          "png": "png/1280x800-200-light-stress-dedup.png"
+        }
+      }
+    }
+  ],
+  "failures": [
+    [
+      640,
+      400,
+      100,
+      "dark",
+      "stress",
+      "ranking",
+      "complete=0"
+    ],
+    [
+      640,
+      400,
+      100,
+      "dark",
+      "stress",
+      "personal",
+      "TimeoutError: Locator.click: Timeout 4000ms exceeded.\nCall log:\n  - waiting for get_by_test_id(\"tab-personal\")\n    - locator resolved to <button id=\"c146\" tabindex=\"0\" type=\"button\" data-testid=\"tab-personal\" class=\"q-btn q-btn-item non-selectable no-outline q-btn--flat q-btn--rectangle q-btn--actionable q-focusable q-hoverable q-btn--no-uppercase pv-tab pv-hit28\">…</button>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"q-notification__content row items-center col\">…</div> from <div id=\"q-notify\" data-v-app=\"\">…</div> subtree intercepts pointer events\n    - retrying click action\n    - waiting 20ms\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"q-notification__content row items-center col\">…</div> from <div id=\"q-notify\" data-v-app=\"\">…</div> subtree intercepts pointer events\n    - retrying click action\n      - waiting 100ms\n    8 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"q-notification__content row items-center col\">…</div> from <div id=\"q-notify\" data-v-app=\"\">…</div> subtree intercepts pointer events\n    - retrying click action\n      - waiting 500ms\n"
+    ],
+    [
+      640,
+      400,
+      100,
+      "dark",
+      "stress",
+      "library",
+      "TimeoutError: Locator.click: Timeout 4000ms exceeded.\nCall log:\n  - waiting for get_by_test_id(\"tab-library\")\n    - locator resolved to <button id=\"c147\" tabindex=\"0\" type=\"button\" data-testid=\"tab-library\" class=\"q-btn q-btn-item non-selectable no-outline q-btn--flat q-btn--rectangle q-btn--actionable q-focusable q-hoverable q-btn--no-uppercase pv-tab pv-hit28\">…</button>\n  - attempting click action\n    - waiting for element to be visible, enabled and stable\n    - element is visible, enabled and stable\n    - scrolling into view if needed\n    - done scrolling\n    - <div class=\"q-notification__actions row items-center col-auto q-notification__actions--with-media\">…</div> from <div id=\"q-notify\" data-v-app=\"\">…</div> subtree intercepts pointer events\n  - retrying click action\n    - waiting for element to be visible, enabled and stable\n    - element is visible, enabled and stable\n    - scrolling into view if needed\n    - done scrolling\n    - <button tabindex=\"0\" type=\"button\" class=\"q-btn q-btn-item non-selectable no-outline q-btn--flat q-btn--rectangle q-btn--actionable q-focusable q-hoverable pv-hit28\">…</button> from <div id=\"q-notify\" data-v-app=\"\">…</div> subtree intercepts pointer events\n  - retrying click action\n    - waiting 20ms\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"q-notification__actions row items-center col-auto q-notification__actions--with-media\">…</div> from <div id=\"q-notify\" data-v-app=\"\">…</div> subtree intercepts pointer events\n    - retrying click action\n      - waiting 100ms\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"q-notification__actions row items-center col-auto q-notification__actions--with-media\">…</div> from <div id=\"q-notify\" data-v-app=\"\">…</div> subtree intercepts pointer events\n    - retrying click action\n      - waiting 500ms\n      - waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <button tabindex=\"0\" type=\"button\" class=\"q-btn q-btn-item non-selectable no-outline q-btn--flat q-btn--rectangle q-btn--actionable q-focusable q-hoverable pv-hit28\">…</button> from <div id=\"q-notify\" data-v-app=\"\">…</div> subtree intercepts pointer events\n    - retrying click action\n      - waiting 500ms\n      - waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"q-notification__actions row items-center col-auto q-notification__actions--with-media\">…</div> from <div id=\"q-notify\" data-v-app=\"\">…</div> subtree intercepts pointer events\n    - retrying click action\n      - waiting 500ms\n      - waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"q-notification__actions row items-center col-auto q-notification__actions--with-media\">…</div> from <div id=\"q-notify\" data-v-app=\"\">…</div> subtree intercepts pointer events\n    - retrying click action\n      - waiting 500ms\n"
+    ],
+    [
+      640,
+      400,
+      100,
+      "dark",
+      "stress",
+      "library-works",
+      "TimeoutError: Locator.click: Timeout 4000ms exceeded.\nCall log:\n  - waiting for get_by_test_id(\"tab-library\")\n    - locator resolved to <button id=\"c147\" tabindex=\"0\" type=\"button\" data-testid=\"tab-library\" class=\"q-btn q-btn-item non-selectable no-outline q-btn--flat q-btn--rectangle q-btn--actionable q-focusable q-hoverable q-btn--no-uppercase pv-tab pv-hit28\">…</button>\n  - attempting click action\n    - waiting for element to be visible, enabled and stable\n    - element is visible, enabled and stable\n    - scrolling into view if needed\n    - done scrolling\n    - <div class=\"q-notification__actions row items-center col-auto q-notification__actions--with-media\">…</div> from <div id=\"q-notify\" data-v-app=\"\">…</div> subtree intercepts pointer events\n  - retrying click action\n    - waiting for element to be visible, enabled and stable\n    - element is visible, enabled and stable\n    - scrolling into view if needed\n    - done scrolling\n    - <button tabindex=\"0\" type=\"button\" class=\"q-btn q-btn-item non-selectable no-outline q-btn--flat q-btn--rectangle q-btn--actionable q-focusable q-hoverable pv-hit28\">…</button> from <div id=\"q-notify\" data-v-app=\"\">…</div> subtree intercepts pointer events\n  - retrying click action\n    - waiting 20ms\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"q-notification__actions row items-center col-auto q-notification__actions--with-media\">…</div> from <div id=\"q-notify\" data-v-app=\"\">…</div> subtree intercepts pointer events\n    - retrying click action\n      - waiting 100ms\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"q-notification__actions row items-center col-auto q-notification__actions--with-media\">…</div> from <div id=\"q-notify\" data-v-app=\"\">…</div> subtree intercepts pointer events\n    - retrying click action\n      - waiting 500ms\n      - waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <button tabindex=\"0\" type=\"button\" class=\"q-btn q-btn-item non-selectable no-outline q-btn--flat q-btn--rectangle q-btn--actionable q-focusable q-hoverable pv-hit28\">…</button> from <div id=\"q-notify\" data-v-app=\"\">…</div> subtree intercepts pointer events\n    - retrying click action\n      - waiting 500ms\n      - waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"q-notification__actions row items-center col-auto q-notification__actions--with-media\">…</div> from <div id=\"q-notify\" data-v-app=\"\">…</div> subtree intercepts pointer events\n    - retrying click action\n      - waiting 500ms\n      - waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"q-notification__actions row items-center col-auto q-notification__actions--with-media\">…</div> from <div id=\"q-notify\" data-v-app=\"\">…</div> subtree intercepts pointer events\n    - retrying click action\n      - waiting 500ms\n"
+    ],
+    [
+      640,
+      400,
+      100,
+      "dark",
+      "stress",
+      "bookmarks",
+      "TimeoutError: Locator.click: Timeout 4000ms exceeded.\nCall log:\n  - waiting for get_by_test_id(\"tab-bookmarks\")\n    - locator resolved to <button id=\"c148\" tabindex=\"0\" type=\"button\" data-testid=\"tab-bookmarks\" class=\"q-btn q-btn-item non-selectable no-outline q-btn--flat q-btn--rectangle q-btn--actionable q-focusable q-hoverable q-btn--no-uppercase pv-tab pv-hit28\">…</button>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"q-notification__content row items-center col\">…</div> from <div id=\"q-notify\" data-v-app=\"\">…</div> subtree intercepts pointer events\n    - retrying click action\n    - waiting 20ms\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"q-notification__content row items-center col\">…</div> from <div id=\"q-notify\" data-v-app=\"\">…</div> subtree intercepts pointer events\n    - retrying click action\n      - waiting 100ms\n    8 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"q-notification__content row items-center col\">…</div> from <div id=\"q-notify\" data-v-app=\"\">…</div> subtree intercepts pointer events\n    - retrying click action\n      - waiting 500ms\n"
+    ],
+    [
+      640,
+      400,
+      100,
+      "dark",
+      "stress",
+      "recommend",
+      "TimeoutError: Locator.click: Timeout 4000ms exceeded.\nCall log:\n  - waiting for get_by_test_id(\"tab-recommend\")\n    - locator resolved to <button id=\"c149\" tabindex=\"0\" type=\"button\" data-testid=\"tab-recommend\" class=\"q-btn q-btn-item non-selectable no-outline q-btn--flat q-btn--rectangle q-btn--actionable q-focusable q-hoverable q-btn--no-uppercase pv-tab pv-hit28\">…</button>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"q-notification__actions row items-center col-auto q-notification__actions--with-media\">…</div> from <div id=\"q-notify\" data-v-app=\"\">…</div> subtree intercepts pointer events\n    - retrying click action\n    - waiting 20ms\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"q-notification__actions row items-center col-auto q-notification__actions--with-media\">…</div> from <div id=\"q-notify\" data-v-app=\"\">…</div> subtree intercepts pointer events\n    - retrying click action\n      - waiting 100ms\n    8 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"q-notification__actions row items-center col-auto q-notification__actions--with-media\">…</div> from <div id=\"q-notify\" data-v-app=\"\">…</div> subtree intercepts pointer events\n    - retrying click action\n      - waiting 500ms\n"
+    ],
+    [
+      640,
+      400,
+      100,
+      "dark",
+      "stress",
+      "dedup",
+      "complete=0"
+    ],
+    [
+      640,
+      400,
+      100,
+      "light",
+      "stress",
+      "ranking",
+      "complete=0"
+    ],
+    [
+      640,
+      400,
+      100,
+      "light",
+      "stress",
+      "personal",
+      "TimeoutError: Locator.wait_for: Timeout 4000ms exceeded.\nCall log:\n  - waiting for get_by_test_id(\"gallery-scroll\").visible.first to be visible\n"
+    ],
+    [
+      640,
+      400,
+      100,
+      "light",
+      "stress",
+      "library",
+      "complete=0"
+    ],
+    [
+      640,
+      400,
+      100,
+      "light",
+      "stress",
+      "library-works",
+      "complete=0"
+    ],
+    [
+      640,
+      400,
+      100,
+      "light",
+      "stress",
+      "bookmarks",
+      "complete=0"
+    ],
+    [
+      640,
+      400,
+      100,
+      "light",
+      "stress",
+      "recommend",
+      "complete=0"
+    ],
+    [
+      640,
+      400,
+      100,
+      "light",
+      "stress",
+      "dedup",
+      "complete=0"
+    ],
+    [
+      1280,
+      800,
+      200,
+      "dark",
+      "stress",
+      "ranking",
+      "complete=0"
+    ],
+    [
+      1280,
+      800,
+      200,
+      "dark",
+      "stress",
+      "personal",
+      "TimeoutError: Locator.wait_for: Timeout 4000ms exceeded.\nCall log:\n  - waiting for get_by_test_id(\"gallery-scroll\").visible.first to be visible\n"
+    ],
+    [
+      1280,
+      800,
+      200,
+      "dark",
+      "stress",
+      "library",
+      "complete=0"
+    ],
+    [
+      1280,
+      800,
+      200,
+      "dark",
+      "stress",
+      "library-works",
+      "complete=0"
+    ],
+    [
+      1280,
+      800,
+      200,
+      "dark",
+      "stress",
+      "bookmarks",
+      "complete=0"
+    ],
+    [
+      1280,
+      800,
+      200,
+      "dark",
+      "stress",
+      "recommend",
+      "complete=0"
+    ],
+    [
+      1280,
+      800,
+      200,
+      "dark",
+      "stress",
+      "dedup",
+      "complete=0"
+    ],
+    [
+      1280,
+      800,
+      200,
+      "light",
+      "stress",
+      "ranking",
+      "complete=0"
+    ],
+    [
+      1280,
+      800,
+      200,
+      "light",
+      "stress",
+      "personal",
+      "TimeoutError: Locator.wait_for: Timeout 4000ms exceeded.\nCall log:\n  - waiting for get_by_test_id(\"gallery-scroll\").visible.first to be visible\n"
+    ],
+    [
+      1280,
+      800,
+      200,
+      "light",
+      "stress",
+      "library",
+      "complete=0"
+    ],
+    [
+      1280,
+      800,
+      200,
+      "light",
+      "stress",
+      "library-works",
+      "complete=0"
+    ],
+    [
+      1280,
+      800,
+      200,
+      "light",
+      "stress",
+      "bookmarks",
+      "complete=0"
+    ],
+    [
+      1280,
+      800,
+      200,
+      "light",
+      "stress",
+      "recommend",
+      "complete=0"
+    ],
+    [
+      1280,
+      800,
+      200,
+      "light",
+      "stress",
+      "dedup",
+      "complete=0"
+    ]
+  ],
+  "browser_errors": 0,
+  "foreign_requests": 0,
+  "keyboard": {},
+  "server_network_denied": 0,
+  "owned_remaining_count": 0,
+  "owned_ports_closed": true,
+  "seconds": 58.27
+}

@@ -147,7 +147,7 @@ body {
 .pv-grid .pv-card-rank { flex:0 0 auto; font-size:11px; font-weight:700; line-height:1.2; color:var(--pv-text); }
 .pv-grid .pv-thumb { flex:1 1 0; min-height:0; height:0; aspect-ratio:auto; border-bottom:0; border-radius:12px; }
 .pv-grid .pv-card-meta { flex:0 0 auto; min-width:0; padding:0; display:flex; flex-direction:column; gap:3px; }
-.pv-grid .pv-card-title { font-size:11px; font-weight:400; line-height:1.2; white-space:normal; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; }
+.pv-grid .pv-card-title { font-size:13px; font-weight:400; line-height:1.2; white-space:normal; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; }
 .pv-bookmarks .pv-grid .pv-card-title,
 [data-testid=recommend-view] .pv-grid .pv-card-title { display:block; white-space:nowrap; text-overflow:ellipsis; }
 .pv-grid .pv-card-author { font-size:10px; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
@@ -346,7 +346,7 @@ body.body--light .pv-queue-log-info { color:#23578a; }
 .pv-queue-view .pv-job-row[data-state=running] .pv-job-status-icon { color:#0096FA; }
 .pv-queue-view .pv-job-description { flex:1 1 0; min-width:0; height:30px; gap:0; }
 .pv-queue-view .pv-job-head { height:26px; min-height:26px; min-width:0; gap:8px; flex-wrap:nowrap; overflow:hidden; }
-.pv-queue-view .pv-job-head .pv-job-title { flex:1 1 100px; min-width:64px; max-width:45%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:12.5px; font-weight:500; }
+.pv-queue-view .pv-job-head .pv-job-title { flex:1 1 100px; min-width:64px; max-width:45%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:13px; font-weight:500; }
 .pv-queue-view .pv-job-id-seat { width:192px; max-width:192px; min-width:64px; flex:0 1 192px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:11px !important; }
 .pv-queue-view .pv-job-state { flex:0 0 66px; min-width:66px; margin-right:auto; color:var(--pv-muted); font-size:11px; }
 .pv-queue-view .pv-job-progress-count { flex:0 0 96px; width:96px; min-width:96px; text-align:right; font-size:11px; }
@@ -1208,5 +1208,38 @@ CSS += """
     min-height:230px;
   }
   .pv-library[data-testid=bookmark-host] .pv-bookmarks .pv-gallery-scroll { min-height:144px; }
+}
+@media (max-height:500px) {
+  .pv-shell { padding:4px 8px; gap:2px; }
+  .pv-header .pv-header-request-status {
+    display:grid;
+    grid-template-columns:minmax(0, 1fr) auto auto;
+    align-items:center;
+    gap:1px 4px;
+  }
+  .pv-header .pv-header-request-status [data-testid=request-retry-status] {
+    grid-column:1; grid-row:1;
+  }
+  .pv-header .pv-header-request-status [data-rate-stop=true] {
+    max-height:30px;
+    overflow-y:auto;
+    overflow-x:hidden;
+    scrollbar-width:thin;
+    line-height:13px;
+    padding:1px 6px;
+    box-sizing:border-box;
+  }
+  .pv-header .pv-header-request-status .pv-request-stop-details:not([open]) {
+    grid-column:2; grid-row:1; flex:0 0 auto; width:auto;
+  }
+  .pv-header .pv-header-request-status .pv-request-stop-details[open] {
+    grid-column:1 / -1; grid-row:2;
+  }
+  .pv-header .pv-header-request-status .pv-request-stop-details > summary {
+    padding:2px 6px; min-height:28px; display:inline-flex; align-items:center; white-space:nowrap;
+  }
+  .pv-header .pv-header-request-status [data-testid=request-retry-dismiss] {
+    grid-column:3; grid-row:1; min-height:28px; height:28px; padding:0 6px; font-size:11px;
+  }
 }
 """

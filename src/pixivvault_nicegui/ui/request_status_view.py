@@ -214,6 +214,12 @@ class RequestStatusView:
         if self.compact:
             self.stop_details.set_visibility(rate_stop)
             self.label.props['data-rate-stop'] = str(rate_stop).lower()
+            if rate_stop:
+                self.label.props['tabindex'] = '0'
+                self.label.classes(add='pv-focus-ring')
+            else:
+                self.label.props.pop('tabindex', None)
+                self.label.classes(remove='pv-focus-ring')
         announcements = self._render_lines(displayed, self.label, self.progress, compact=rate_stop)
         pins = sum(is_pinned_notice(record) for record in overflow)
         summary = f'ほか {len(overflow)} 件' + (f'（停止 {pins} 件）' if pins else '')
