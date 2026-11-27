@@ -1,0 +1,130 @@
+============================= test session starts =============================
+platform win32 -- Python 3.13.11, pytest-8.4.2, pluggy-1.7.0
+rootdir: S:\Work\PV\fde02-20261128
+configfile: pyproject.toml
+plugins: anyio-4.15.1, asyncio-1.2.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function
+collected 7 items
+
+tests\test_fde02_restore.py FFFFFFF                                      [100%]
+
+================================== FAILURES ===================================
+________________ test_physical_move_is_listed_and_restored[1] _________________
+
+tmp_path = WindowsPath('S:/Work/_tmp/PV/fde02/red04/test_physical_move_is_listed_a0')
+work = '1'
+
+    @pytest.mark.parametrize('work', ['1', '2'])
+    def test_physical_move_is_listed_and_restored(tmp_path, work):
+        source, legacy, owner, target, before = moved(tmp_path, work)
+        try:
+            records = source.recoverable_moves()
+>           assert len(records) == 1
+E           assert 0 == 1
+E            +  where 0 = len(())
+
+tests\test_fde02_restore.py:23: AssertionError
+________________ test_physical_move_is_listed_and_restored[2] _________________
+
+tmp_path = WindowsPath('S:/Work/_tmp/PV/fde02/red04/test_physical_move_is_listed_a1')
+work = '2'
+
+    @pytest.mark.parametrize('work', ['1', '2'])
+    def test_physical_move_is_listed_and_restored(tmp_path, work):
+        source, legacy, owner, target, before = moved(tmp_path, work)
+        try:
+            records = source.recoverable_moves()
+>           assert len(records) == 1
+E           assert 0 == 1
+E            +  where 0 = len(())
+
+tests\test_fde02_restore.py:23: AssertionError
+___________________ test_restore_refuses_occupied_original ____________________
+
+tmp_path = WindowsPath('S:/Work/_tmp/PV/fde02/red04/test_restore_refuses_occupied_0')
+
+    def test_restore_refuses_occupied_original(tmp_path):
+        source, legacy, owner, target, before = moved(tmp_path)
+        try:
+>           op, _, _, revision = source.recoverable_moves()[0]
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           IndexError: tuple index out of range
+
+tests\test_fde02_restore.py:37: IndexError
+______________ test_restore_rejects_inconsistent_quarantine_copy ______________
+
+tmp_path = WindowsPath('S:/Work/_tmp/PV/fde02/red04/test_restore_rejects_inconsist0')
+
+    def test_restore_rejects_inconsistent_quarantine_copy(tmp_path):
+        source, legacy, owner, target, before = moved(tmp_path)
+        try:
+            state = legacy.state()
+            legacy._path(state['exclusions']['1:1']['copy']).write_bytes(b'tampered')
+            with pytest.raises((OSError, ValueError, RuntimeError)):
+                records = source.recoverable_moves()
+>               op, _, _, revision = records[0]
+                                     ^^^^^^^^^^
+E               IndexError: tuple index out of range
+
+tests\test_fde02_restore.py:54: IndexError
+_______________________ test_stale_revision_is_rejected _______________________
+
+tmp_path = WindowsPath('S:/Work/_tmp/PV/fde02/red04/test_stale_revision_is_rejecte0')
+
+    def test_stale_revision_is_rejected(tmp_path):
+        source, legacy, owner, target, before = moved(tmp_path)
+        try:
+>           op, _, _, revision = source.recoverable_moves()[0]
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           IndexError: tuple index out of range
+
+tests\test_fde02_restore.py:65: IndexError
+_____________ test_interruption_after_install_recovers_on_reopen ______________
+
+tmp_path = WindowsPath('S:/Work/_tmp/PV/fde02/red04/test_interruption_after_instal0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x00000291D0F66450>
+
+    def test_interruption_after_install_recovers_on_reopen(tmp_path, monkeypatch):
+        from pixivvault_nicegui.legacy_quarantine import LegacyQuarantine
+        source, legacy, owner, snapshot, original, archive = setup(tmp_path)
+        target = original / 'Author(91)' / 'Folder(1).png'
+        before = target.read_bytes()
+        try:
+            result = source.execute(select(source, {'1'}), operation_id=uuid4().hex,
+                                    mode='move', confirmed_move=True)
+            assert len(result.committed) == 1
+>           op, _, _, revision = source.recoverable_moves()[0]
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           IndexError: tuple index out of range
+
+tests\test_fde02_restore.py:83: IndexError
+____________________ test_zip_restore_preserves_later_move ____________________
+
+tmp_path = WindowsPath('S:/Work/_tmp/PV/fde02/red04/test_zip_restore_preserves_lat0')
+
+    def test_zip_restore_preserves_later_move(tmp_path):
+        from zipfile import ZipFile
+        source, legacy, owner, _, original, archive = setup(tmp_path)
+        try:
+            first = source.execute(select(source, {'2'}), operation_id=uuid4().hex,
+                                   mode='move', confirmed_move=True)
+            assert len(first.committed) == 1
+            first_unit = next(iter(legacy.state()['operations']))
+            second = source.execute(select(source, {'3'}), operation_id=uuid4().hex,
+                                    mode='move', confirmed_move=True)
+            assert len(second.committed) == 1
+            records = source.recoverable_moves()
+>           record = next(r for r in records if first_unit in r[0])
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           StopIteration
+
+tests\test_fde02_restore.py:114: StopIteration
+=========================== short test summary info ===========================
+FAILED tests/test_fde02_restore.py::test_physical_move_is_listed_and_restored[1]
+FAILED tests/test_fde02_restore.py::test_physical_move_is_listed_and_restored[2]
+FAILED tests/test_fde02_restore.py::test_restore_refuses_occupied_original - ...
+FAILED tests/test_fde02_restore.py::test_restore_rejects_inconsistent_quarantine_copy
+FAILED tests/test_fde02_restore.py::test_stale_revision_is_rejected - IndexEr...
+FAILED tests/test_fde02_restore.py::test_interruption_after_install_recovers_on_reopen
+FAILED tests/test_fde02_restore.py::test_zip_restore_preserves_later_move - S...
+============================== 7 failed in 6.16s ==============================

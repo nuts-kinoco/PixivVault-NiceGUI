@@ -104,6 +104,8 @@ class PhysicalLegacyQuarantine:
         self.blocked_sources=set()
         self.cleanup_warnings=set()
         self.capacity_blocked_sources=set()
+        from .legacy_physical_restore import LegacyPhysicalRestore
+        self.restores = LegacyPhysicalRestore(self)
 
     def _ensure(self):
         self.store._ensure()
@@ -449,6 +451,7 @@ class PhysicalLegacyQuarantine:
                         if known:self.cleanup_warnings.add(intent['source'])
                         else:blocked.add(intent['source'])
                 self.blocked_sources=frozenset(blocked)
+                self.blocked_sources |= self.restores.recover()
                 if strict and self.blocked_sources:
                     raise ScratchCleanupError('physical source recovery required')
             finally:self.recovering=False
@@ -533,7 +536,7 @@ class PhysicalLegacyQuarantine:
     def execute(self,plan,operation_id,*,validate_snapshot=None):
         store=self.store
         with writer_fence(store.owner.root),writer_fence(store.catalog.root),store._lock:
-            self.recover();state=store.state()
+            state=store._mutation_state()
             revision=store.owner._generations.state_snapshot()['revision']+':'+state['revision']
             if plan.state_revision!=revision:raise ValueError('physical plan changed')
             # A different managed root can share this image source. Its writes

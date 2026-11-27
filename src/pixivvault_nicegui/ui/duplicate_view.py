@@ -10,6 +10,7 @@ from ..duplicate_inspection import (
     visible_groups, visible_undecidable_groups,
     low_quality_keys, validate_selection, best_item_index,
 )
+from ..legacy_physical_restore import LEGACY_RESTORE_PREFIX
 from .action_controls import danger_button, notify_action, primary_button, refresh_button
 from .card_size_control import size_buttons, update_size_buttons
 from .management_dialog import focus_after_dialog, managed_dialog
@@ -94,7 +95,7 @@ class DuplicateView:
                     ui.space()
                     self.plan_button=ui.button('隔離計画を確認',on_click=self.plan).props('outline dense no-caps data-testid=duplicate-plan')
                     self.move_button=primary_button('選んだものをごみ箱へ移す…',on_click=lambda _:self.confirm(),testid='duplicate-move')
-                self.legacy_recover_button=ui.button('未完了の退避操作を復旧・再確認',on_click=self.recover_legacy).props('flat dense no-caps data-testid=duplicate-legacy-recover')
+                self.legacy_recover_button=ui.button('未完了の操作を復旧・再確認',on_click=self.recover_legacy).props('flat dense no-caps data-testid=duplicate-legacy-recover')
                 self.legacy_recover_button.set_visibility(False)
         with managed_dialog(focus_after_update=True, cancel=self.cancel_confirmation).props('persistent transition-duration=150 data-testid=duplicate-confirm-dialog') as self.confirm_dialog:
             with ui.card().classes('w-full').style('max-width:640px') as confirm_card:
@@ -315,11 +316,14 @@ class DuplicateView:
         self._trash_restore_buttons=[]
         if self._trash_state=='ready' and self._trash_moves:
             with self.trash_restore_rows:
-                ui.label('管理領域の物理移動を復元').classes('pv-subtitle')
+                ui.label('物理移動を復元').classes('pv-subtitle')
                 for record in self._trash_moves:
                     operation_id,state,count,revision=record
+                    legacy = operation_id.startswith(LEGACY_RESTORE_PREFIX)
+                    label = '旧ライブラリ' if legacy else '管理領域'
+                    unit = operation_id.removeprefix(LEGACY_RESTORE_PREFIX)
                     with ui.row():
-                        ui.label(f'{count}ページ · {state} · 操作 {operation_id[:8]}')
+                        ui.label(f'{label} · {count}ページ · {state} · 操作 {unit[:8]}')
                         button=ui.button('復元を確認…',on_click=lambda e,v=record:self.confirm_restore(v,e.sender)).props(
                             'flat data-testid=duplicate-restore-choice')
                         self._trash_restore_buttons.append(button)
@@ -416,7 +420,8 @@ class DuplicateView:
                 or self._trash_reading or record not in self._trash_moves):return
         self._restore_candidate=record
         self._restore_opener=opener
-        self.restore_title.set_text(f'{record[2]}ページを管理領域のごみ箱から復元しますか？')
+        label = '旧ライブラリ' if record[0].startswith(LEGACY_RESTORE_PREFIX) else '管理領域'
+        self.restore_title.set_text(f'{record[2]}ページを{label}のごみ箱から復元しますか？')
         self.restore_dialog.open()
         self.sync()
 
@@ -438,10 +443,11 @@ class DuplicateView:
         self.restore_dialog.close()
         self.busy=True;self.sync()
         completed=False;refresh_warning=False
+        operation_id,_,_,revision=record
+        legacy = operation_id.startswith(LEGACY_RESTORE_PREFIX)
         try:
-            operation_id,_,_,revision=record
             restorer=getattr(self.source,'restore_move',None)
-            if not callable(restorer):raise RuntimeError('managed restore unavailable')
+            if not callable(restorer):raise RuntimeError('restore unavailable')
             await asyncio.to_thread(restorer,operation_id,expected_revision=revision)
             completed=True
             callback=getattr(self.source,'on_changed',None)
@@ -454,11 +460,17 @@ class DuplicateView:
             if not self.closed:
                 self.scan_result=None;self.selections={};self.render()
                 self._schedule_trash_summary()
-                self.notice.set_text('管理領域の復元が完了しました。再スキャンしてください。'
+                label = '旧ライブラリ' if legacy else '管理領域'
+                self.notice.set_text(f'{label}の復元が完了しました。再スキャンしてください。'
                                      +(' ライブラリ表示も再読込してください。' if refresh_warning else ''))
         except Exception:
             if not completed and not self.closed:
-                self.notice.set_text('復元を確定できませんでした。ごみ箱を再読込して状態を確認してください。')
+                if legacy:
+                    self.scan_result=None;self.selections={};self.render()
+                    self.legacy_recover_button.set_visibility(True)
+                    self.notice.set_text('復元を確定できませんでした。ごみ箱を閉じて「未完了の操作を復旧・再確認」を押してください。')
+                else:
+                    self.notice.set_text('復元を確定できませんでした。ごみ箱を再読込して状態を確認してください。')
         finally:
             self.busy=False
             if not self.closed:
@@ -690,10 +702,20 @@ class DuplicateView:
         generation=self.generation;self.busy=True;self.sync()
         try:
             result=await asyncio.to_thread(callback)
+            refresh_warning=False
+            changed=getattr(self.source,'on_changed',None)
+            if callable(changed):
+                try:
+                    value=changed()
+                    if inspect.isawaitable(value):await value
+                except Exception:
+                    refresh_warning=True
             if self.closed or not self.active or generation!=self.generation:return
             self.scan_result=result;self.render()
             self.legacy_recover_button.set_visibility(False)
-            self.notice.set_text('退避操作の保存状態を確認しました。残る項目を確認してから操作してください。新しい移動は実行していません。')
+            self._schedule_trash_summary()
+            self.notice.set_text('保存状態を確認しました。残る項目を確認してください。'
+                                 +(' ライブラリ表示も再読込してください。' if refresh_warning else ''))
         except Exception:
             if not self.closed:self.notice.set_text('復旧を確認できません。退避を保持しています。保存先の状態を確認してください。')
         finally:self.busy=False;self.sync()
