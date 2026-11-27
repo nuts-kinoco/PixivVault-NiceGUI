@@ -37,7 +37,7 @@ from .managed_network_stop_gate import (
     _file_identity,
     _reject_links,
 )
-from .managed_network_stop_transport import _GatedReadTransport
+from .managed_network_stop_transport import StaleCredentialReader, _GatedReadTransport
 from .pixiv_read_client import HTTPStatusRejected, PixivReadError
 from .gate_refusal_state import gate_refusal_scope, pending_refusal_check, record_gate_refusal
 from .request_policy import durable_stop_status, record_request_rate_stop
@@ -79,6 +79,8 @@ class ManagedUserNetworkStopGate(ManagedNetworkStopGate):
     Completed harmless requests remove their own markers. A separate explicit,
     owner-checked recovery may archive an abandoned intent without clearing STOP.
     """
+
+    _prioritize_terminal_stop = True
 
     def __init__(self, path: Path):
         super().__init__(path)
@@ -140,18 +142,25 @@ class ManagedUserNetworkStopGate(ManagedNetworkStopGate):
 
     @contextmanager
     def request(self):
-        with super().request():
+        def finish_rejected(error):
+            _run_gate_cleanup(lambda: self._finish_inflight(identity),
+                              'shared GET completion not durable', primary=error)
+
+        def settled_stop(error):
+            # A completed 401 has recoverable STOP evidence. Any interruption
+            # before the STOP commit and readback leaves the original intent.
+            if (error.status_code == 401 and not getattr(error, 'gate_cleanup_errors', ())
+                    and not getattr(error, 'cleanup_failed', False)):
+                finish_rejected(error)
+
+        with super().request(after_stop=settled_stop):
             identity = self._begin_inflight()
             try:
                 yield
             except HTTPStatusRejected as error:
                 record_request_rate_stop(error.status_code, cleanup_failed=bool(getattr(error, 'gate_cleanup_errors', ())))
                 if not durable_stop_status(error.status_code):
-                    _run_gate_cleanup(lambda: self._finish_inflight(identity),
-                                      'shared GET completion not durable', primary=error)
-                # Fatal: leave the pre-GET marker. Only a durable gate trip
-                # may prove STOP; if that SQLite write fails the next reader
-                # still sees the marker and refuses all further GETs.
+                    finish_rejected(error)
                 raise
             except HTTPError as error:
                 rejected = _http_gate_rejection(error)
@@ -159,15 +168,14 @@ class ManagedUserNetworkStopGate(ManagedNetworkStopGate):
                     record_request_rate_stop(rejected.status_code,
                                              cleanup_failed=bool(getattr(rejected, 'gate_cleanup_errors', ())))
                 if not isinstance(rejected, HTTPStatusRejected) or not durable_stop_status(rejected.status_code):
-                    _run_gate_cleanup(lambda: self._finish_inflight(identity),
-                                      'shared GET completion not durable', primary=rejected)
+                    finish_rejected(rejected)
                 raise rejected from None
             except ManagedNetworkStopped as stopped:
                 if stopped.status_code not in STOP_STATUSES:
                     raise ManagedNetworkGateStorageError("unknown raw shared STOP") from None
-                raise HTTPStatusRejected(stopped.status_code) from None
+                raise _carry_gate_cleanup(stopped, HTTPStatusRejected(stopped.status_code)) from None
             except PixivReadError as error:
-                if isinstance(error, ManagedNetworkGateStorageError):
+                if isinstance(error, ManagedNetworkGateStorageError) and not isinstance(error, StaleCredentialReader):
                     # A failed STOP write or uncertain shared ownership is
                     # never evidence that this GET completed harmlessly.
                     raise
@@ -175,8 +183,7 @@ class ManagedUserNetworkStopGate(ManagedNetworkStopGate):
                 # status before mapping cancel, timeout, response rejection or
                 # other ordinary errors. These nonfatal PixivReadErrors may
                 # safely free the intent and retain normal retry/cleanup.
-                _run_gate_cleanup(lambda: self._finish_inflight(identity),
-                                  'shared GET completion not durable', primary=error)
+                finish_rejected(error)
                 raise
             else:
                 self._finish_inflight(identity)
@@ -277,10 +284,12 @@ class ManagedUserNetworkStopScope:
     def create_reader(self, cookie_path, *, transport=None):
         from .managed_network_stop_reader import create_exact_managed_read_client
         self._check_owner()
+        generation = ManagedNetworkStopGate.snapshot(self.gate).revision // 2
         client = create_exact_managed_read_client(cookie_path, self.gate, transport=transport)
         try:
             # The transport must be checked at every GET, not just creation.
             original = client._transport
+            original.shared_generation = generation
             client._transport = _SealedOwnerTransport(self, original)
             return client
         except BaseException as error:
@@ -374,6 +383,9 @@ class _SealedOwnerTransport(_GatedReadTransport):
             self.scope._check_owner()
             with selected_history_guard(self.scope, transfer_stop=not confirming):
                 yield
+
+    def _require_generation(self, local_revision, shared_revision=None):
+        self.transport._require_generation(local_revision, shared_revision)
 
     def __call__(self, request, timeout, limit, deadline):
         with self._admission_owner_checks():

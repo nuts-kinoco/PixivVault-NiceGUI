@@ -417,6 +417,21 @@ class RequestRetryPolicy:
                     files = frozenset((slot, new[0][slot]) for slot, _ in observed)
                     self._records[key] = {**self._records[key], 'observed_files': files}
 
+    def forget_recovered_401(self, gates):
+        """Retire only the 401 notices tied to these successfully opened gates."""
+        files = _gate_files(gates)
+        observed = frozenset((slot, file) for slot, file in enumerate(files) if file is not None)
+        with self._status_lock:
+            self._observation_revision += 1
+            for key, record in tuple(self._records.items()):
+                if record.get('stop_cause') != 'durable_gate' or record.get('status') != 401:
+                    continue
+                route = record.get('notice_route')
+                recorded = (frozenset((slot, file) for slot, file in enumerate(route[0]) if file is not None)
+                            if route is not None else record.get('observed_files', frozenset()))
+                if recorded and recorded <= observed:
+                    del self._records[key]
+
     def replace_notice_gates(self, old_gates, new_gates):
         """An owner explicitly installed a new gate for the same route."""
         with self._status_lock:

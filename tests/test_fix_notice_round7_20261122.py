@@ -450,7 +450,7 @@ def test_outer_cleanup_does_not_replace_a_committed_stop(tmp_path, monkeypatch, 
             local.gate.trip(401)
             def fail_trip(*_):
                 raise gate.ManagedNetworkGateStorageError('synthetic mirror write refusal')
-            monkeypatch.setattr(shared.gate, 'trip', fail_trip)
+            monkeypatch.setattr(shared.gate, '_trip_locked', fail_trip)
         with pytest.raises(gate.ManagedNetworkStopped) as denied:
             reader.get_image_bytes(IMAGE)
         assert denied.value.status_code == 401 and denied.value.__notes__

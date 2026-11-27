@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import inspect
+from dataclasses import replace
 from pathlib import Path
 
 from nicegui import ui
@@ -62,6 +63,7 @@ class NativeProfileView:
         self._picking = False
         self._picker_revision = 0
         self._auth_revision = 0
+        self._auth_task = None
         self._active = False
         self._closed = False
         self._standalone = False
@@ -84,6 +86,7 @@ class NativeProfileView:
         """Inline view, suitable for the application's existing settings card."""
         if self._closed:
             return
+        self._cancel_auth_task()
         self._epoch += 1
         self._picker_revision += 1
         self._auth_revision += 1
@@ -323,6 +326,7 @@ class NativeProfileView:
 
     def clear_cookie(self) -> None:
         if self.snapshot is not None and self._active:
+            self._cancel_auth_task()
             self.draft_cookie = None
             self._auth_revision += 1
             self._busy = False
@@ -380,6 +384,7 @@ class NativeProfileView:
         # Inline controls must keep their mounted handlers' _epoch. Invalidate
         # only pending picker/auth work, so a delayed OS result cannot restore
         # a discarded draft or overwrite a new selection.
+        self._cancel_auth_task()
         self._picker_revision += 1
         self._auth_revision += 1
         self._busy = False
@@ -416,11 +421,18 @@ class NativeProfileView:
         from ..native_auth_result import NativeAuthResult
         result = None
         try:
-            if inspect.iscoroutinefunction(self.verify_auth):
-                result = await asyncio.wait_for(self.verify_auth(chosen), timeout=10)
-            else:
-                result = await asyncio.wait_for(asyncio.to_thread(self.verify_auth, chosen), timeout=10)
+            operation = (self.verify_auth(chosen) if inspect.iscoroutinefunction(self.verify_auth)
+                         else asyncio.to_thread(self.verify_auth, chosen))
+            task = self._auth_task = asyncio.create_task(operation)
+            try:
+                result = await asyncio.wait_for(task, timeout=10)
+            finally:
+                if self._auth_task is task:
+                    self._auth_task = None
             ok = result.ok if type(result) is NativeAuthResult else result is True
+        except asyncio.CancelledError:
+            if asyncio.current_task().cancelling():
+                raise
         except asyncio.TimeoutError:
             result = NativeAuthResult('communication_failed')
         except Exception:
@@ -429,10 +441,25 @@ class NativeProfileView:
             if (epoch == self._epoch and self._active and
                     revision == self._auth_revision and chosen == self.draft_cookie):
                 self._busy = False
+                if type(result) is NativeAuthResult and result.code in ('recovered', 'recovered_restart'):
+                    # Only the Cookie field was saved. Preserve other unsaved fields.
+                    try:
+                        current = self.store.snapshot()
+                    except NativeProfileError:
+                        result = NativeAuthResult('local_unavailable')
+                    else:
+                        if (current.cookie_file == chosen
+                                and replace(current, revision=self.snapshot.revision,
+                                            cookie_file=self.snapshot.cookie_file) == self.snapshot):
+                            self.snapshot = current
                 self.status.set_text(result.message if type(result) is NativeAuthResult else
                     '認証を確認できました。' if ok else '認証を確認できませんでした。')
                 self._sync_values()
         return ok
+
+    def _cancel_auth_task(self) -> None:
+        if self._auth_task is not None:
+            self._auth_task.cancel()
 
     def _stop_request_status(self) -> None:
         if self._request_status is not None:
@@ -442,6 +469,7 @@ class NativeProfileView:
     def deactivate(self) -> None:
         """Discard late callbacks when the owning dialog closes or rebuilds."""
         self._stop_request_status()
+        self._cancel_auth_task()
         self._epoch += 1
         self._picker_revision += 1
         self._auth_revision += 1

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from contextlib import ExitStack, contextmanager
 import os
 from pathlib import Path
 from threading import Event, Lock, RLock
@@ -77,6 +78,7 @@ class NativeProfileBinding:
         self.launch_snapshot = (store.snapshot() if launch_snapshot is None
                                 and callable(getattr(store, 'snapshot', None)) else launch_snapshot)
         self._closed = False
+        self._closing = Event()
         self._picker_lock = asyncio.Lock()
         self._auth_lock = asyncio.Lock()
         self._reader_lock = RLock()
@@ -314,9 +316,15 @@ class NativeProfileBinding:
     async def verify_auth(self, cookie_file):
         return (await self.check_authentication(cookie_file)).ok
 
-    async def check_selected_authentication(self, cookie_file):
-        """The settings check may recover startup using the saved credential."""
-        result, identity = await self._check_authentication_with_identity(cookie_file)
+    async def check_selected_authentication(self, cookie_file, *, _publish=True):
+        """Only this settings action can verify a selected Cookie under 401."""
+        manual = self.auth_stop_required and self.auth_shared_stop_required
+        result, identity = await self._check_authentication_with_identity(
+            cookie_file, manual=manual, publish=_publish)
+        if result.code in ('recovered', 'recovered_restart'):
+            self._spawn(self.followup.after_confirmed(
+                str(identity[0]), sync=False, reader_ready=result.code == 'recovered'))
+            return result
         services = getattr(self, '_shared_event_services', None)
         if (identity is not None and identity[0] is not None and not self._closed
                 and getattr(services, '_scheduler_waiting_for_auth', False)
@@ -330,15 +338,13 @@ class NativeProfileBinding:
     async def check_authentication(self, cookie_file, *, _imported=False, _publish=True):
         """Bounded GET reader through the STOP fence.
 
-        Triggers: the settings button, application start, a saved Cookie and an
-        extension Cookie receipt. The result is unchanged; the signed-in user ID
-        and Cookie expiry observed by the same check are published only to the
-        header status (restoring the original login-status line).
+        Startup, saved settings and extension receipts use this ordinary path.
+        The settings button alone can confirm credentials while stopped at 401.
         """
         result, _ = await self._check_authentication_with_identity(cookie_file, imported=_imported, publish=_publish)
         return result
 
-    async def _check_authentication_with_identity(self, cookie_file, *, imported=False, publish=True):
+    async def _check_authentication_with_identity(self, cookie_file, *, imported=False, publish=True, manual=False):
         async with self._auth_lock:
             if self._closed:
                 from .native_auth_result import NativeAuthResult
@@ -346,20 +352,36 @@ class NativeProfileBinding:
             stopped = Event()
             with self._reader_lock:
                 self._requests[stopped] = None
+            committing = Event() if manual else None
             try:
-                result, identity = await asyncio.to_thread(self._verify_auth_result, Path(cookie_file), stopped)
-                if publish:
-                    self._publish_auth(result, imported, identity=identity)
-                return result, identity
+                if manual:
+                    worker = asyncio.create_task(asyncio.to_thread(
+                        self._verify_auth_result, Path(cookie_file), stopped, committing=committing))
+                    result, identity = await asyncio.shield(worker)
+                else:
+                    result, identity = await asyncio.to_thread(
+                        self._verify_auth_result, Path(cookie_file), stopped)
             except asyncio.CancelledError:
                 stopped.set()
-                with self._reader_lock:
-                    reader = self._requests.get(stopped)
-                    if reader is None:
-                        self._requests.pop(stopped, None)
-                if reader is not None:
-                    reader.close()
-                raise
+                if manual:
+                    # Before the shared commit the worker will see stopped.
+                    # Once it has entered the commit, report the actual outcome.
+                    if not committing.is_set():
+                        raise
+                    result, identity = await asyncio.shield(worker)
+                    if not result.ok:
+                        raise
+                else:
+                    with self._reader_lock:
+                        reader = self._requests.get(stopped)
+                        if reader is None:
+                            self._requests.pop(stopped, None)
+                    if reader is not None:
+                        reader.close()
+                    raise
+            if publish:
+                self._publish_auth(result, imported, identity=identity)
+            return result, identity
 
     def _publish_auth(self, result, imported, *, identity, notice=None):
         from .auth_status import status_from_result, NOTICE_UPDATED
@@ -604,29 +626,89 @@ class NativeProfileBinding:
         result, _ = self._verify_auth_result(cookie_file, stopped)
         return result.ok
 
-    def _verify_auth_result(self, cookie_file, stopped):
+    def _recover_selected_401(self, scope, shared_owner, cookie_file, stopped, committing):
+        from .managed_network_stop_auth_recovery import recover_draft_auth_401
+        from .managed_network_stop_gate import ManagedNetworkGateBusy, ManagedNetworkGateStorageError
+        from .native_auth_result import NativeAuthResult
+        from .pixiv_read_client import ClientClosed
+        from .auth_status import cookie_days_left
+
+        previous = self.store.snapshot()
+        coordinator = self._cookie_expiry_coordinator
+        installed, days = False, None
+
+        def checkpoint():
+            if (self._closing.is_set() or stopped.is_set()
+                    or self.managed_network_stop_scope is not scope
+                    or self.shared_network_stop_scope is not shared_owner):
+                raise ClientClosed()
+
+        @contextmanager
+        def save(uid, local_revision, shared_revision):
+            nonlocal installed, days
+            checkpoint()
+            days = cookie_days_left(cookie_file)
+            if self.launch_snapshot is not None and previous.save_parent != self.launch_snapshot.save_parent:
+                from .native_profile import NativeProfileConflict
+                raise NativeProfileConflict('storage selection changed since launch')
+            saved = self.store.update(cookie_file=cookie_file, expected_revision=previous.revision)
+            with self.store.pinned_snapshot() as observed:
+                if saved != observed or observed.cookie_file != cookie_file:
+                    raise ManagedNetworkGateStorageError('verified credential selection changed')
+                if coordinator is not None:
+                    installed = coordinator.install_verified_recovery(
+                        observed, uid, local_revision, shared_revision)
+                yield
+                gates = scope.gate, shared_owner.gate
+                self.auth_retry_policy.forget_recovered_401(gates)
+                services = getattr(self, '_shared_event_services', None)
+                policy = getattr(services, '_request_retry', None)
+                if policy is not None:
+                    policy.forget_recovered_401(gates)
+
+        with ExitStack() as locks:
+            if coordinator is not None:
+                if not coordinator.lock.acquire(blocking=False):
+                    raise ManagedNetworkGateBusy('credential readers busy')
+                locks.callback(coordinator.lock.release)
+            uid = recover_draft_auth_401(scope, shared_owner, cookie_file, save, checkpoint, committing)
+        if uid is not None:
+            return NativeAuthResult('recovered' if installed else 'recovered_restart'), (uid, days)
+        return None
+
+    def _verify_auth_result(self, cookie_file, stopped, *, committing=None):
         from .test_owner_runtime import require_inside
         require_inside(cookie_file)
         from .pixiv_read_client import (LivePixivReadClient, CookieSourceRejected,
-            HTTPStatusRejected, AuthenticationMissing, ApiRejected)
+            HTTPStatusRejected, AuthenticationMissing, ApiRejected, ClientClosed)
         from .managed_network_stop_gate import (
             ManagedNetworkStopped, ManagedNetworkGateBusy, ManagedNetworkGateStorageError, _gate_storage_io)
         from .managed_network_stop_shared_scope import SharedStopOwnerAbsent, SharedGetOutcomeUncertain
         from .native_auth_result import NativeAuthResult
+        from .native_profile import NativeProfileConflict, NativeProfileError
         from .gate_refusal_state import record_gate_refusal
-        from .request_policy import request_gate_preflight
+        from .request_policy import request_gate_preflight, request_scope
 
         reader = None
         try:
-            with self._reader_lock, request_gate_preflight(self.auth_retry_policy,
-                                                          self._notice_admission_gates()):
+            with request_gate_preflight(self.auth_retry_policy, self._notice_admission_gates()):
+                with self._reader_lock:
+                    if self._closed or stopped.is_set():
+                        return NativeAuthResult('closed'), None
+                    if self.recheck_startup_stop is not None:
+                        with _gate_storage_io('native profile revision unavailable'):
+                            if self.store.snapshot().revision != self.launch_snapshot.revision:
+                                record_gate_refusal('local')
+                                return NativeAuthResult('profile_changed'), None
+                    scope, shared = self.managed_network_stop_scope, self.shared_network_stop_scope
+                if committing is not None and scope is not None and shared is not None:
+                    recovered = self._recover_selected_401(scope, shared, cookie_file, stopped, committing)
+                    if recovered is not None:
+                        return recovered
+
+            with self._reader_lock, request_gate_preflight(self.auth_retry_policy, self._notice_admission_gates()):
                 if self._closed or stopped.is_set():
                     return NativeAuthResult('closed'), None
-                if self.recheck_startup_stop is not None:
-                    with _gate_storage_io('native profile revision unavailable'):
-                        if self.store.snapshot().revision != self.launch_snapshot.revision:
-                            record_gate_refusal('local')
-                            return NativeAuthResult('profile_changed'), None
                 scope = self.managed_network_stop_scope
                 if self.auth_stop_required:
                     if scope is None:
@@ -656,12 +738,23 @@ class NativeProfileBinding:
                 self._requests[stopped] = reader
                 if stopped.is_set():
                     return NativeAuthResult('closed'), None
-            uid = reader.require_identity()
+            def checkpoint():
+                if self._closing.is_set() or stopped.is_set():
+                    raise ClientClosed()
+
+            with request_scope(checkpoint=checkpoint):
+                uid = reader.require_identity()
             with self._reader_lock:
                 if self._closed or stopped.is_set():
                     return NativeAuthResult('closed'), None
                 from .auth_status import cookie_days_left
                 return NativeAuthResult('verified'), (uid, cookie_days_left(cookie_file))
+        except ClientClosed:
+            return NativeAuthResult('closed'), None
+        except NativeProfileConflict:
+            return NativeAuthResult('profile_changed'), None
+        except NativeProfileError:
+            return NativeAuthResult('local_unavailable'), None
         except CookieSourceRejected:
             return NativeAuthResult('cookie_unreadable'), None
         except SharedStopOwnerAbsent:
@@ -727,8 +820,18 @@ class NativeProfileBinding:
                     code = 'profile_changed'
                 else:
                     profile_scope, scope = self.recheck_startup_stop(deadline=deadline, cancel=cancel)
-                    plan = retry_startup_lock(scope.preview_uncertain_get_recovery,
-                                              deadline=deadline, cancel=cancel)
+                    def check_recovered_owner():
+                        try:
+                            return scope.preview_uncertain_get_recovery()
+                        except ManagedNetworkStopped as stopped:
+                            if stopped.status_code != 401 or getattr(stopped, 'gate_cleanup_errors', ()):
+                                raise
+                            with scope.gate._exclusive():
+                                scope._check_owner()
+                                scope.gate._no_inflight()
+                            return None
+
+                    plan = retry_startup_lock(check_recovered_owner, deadline=deadline, cancel=cancel)
                     code = 'uncertain' if plan is not None else 'stop_rechecked'
             except StartupStopCancelled:
                 return None, 'closed'
@@ -770,6 +873,7 @@ class NativeProfileBinding:
                 finished.set()
 
     def close(self):
+        self._closing.set()
         with self._reader_lock:
             if self._closed:
                 return

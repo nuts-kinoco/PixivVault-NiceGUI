@@ -27,7 +27,7 @@ from .managed_network_stop_gate import (
     _report_stop_authority,
 )
 from .managed_network_stop_integration import ManagedNetworkStopIntegration
-from .managed_network_stop_transport import ManagedNetworkStopTransport
+from .managed_network_stop_transport import ManagedNetworkStopTransport, StaleCredentialReader
 from .native_profile import (
     NativeProfileError,
     NativeProfileStore,
@@ -106,18 +106,23 @@ def _require_selected_cookie(root: Path, cookie_path: Path,
 class _ProfileBoundTransport(ManagedNetworkStopTransport):
     """Keep exact reader type and original gate while checking every GET."""
 
-    __slots__ = ("profile_root", "cookie_path", "profile_identity")
+    __slots__ = ("profile_root", "cookie_path", "profile_identity", "local_generation")
     _checks_notice_selection = True
 
     def __init__(self, profile_root: Path, cookie_path: Path,
                  profile_identity: tuple[int, int],
-                 previous: ManagedNetworkStopTransport):
+                 previous: ManagedNetworkStopTransport, local_generation: int):
         if not isinstance(previous, ManagedNetworkStopTransport):
             raise ManagedNetworkGateStorageError("managed reader transport unavailable")
         super().__init__(previous.gate, previous.transport)
         self.profile_root = profile_root
         self.cookie_path = cookie_path
         self.profile_identity = profile_identity
+        self.local_generation = local_generation
+
+    def _require_generation(self, local_revision, shared_revision=None):
+        if self.local_generation != local_revision // 2:
+            raise StaleCredentialReader('reader predates credential recovery', authority='local')
 
     @contextmanager
     def _admission_owner_checks(self, *, confirming=False):
@@ -222,11 +227,12 @@ class ManagedProfileNetworkStopScope(ManagedNetworkStopIntegration):
         and the transport owner; deleting/changing the profile blocks a
         previously constructed reader before any further external dispatch.
         """
+        generation = self.gate._observed_revision // 2
         selected = _require_selected_cookie(self.root, cookie_path, self.profile_identity, gate=self.gate)
         client = super().create_reader(selected, transport=transport)
         try:
             client._transport = _ProfileBoundTransport(
-                self.root, selected, self.profile_identity, client._transport,
+                self.root, selected, self.profile_identity, client._transport, generation,
             )
         except BaseException as error:
             _run_gate_cleanup(client.close, 'managed reader close failed', primary=error, authority='local')

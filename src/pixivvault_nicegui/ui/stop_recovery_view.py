@@ -36,7 +36,7 @@ def build_startup_stop_recheck(binding, notice, view):
     client.on_delete(cancel_active)
 
     async def verify_auth(cookie_file):
-        result = await binding.check_authentication(cookie_file, _publish=False)
+        result = await binding.check_selected_authentication(cookie_file, _publish=False)
         if result.code == 'profile_changed':
             view.set_auth_verifier(None)
             notice.set_text(result.message)

@@ -325,6 +325,46 @@ class CookieExpiryCoordinator:
         self.ensure_current(reader)
         return self._snapshot, self._proof
 
+    def install_verified_recovery(self, snapshot, identity, local_revision, shared_revision):
+        """Rebind idle readers of the same account while the gates are still closed."""
+        from .managed_network_stop_shared_transport import SharedProfileStopTransport
+
+        readers = [reader for reader in self._readers if not reader._closed]
+        if (not readers or self._identity not in (None, identity)
+                or any(not isinstance(reader._transport, SharedProfileStopTransport)
+                       or (reader._verified_identity or reader._cookie_user_id or self._identity) != identity
+                       for reader in readers)):
+            return False
+
+        with ExitStack() as locks:
+            for reader in readers:
+                for lock in (reader._identity_lock, reader._expiry_cancel_lock):
+                    if not lock.acquire(blocking=False):
+                        return False
+                    locks.callback(lock.release)
+                if reader._closed:
+                    return False
+
+            path = _canonical(snapshot.cookie_file, file=True)
+            raw, proof = _read_stable(path, COOKIE_LIMIT)
+            try:
+                rows = _parse_existing(raw)
+            except (CookieSyncError, UnicodeError, ValueError):
+                rows = None  # Reading is supported even when expiry renewal is unavailable.
+            jars = [_read_cookies(path) for _ in readers]
+            if any(claim not in (None, identity) for _, claim in jars):
+                raise CookieSourceRejected()
+
+            self._snapshot, self._proof, self._rows = snapshot, proof, rows
+            self._closed, self._adopted, self._identity = False, True, identity
+            for reader, (jar, claim) in zip(readers, jars):
+                reader._cookies, reader._cookie_user_id = jar, claim
+                reader._verified_identity = identity
+                reader._transport.cookie_path = snapshot.cookie_file
+                reader._transport.local_generation = local_revision // 2
+                reader._transport.shared_generation = shared_revision // 2
+            return True
+
     def recognizes_renewal(self, snapshot, launch_cookie):
         with self.lock:
             self._check()

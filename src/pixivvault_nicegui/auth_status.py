@@ -79,7 +79,7 @@ def missing_status() -> AuthHeaderStatus:
 def status_from_result(result, user_id=None, days_left=None) -> AuthHeaderStatus:
     """Map a NativeAuthResult to the original header states."""
     code = getattr(result, 'code', None)
-    if code == 'verified':
+    if getattr(result, 'ok', False):
         days = 30 if days_left is None else days_left
         uid = '' if user_id is None else str(user_id)
         if days > 7:
