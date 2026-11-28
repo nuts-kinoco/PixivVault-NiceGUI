@@ -145,7 +145,7 @@ def test_offline_recovery_page_wires_enabled_guidance_with_auth_disabled(monkeyp
     def create_view(*, allow_auth=True):
         allowed.append(allow_auth)
         return SimpleNamespace(build=lambda:None, close=lambda:None)
-    binding=SimpleNamespace(create_view=create_view,close=lambda:None,
+    binding=SimpleNamespace(create_view=create_view,close=lambda:None,shared_network_stop_scope=None,
                             inspect_stop_history=lambda:())
     native_startup.register_profile_recovery(binding,stop_migration_required=True)
     from nicegui import Client

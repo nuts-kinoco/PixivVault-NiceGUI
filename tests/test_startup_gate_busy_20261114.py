@@ -37,7 +37,7 @@ def test_busy_page_disables_auth_and_explains_retry(monkeypatch):
     monkeypatch.setattr(ui, 'label', capture)
     binding = SimpleNamespace(create_view=lambda *, allow_auth: (
         allowed.append(allow_auth) or SimpleNamespace(build=lambda: None, close=lambda: None)),
-        close=lambda: None)
+        close=lambda: None, shared_network_stop_scope=None)
     native_startup.register_profile_recovery(binding, stop_gate_busy=True)
     client = Client(Page('/generated-busy-recovery'))
     try:
