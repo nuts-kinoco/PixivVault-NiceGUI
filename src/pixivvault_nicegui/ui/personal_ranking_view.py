@@ -325,6 +325,7 @@ class PersonalRankingView(RankingView):
         self._render_candidate_tags(context)
         self.availability()
         if self.page is not None:self.render()
+        if self.busy:self.notice.set_text('取得中…')
         return context
     @staticmethod
     def _missing_exclusions(filters,context):
