@@ -289,13 +289,56 @@ def output_path(out, path):
     return path.relative_to(out).as_posix()
 
 
+def loaded_module_manifest(root, paths):
+    root = Path(root).resolve()
+    result = {}
+    for filename in paths:
+        if not filename:
+            continue
+        path = Path(filename).resolve()
+        if path.is_relative_to(root) and path.is_file() and path.suffix == '.py':
+            result[path.relative_to(root).as_posix()] = hashlib.sha256(path.read_bytes()).hexdigest()
+    return dict(sorted(result.items()))
+
+
+def capture_state(state, fixture_proven, visible, busy):
+    return bool(fixture_proven and visible and (state == 'loading' or not busy))
+
+
+def state_marker(screen, state):
+    if state == 'normal':
+        return {
+            'download': '[data-testid=unified-author-list] > div',
+            'queue': '[data-testid=queue-view] [data-testid=job-row]',
+            'failed': '[data-testid=failed-rows] > div',
+            'dedup': '[data-testid=duplicate-near-group]',
+            'learning': '[data-testid=learning-candidate-author]',
+            'ranking': '[data-testid=ranking-view] .pv-card',
+            'personal': '[data-testid=personal-ranking-view] .pv-card',
+            'library': '[data-testid=library-authors-scroll] > div',
+            'bookmarks': '[data-testid=bookmark-card]',
+            'recommend': '[data-testid=recommend-view] .pv-grid .pv-card',
+        }.get(screen)
+    if state == 'empty' and screen == 'queue':
+        return '[data-testid=queue-view] .pv-empty'
+    if state in {'error', 'loading'}:
+        return {'dedup': '[data-testid=duplicate-status]',
+                'ranking': '[data-testid=ranking-notice]',
+                'personal': '[data-testid=personal-notice]',
+                'recommend': '[data-testid=recommend-notice]' if state == 'error' else
+                             '[data-testid=recommend-busy-status]'}.get(screen)
+    return None
+
+
 def screenshot(page, path, cell, *, redact=False):
     style = '[data-testid=scheduler-account] { color: transparent !important; }' if redact else None
     pixels = page.screenshot(timeout=10000, scale='device', style=style)
     with Image.open(BytesIO(pixels)) as image:
         if image.size != (cell.width, cell.height):
             raise ValueError('physical screenshot dimensions not confirmed')
+        width, height = image.size
     path.write_bytes(pixels)
+    return dict(width=width, height=height, sha256=hashlib.sha256(pixels).hexdigest())
 
 
 def load_page(page, url, cell, *, original=False):
@@ -372,8 +415,24 @@ def capture_port(page, url, cell, out, folder, specs, record, *, prime_zoom=Fals
         raise ValueError('browser zoom not confirmed')
     record['port_step'] = 'screenshot'
     path = folder / 'port.png'
-    screenshot(page, path, cell, redact=final)
+    visible = bool(baseline['nodes']) and page.locator('.pv-content, .q-dialog__inner').filter(visible=True).count() > 0
+    busy = page.locator('[aria-busy=true]:visible, [data-busy=true]:visible, '
+                        '[data-testid=ranking-notice]:visible, [data-testid=learning-candidate-status]:visible').evaluate_all(
+        "els => els.some(e => e.matches('[aria-busy=true], [data-busy=true], [data-testid=learning-candidate-status]') || /取得中|読み込み中/.test(e.innerText))")
+    marker = state_marker(cell.screen, cell.state)
+    marker_text = page.locator(marker).filter(visible=True).first.inner_text() if marker and page.locator(marker).filter(visible=True).count() else ''
+    if cell.state in {'error', 'loading'}:
+        pattern = r'失敗|できません|利用できません' if cell.state == 'error' else r'取得中|スキャン中|確認中|スキャンしています|読み込んでいます|処理中'
+        marker_proven = bool(re.search(pattern, marker_text))
+    elif cell.state == 'empty':
+        marker_proven = (cell.screen == 'queue' and marker_text.strip() == '現在のジョブはありません' and
+                         not page.locator('[data-testid=queue-view] [data-testid=job-row]').filter(visible=True).count())
+    else:
+        marker_proven = bool(marker_text.strip())
+    state_proven = capture_state(cell.state, state_proven and marker_proven, visible, busy)
+    image = screenshot(page, path, cell, redact=final)
     record.update(product=output_path(out, path), state_proven=bool(state_proven),
+                  image=image, state_marker=marker, marker_proven=marker_proven, busy=busy,
                   observed_viewport=baseline['viewport'], device_scale=baseline['zoom'])
     findings = inspect(baseline, zoom=cell.zoom)
     if not state_proven and cell.zoom == 200:
@@ -652,6 +711,8 @@ def capture_batch(context, sources, out, cells, metadata, records, args, owned):
                             prior = records.get(cell.key, {})
                             record = records[cell.key] = {}
                             try:
+                                before = json.loads(smoke.http(port_url + '/_h3/loaded-modules',
+                                    headers={'X-Acceptance': nonce}, timeout=5).read())
                                 if args.prime_zoom:
                                     set_browser_zoom(context, 100)
                                 if args.image_area:
@@ -660,6 +721,12 @@ def capture_batch(context, sources, out, cells, metadata, records, args, owned):
                                     capture_port(port, port_url, cell, out, folder, specs, record,
                                                  prime_zoom=args.prime_zoom, final=args.final,
                                                  checkpoint=lambda: save_receipt(folder, metadata['fingerprint'], record))
+                                after = json.loads(smoke.http(port_url + '/_h3/loaded-modules',
+                                    headers={'X-Acceptance': nonce}, timeout=5).read())
+                                record['loaded_modules_sha256'] = after
+                                record['loaded_modules_stable'] = bool(after) and all(after.get(k) == v for k, v in before.items())
+                                if not record['loaded_modules_stable']:
+                                    record['state_proven'] = False
                             except (Error, ValueError, OSError) as error:
                                 issue = f"移植版 {record.get('port_step')}: {safe_error(error)}"
                                 record['issue'] = ' · '.join(filter(None, (record.get('issue'), issue)))

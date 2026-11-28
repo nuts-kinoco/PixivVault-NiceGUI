@@ -322,6 +322,14 @@ def serve_original(port):
     main.main()
 
 
+def synthetic_job_receipts(rows):
+    from pixivvault_nicegui.bookmark_remote_adapter import RemoteBookmark
+
+    return {row['jobId']: RemoteBookmark(row['id'], 'illustration', 'show', row['author_name'],
+                                       row['author_id'], row['author_name'], (), '', '', 1, 0, 0)
+            for row in rows}
+
+
 def serve_port(port, nonce, *, fixed_queue=True, configure_services=None):
     from pixivvault_nicegui import bootstrap
     from pixivvault_nicegui import services
@@ -383,6 +391,7 @@ def serve_port(port, nonce, *, fixed_queue=True, configure_services=None):
 
             instance.managed_metadata_status = lambda: MetadataStatus(1, 3, 1, 1)
         if fixed_queue:
+            instance._managed_job_records = synthetic_job_receipts(ranking.queue_rows())
             instance.jobs.snapshot = lambda: tuple(
                 JobSnapshot(row["jobId"], "pixiv-illust", row["id"], row["author_name"],
                             state=row["state"], done=row["done"], total=row["total"])

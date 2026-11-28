@@ -117,6 +117,19 @@ def seed_area_profile(product, original):
                            "ELSE 'synthetic pair' END")
                 db.execute('UPDATE discovery_view_history SET thumbnail_url=?', (p5.RANKING_FIXTURE_URL,))
 def serve_port(port, nonce):
+    import secrets
+    import sys
+    from fastapi import Header, HTTPException
+    from nicegui import app
+    from tools.uiux_audit import ROOT, loaded_module_manifest
+
+    @app.get('/_h3/loaded-modules', include_in_schema=False)
+    def loaded_modules(x_acceptance: str | None = Header(default=None)):
+        if not secrets.compare_digest(x_acceptance or '', nonce):
+            raise HTTPException(403)
+        return loaded_module_manifest(ROOT / 'src',
+                                      [getattr(module, '__file__', None) for module in tuple(sys.modules.values())])
+
     from pixivvault_nicegui.auth_status import AuthHeaderStatus, GREEN
     from pixivvault_nicegui.native_startup import NativeProfileBinding
     from pixivvault_nicegui import services
