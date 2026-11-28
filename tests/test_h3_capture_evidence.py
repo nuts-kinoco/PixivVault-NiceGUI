@@ -2,6 +2,7 @@ from io import BytesIO
 import hashlib
 
 from PIL import Image
+import pytest
 
 from tools import uiux_audit
 
@@ -20,6 +21,21 @@ def test_capture_image_records_actual_dimensions_and_digest(tmp_path):
     assert info['sha256'] == hashlib.sha256((tmp_path / 'screen.png').read_bytes()).hexdigest()
 
 
+def test_redacted_capture_restores_text_after_screenshot_failure(tmp_path):
+    class Page:
+        def __init__(self):
+            self.evaluations = []
+        def evaluate(self, script):
+            self.evaluations.append(script)
+        def screenshot(self, **kwargs):
+            raise ValueError('capture failed')
+    page = Page()
+    cell = uiux_audit.Cell('queue', 'normal', 'dark', 1280, 800, 100, None)
+    with pytest.raises(ValueError):
+        uiux_audit.screenshot(page, tmp_path / 'screen.png', cell, redact=True)
+    assert len(page.evaluations) == 2
+
+
 def test_state_requires_current_visible_explicit_evidence():
     assert not uiux_audit.capture_state('normal', False, True, False)
     assert not uiux_audit.capture_state('normal', True, True, True)
@@ -29,8 +45,9 @@ def test_state_requires_current_visible_explicit_evidence():
 
 def test_normal_requires_screen_specific_nonempty_evidence():
     assert uiux_audit.state_marker('queue', 'normal') == '[data-testid=queue-view] [data-testid=job-row]'
-    assert uiux_audit.state_marker('download', 'normal') == '[data-testid=unified-author-list] > div'
+    assert uiux_audit.state_marker('download', 'normal') == '[data-testid=unified-author-row]'
     assert uiux_audit.state_marker('queue', 'empty') == '[data-testid=queue-view] .pv-empty'
+    assert uiux_audit.state_marker('bookmarks', 'empty') == '[data-testid=bookmark-status]'
     assert uiux_audit.state_marker('learning', 'empty') is None
 
 
@@ -54,3 +71,21 @@ def test_synthetic_job_receipts_bind_author_to_matching_job():
     job = JobSnapshot('sample', 'pixiv-illust', '401', 'synthetic', state='done')
     services = SimpleNamespace(_managed_job_records=synthetic_job_receipts(rows))
     assert _accepted_author_id(services, job) == '2001'
+
+
+def test_old_r10_mask_leaves_banner_pixels_below_32():
+    from tools.uiux_audit import old_r10_mask
+    source = Image.new('RGB', (80, 40), 'red')
+    masked = old_r10_mask(source)
+    assert masked.getpixel((0, 31)) == (20, 23, 28)
+    assert masked.getpixel((0, 32)) == (255, 0, 0)
+    assert source.getpixel((0, 0)) == (255, 0, 0)
+
+
+def test_personal_loading_gate_is_released_explicitly():
+    from tools.uiux_fixture import LoadingGate
+    gate = LoadingGate()
+    gate.hold()
+    assert not gate.released.is_set()
+    gate.release()
+    assert gate.released.is_set()

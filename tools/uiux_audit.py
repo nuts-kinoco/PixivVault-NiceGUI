@@ -16,7 +16,7 @@ import secrets
 import sys
 import time
 from urllib.parse import urlsplit
-from PIL import Image
+from PIL import Image, ImageDraw
 
 ROOT = Path(__file__).resolve().parents[1]
 if __package__ in (None, ''):
@@ -43,6 +43,8 @@ FINAL_ZOOM_SCREENS = {'download', 'learning', 'personal', 'bookmarks', 'settings
                       'metadata', 'stop-recovery', 'queue-delete-confirm'}
 SCREENS = {
     **{key: 'normal empty long' for key in p5.SCREENS},
+    'automation': 'normal',
+    'stop-details': 'normal',
     'ranking': 'normal empty long error loading',
     'personal': 'normal empty long error loading',
     'dedup': 'normal empty long error loading',
@@ -305,10 +307,37 @@ def capture_state(state, fixture_proven, visible, busy):
     return bool(fixture_proven and visible and (state == 'loading' or not busy))
 
 
+def old_r10_mask(source):
+    result = source.convert('RGB').copy()
+    ImageDraw.Draw(result).rectangle((0, 0, result.width - 1, 31), fill=(20, 23, 28))
+    return result
+
+
+def compare_h02(page, folder, original):
+    # Reproduce the historical redaction only on isolated synthetic data.
+    banner = page.get_by_test_id('db-status-banner')
+    box = banner.bounding_box()
+    page.evaluate(r"""() => {const w=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);let n;
+      while(n=w.nextNode()) if (/(?:[A-Z]:[\\/]|PHPSESSID|(?:ユーザー|作品|アカウント)\s*ID\s*[:：]\s*\d+)/i.test(n.textContent))
+        n.parentElement.setAttribute('data-worker-mask','1'); }""")
+    try:
+        legacy = page.screenshot(animations='disabled', style='[data-worker-mask],[data-testid=auth-status],'
+            '[data-testid=saved-folder-open],[data-testid=scheduler-account]{color:transparent!important;text-shadow:none!important}')
+    finally:
+        page.evaluate("() => document.querySelectorAll('[data-worker-mask]').forEach(e=>e.removeAttribute('data-worker-mask'))")
+    legacy_path = folder / 'h02-legacy-css.png'
+    legacy_path.write_bytes(legacy)
+    raster_path = folder / 'h02-legacy-r10.png'
+    with Image.open(original) as picture:
+        old_r10_mask(picture).save(raster_path)
+    return dict(banner=box, legacy_css=legacy_path.name, legacy_css_sha256=hashlib.sha256(legacy).hexdigest(),
+                legacy_r10=raster_path.name, legacy_r10_sha256=hashlib.sha256(raster_path.read_bytes()).hexdigest())
+
+
 def state_marker(screen, state):
     if state == 'normal':
         return {
-            'download': '[data-testid=unified-author-list] > div',
+            'download': '[data-testid=unified-author-row]',
             'queue': '[data-testid=queue-view] [data-testid=job-row]',
             'failed': '[data-testid=failed-rows] > div',
             'dedup': '[data-testid=duplicate-near-group]',
@@ -319,8 +348,15 @@ def state_marker(screen, state):
             'bookmarks': '[data-testid=bookmark-card]',
             'recommend': '[data-testid=recommend-view] .pv-grid .pv-card',
         }.get(screen)
-    if state == 'empty' and screen == 'queue':
-        return '[data-testid=queue-view] .pv-empty'
+    if state == 'empty':
+        return {'queue': '[data-testid=queue-view] .pv-empty',
+                'download': '[data-testid=unified-empty]',
+                'failed': '[data-testid=failed-empty]',
+                'dedup': '[data-testid=duplicate-near-empty]',
+                'ranking': '[data-testid=ranking-view] .pv-empty',
+                'personal': '[data-testid=personal-ranking-view] .pv-empty',
+                'library': '[data-testid=library-empty]',
+                'bookmarks': '[data-testid=bookmark-status]'}.get(screen)
     if state in {'error', 'loading'}:
         return {'dedup': '[data-testid=duplicate-status]',
                 'ranking': '[data-testid=ranking-notice]',
@@ -332,7 +368,24 @@ def state_marker(screen, state):
 
 def screenshot(page, path, cell, *, redact=False):
     style = '[data-testid=scheduler-account] { color: transparent !important; }' if redact else None
-    pixels = page.screenshot(timeout=10000, scale='device', style=style)
+    if redact:
+        page.evaluate(r"""() => {
+          const saved=[]; const walk=document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT); let n;
+          while (n=walk.nextNode()) {
+            if (n.parentElement.closest('script,style')) continue;
+            const old=n.nodeValue;
+            const value=old.replace(/[A-Z]:[\\/][^\s<>"']+/gi, '[PATH]')
+              .replace(/((?:作者|作品|ユーザー|アカウント)\s*(?:ID\s*[:：]?)?\s*)\d+/gi, '$1[ID]')
+              .replace(/(\bID\s*[:：]\s*)[\w-]+/gi, '$1[ID]');
+            if (old!==value) {saved.push([n,old]); n.nodeValue=value;}
+          }
+          window.__h3SavedText=saved;
+        }""")
+    try:
+        pixels = page.screenshot(timeout=10000, scale='device', style=style)
+    finally:
+        if redact:
+            page.evaluate("() => {for (const [n,v] of window.__h3SavedText || []) n.nodeValue=v; delete window.__h3SavedText}")
     with Image.open(BytesIO(pixels)) as image:
         if image.size != (cell.width, cell.height):
             raise ValueError('physical screenshot dimensions not confirmed')
@@ -425,12 +478,20 @@ def capture_port(page, url, cell, out, folder, specs, record, *, prime_zoom=Fals
         pattern = r'失敗|できません|利用できません' if cell.state == 'error' else r'取得中|スキャン中|確認中|スキャンしています|読み込んでいます|処理中'
         marker_proven = bool(re.search(pattern, marker_text))
     elif cell.state == 'empty':
-        marker_proven = (cell.screen == 'queue' and marker_text.strip() == '現在のジョブはありません' and
-                         not page.locator('[data-testid=queue-view] [data-testid=job-row]').filter(visible=True).count())
+        expected = {'queue': '現在のジョブはありません', 'download': 'フォロー中の作者がまだ取り込まれていません',
+                    'failed': '失敗はありません', 'dedup': '近似重複の候補はありません',
+                    'ranking': '取得した条件に該当する作品がありません', 'personal': '条件に一致する作品は0件です',
+                    'library': '保存済み作品がありません', 'bookmarks': 'ブックマークはありません'}
+        data_marker = state_marker(cell.screen, 'normal')
+        marker_proven = bool(expected.get(cell.screen) and expected[cell.screen] in marker_text and data_marker and
+                             not page.locator(data_marker).filter(visible=True).count())
     else:
         marker_proven = bool(marker_text.strip())
     state_proven = capture_state(cell.state, state_proven and marker_proven, visible, busy)
     image = screenshot(page, path, cell, redact=final)
+    if (os.environ.get('PV_H3_COMPARE_REDACTION') == '1' and cell.screen == 'failed' and
+            cell.state == 'normal' and cell.width == 1280 and cell.theme == 'dark'):
+        record['h02_comparison'] = compare_h02(page, folder, path)
     record.update(product=output_path(out, path), state_proven=bool(state_proven),
                   image=image, state_marker=marker, marker_proven=marker_proven, busy=busy,
                   observed_viewport=baseline['viewport'], device_scale=baseline['zoom'])
@@ -457,6 +518,8 @@ def capture_port(page, url, cell, out, folder, specs, record, *, prime_zoom=Fals
         observed.append('A11')
     if checkpoint:
         checkpoint()
+    if os.environ.get('PV_H3_ACCEPTANCE_PASS') == '1':
+        return
     if cell.screen == 'settings':
         record['port_step'] = 'settings-groups'
         capture_settings_groups(page, out, folder, record)
@@ -710,7 +773,11 @@ def capture_batch(context, sources, out, cells, metadata, records, args, owned):
                             folder.mkdir(parents=True, exist_ok=True)
                             prior = records.get(cell.key, {})
                             record = records[cell.key] = {}
+                            personal_hold = cell.screen == 'personal' and cell.state == 'loading'
                             try:
+                                if personal_hold:
+                                    smoke.http(port_url + '/_h3/personal-gate/hold', data=b'',
+                                        headers={'X-Acceptance': nonce}, timeout=5).close()
                                 before = json.loads(smoke.http(port_url + '/_h3/loaded-modules',
                                     headers={'X-Acceptance': nonce}, timeout=5).read())
                                 if args.prime_zoom:
@@ -730,6 +797,28 @@ def capture_batch(context, sources, out, cells, metadata, records, args, owned):
                             except (Error, ValueError, OSError) as error:
                                 issue = f"移植版 {record.get('port_step')}: {safe_error(error)}"
                                 record['issue'] = ' · '.join(filter(None, (record.get('issue'), issue)))
+                                if personal_hold:
+                                    try:
+                                        record['personal_notice'] = port.get_by_test_id('personal-notice').inner_text(timeout=2000)
+                                        record['personal_fetch_disabled'] = not port.get_by_test_id('personal-fetch').is_enabled()
+                                        diagnostic = folder / 'personal-loading-diagnostic.png'
+                                        record['diagnostic_image'] = screenshot(port, diagnostic, cell, redact=final)
+                                        record['diagnostic_image']['path'] = output_path(out, diagnostic)
+                                        record['loaded_modules_sha256'] = json.loads(smoke.http(port_url + '/_h3/loaded-modules',
+                                            headers={'X-Acceptance': nonce}, timeout=5).read())
+                                    except (Error, OSError, ValueError):
+                                        pass
+                            finally:
+                                if personal_hold:
+                                    try:
+                                        response = smoke.http(port_url + '/_h3/personal-gate/release', data=b'',
+                                            headers={'X-Acceptance': nonce}, timeout=5)
+                                        record['personal_gate_entered'] = json.loads(response.read())['entered']
+                                        if not record['personal_gate_entered']:
+                                            record['state_proven'] = False
+                                    except OSError:
+                                        record['state_proven'] = False
+                                        record['personal_gate_release_failed'] = True
                             if args.prime_zoom and record.get('measured'):
                                 record['findings'].extend(row for row in prior.get('findings', ())
                                                           if row['item'] == 'A11' and row['selector'] == '.pv-content')
