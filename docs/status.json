@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-24 09:20",
+  "updated": "2026-11-28 17:59",
   "phases": [
     {
       "id": "P0",
@@ -708,6 +708,16 @@
       "checker": "今回の限定検査済み",
       "real_app": "本人の通常起動待ち",
       "evidence": "docs/HANDOFF_2026-11-24.md、verify/closeprep-20261124/OUTCOME.md。前後差分・実機・物理操作・記録回収後の公開と最終報告が残る"
+    },
+    {
+      "phase": "P8",
+      "id": "H4",
+      "title": "実機の復帰（401 停止の解除、再起動後の維持、本人の取得 1 件）",
+      "stage": 5,
+      "stage_name": "正式受入",
+      "checker": "CoS の実機確認と文書の独立監査",
+      "real_app": "済（本人 11-28: 取得できた）",
+      "evidence": "verify/cos_h1_20261127/H4_RECOVERY_REPORT.md（停止解除・10 タブ・学習とライブラリの保全）。本人の認証操作の時刻と結果文は未記録。停止表示の修正 8e825de0 は実機未確認"
     }
   ],
   "decisions": [
@@ -871,132 +881,22 @@
     "errors": 0,
     "seconds": 653.13
   },
-  "head": "4f73fd1b docs: finalize OLD45 (K01/K02/K09 PASS), HANDOFF launcher, D5 real-data check; tools: launch_d10 ASCII comments",
+  "head": "8e825de0 401解除通知で停止表示を更新する",
   "worktrees": [
     {
       "path": "work",
       "branch": "pv-dev-baseline",
-      "head": "4f73fd1"
+      "head": "8e825de"
     },
     {
-      "path": "a17-smoke-20261124",
-      "branch": "a17-smoke-20261124",
-      "head": "4f39878"
+      "path": "cos-fixed-8450991a-20261127",
+      "branch": "",
+      "head": "8450991"
     },
     {
-      "path": "closeprep-20261124",
-      "branch": "closeprep-20261124",
-      "head": "2fce5be"
-    },
-    {
-      "path": "d5-proof-20261124",
-      "branch": "d5-proof-20261124",
-      "head": "2fcea03"
-    },
-    {
-      "path": "d6-offline-20261124",
-      "branch": "d6-offline-20261124",
-      "head": "a601433"
-    },
-    {
-      "path": "fix-busy-20261122",
-      "branch": "fix-busy",
-      "head": "88ea946"
-    },
-    {
-      "path": "fix-notice-20261122",
-      "branch": "fix-notice",
-      "head": "35857c0"
-    },
-    {
-      "path": "gatebusy-20261124",
-      "branch": "gatebusy-20261124",
-      "head": "3d4763c"
-    },
-    {
-      "path": "gpu-reco-20261122",
-      "branch": "gpu-reco",
-      "head": "3ec5bdd"
-    },
-    {
-      "path": "gpu-verify-20261122",
-      "branch": "gpu-verify",
-      "head": "e23f10a"
-    },
-    {
-      "path": "gpu-wire-20261122",
-      "branch": "gpu-wire",
-      "head": "db46f81"
-    },
-    {
-      "path": "gpu8-20261124",
-      "branch": "gpu8-20261124",
-      "head": "f5dca08"
-    },
-    {
-      "path": "navimpl2-20261124",
-      "branch": "navimpl2-20261124",
-      "head": "64ec908"
-    },
-    {
-      "path": "p5-evidence-20261124",
-      "branch": "p5-evidence-20261124",
-      "head": "6770a88"
-    },
-    {
-      "path": "small-dec-20261122",
-      "branch": "small-dec",
-      "head": "2edfcc7"
-    },
-    {
-      "path": "ui-audit-20261122",
-      "branch": "ui-audit",
-      "head": "6123c7a"
-    },
-    {
-      "path": "ui-fix1-20261122",
-      "branch": "ui-fix1",
-      "head": "afba70b"
-    },
-    {
-      "path": "ui-fix2-20261122",
-      "branch": "ui-fix2",
-      "head": "6def209"
-    },
-    {
-      "path": "ui-fix3-20261122",
-      "branch": "ui-fix3",
-      "head": "5fe3b44"
-    },
-    {
-      "path": "ui-fix4-20261122",
-      "branch": "ui-fix4",
-      "head": "d886e9e"
-    },
-    {
-      "path": "ui-fix5-20261122",
-      "branch": "ui-fix5",
-      "head": "f2e772e"
-    },
-    {
-      "path": "ui-img-20261122",
-      "branch": "ui-img",
-      "head": "936c390"
-    },
-    {
-      "path": "ui-integ-20261122",
-      "branch": "ui-integ",
-      "head": "9d56835"
-    },
-    {
-      "path": "ui-nav-20261122",
-      "branch": "ui-nav",
-      "head": "0f42626"
-    },
-    {
-      "path": "ui-navimpl-20261123",
-      "branch": "ui-navimpl",
-      "head": "739185b"
+      "path": "wt",
+      "branch": "h1-20261127",
+      "head": "9429d9d"
     }
   ],
   "stop": ""
