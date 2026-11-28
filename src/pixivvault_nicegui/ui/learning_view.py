@@ -824,6 +824,7 @@ class LearningView:
                                             run.url, new_tab=True).classes('min-w-0').style(
                                                 'font-size:11.5px;line-height:17px;white-space:pre;')
                                         link.props('rel=noopener noreferrer')
+                                        link.tooltip(run.url)
                                     else:
                                         ui.label(run.text).classes('min-w-0').style(
                                             'font-size:11.5px;line-height:17px;white-space:pre;')
@@ -2301,9 +2302,9 @@ class LearningView:
             with self.trend_content:
                 ui.label('いまはあなたの保存から出しています').classes('pv-subtitle')
                 for row in trend.get('local_seed_rows', ())[:6]:
-                    with ui.row().classes('w-full items-center justify-between'):
-                        ui.label(row['display']).classes('truncate')
-                        ui.label(f'保存 {row["count"]} 件').classes('pv-subtitle')
+                    with ui.row().classes('w-full items-center no-wrap'):
+                        ui.label(row['display']).classes('truncate min-w-0 grow').tooltip(row['display'])
+                        ui.label(f'保存 {row["count"]} 件').classes('pv-subtitle shrink-0')
             self._trend_visible_rows = len(trend.get('local_seed_rows', ())[:6])
             return
         shown = displayed_rows(trend['rows'], self._trend_mode, getattr(self, '_trend_rail_rows', 1))
@@ -2315,10 +2316,10 @@ class LearningView:
                     f'grid-template-rows:repeat({max(1, (len(shown)+2)//3)},minmax(0,1fr));'):
                 for row, ratio in shown:
                     with ui.row().classes('pv-trend-item w-full items-center no-wrap'):
-                        ui.label(row['display']).classes('truncate').style('width:84px')
-                        ui.label('MAX' if row.get('at_cap') else '').style('width:24px;font-size:8px')
-                        ui.linear_progress(value=ratio,show_value=False).classes('flex-1')
-                        ui.label(f"いいね{row['like_count']}・表示{row['shown_count']}").classes('pv-subtitle').style('width:96px;font-size:10.5px')
+                        ui.label(row['display']).classes('pv-trend-name truncate').tooltip(row['display'])
+                        ui.label('MAX' if row.get('at_cap') else '').style('flex:0 0 24px;font-size:8px')
+                        ui.linear_progress(value=ratio,show_value=False).classes('flex-1 min-w-0')
+                        ui.label(f"いいね{row['like_count']}・表示{row['shown_count']}").classes('pv-subtitle').style('flex:0 0 96px;font-size:10.5px;text-align:right')
 
     def _initial_current(self,epoch):
         return (self.discovery is not None and self.active and not self.state.closed
