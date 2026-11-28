@@ -338,6 +338,8 @@ def test_settings_switch_accepts_pointer_in_28_pixel_target(dialog_page):
     page, expect = dialog_page
     page.get_by_test_id('ui-fix2-open-preferences').click()
     switch = page.get_by_test_id('preference-meta_backfill_enabled')
+    switch.evaluate('async e => Promise.all(e.closest(".q-dialog").getAnimations({ subtree: true })'
+                    '.map(animation => animation.finished))')
     switch.scroll_into_view_if_needed()
     box = switch.bounding_box()
     hit = {'x': box['x'] + 10, 'y': box['y'] + box['height'] / 2 - 13}
