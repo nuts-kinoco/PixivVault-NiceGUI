@@ -152,7 +152,8 @@ class DemoShell:
                             if shared is not None:
                                 profile = getattr(services, 'native_profile', None)
                                 self.get_recovery_view = SharedGetRecoveryView(
-                                    shared, getattr(profile, 'auth_status', None))
+                                    shared, getattr(profile, 'recovered_401', None),
+                                    can_check_auth=profile is not None)
                         policy=getattr(self.services,'_request_retry',None)
                         if policy is not None:
                             self.request_status_view = RequestStatusView(policy, compact=True)

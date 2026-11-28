@@ -21,13 +21,22 @@ def shared_get_scope(services):
 
 
 class SharedGetRecoveryView:
-    def __init__(self, scope, auth_status=None):
+    def __init__(self, scope, recovered_401=None, *, can_check_auth=False):
         self.scope = scope
         self.closed = self.busy = False
         self.plan = None
         self.client = ui.context.client
-        self._refresh_timer = None
-        self._unsubscribe_auth = None
+        self.recovered_401 = recovered_401
+        self._initial_generation = recovered_401.generation if recovered_401 is not None else None
+        self.can_check_auth = can_check_auth
+        self._summary_status = None
+        self._summary_generation = None
+        self._summary_revision = None
+        self._unsubscribe_recovery = None
+        try:
+            self._loop = asyncio.get_running_loop()
+        except RuntimeError:
+            self._loop = None
         self.entry = secondary_button('取得停止の確認・回復', self.open, testid='shared-get-recovery-open')
         self.summary = ui.label('').classes('pv-alert-banner').props('role=alert data-testid=shared-get-recovery-summary')
         self.summary.set_visibility(False)
@@ -51,35 +60,54 @@ class SharedGetRecoveryView:
                     self.confirm_button = danger_button('確認して取得待ちの記録を退避する', self.recover,
                                                         testid='shared-get-recovery-confirm')
         self.sync()
-        if auth_status is not None:
-            self._unsubscribe_auth = auth_status.subscribe(self._auth_changed)
-        self._initial_check = ui.timer(.1, self.inspect_summary, once=True)
+        if recovered_401 is not None:
+            self._unsubscribe_recovery = recovered_401.subscribe(self._recovery_notified)
+        self._initial_check = ui.timer(.1, self._initial_inspect, once=True)
+        self.client.on_delete(self.close)
 
-    def _auth_changed(self, _status, _notice):
-        self._schedule_refresh()
+    async def _initial_inspect(self):
+        if (self.recovered_401 is not None
+                and self._initial_generation != self.recovered_401.generation):
+            return
+        await self.inspect_summary()
 
-    def _schedule_refresh(self):
-        if not self.closed and self._refresh_timer is None:
-            with self.client:
-                self._refresh_timer = ui.timer(2, self._refresh_after_auth, once=True)
+    def _recovery_notified(self, generation, revision):
+        if self._loop is not None and not self._loop.is_closed():
+            self._loop.call_soon_threadsafe(self._clear_recovered_401, generation, revision)
 
-    async def _refresh_after_auth(self):
-        self._refresh_timer = None
-        await self.inspect_summary(retry_busy=True)
+    def _clear_recovered_401(self, generation, revision):
+        if (not self.closed and not self.client.is_deleted and self._summary_status == 401
+                and ((self._summary_revision is not None and revision is not None
+                      and self._summary_revision < revision)
+                     or (self._summary_revision is None and self._summary_generation < generation))):
+            self._summary_status = None
+            self.summary.set_text('')
+            self.summary.set_visibility(False)
 
-    async def inspect_summary(self, retry_busy=False):
+    async def inspect_summary(self):
         if self.closed:
             return
+        generation = self.recovered_401.generation if self.recovered_401 is not None else None
+        status = None
+        revision = None
         try:
             plan = await asyncio.to_thread(self.scope.preview_uncertain_get_recovery)
             message = UNCERTAIN_MESSAGE if plan is not None else ''
         except ManagedNetworkGateBusy:
-            if retry_busy and not self.closed:
-                self._schedule_refresh()
             return  # A running GET is not evidence of an abandoned intent.
         except Exception as error:
+            status = error.status_code if isinstance(error, ManagedNetworkStopped) else None
+            revision = getattr(error, 'gate_revision', None)
             message = self.failure_message(error)
-        if not self.closed:
+        if status == 401 and self.recovered_401 is not None:
+            cleared = self.recovered_401.revision
+            if ((revision is not None and cleared is not None and revision < cleared)
+                    or (revision is None and generation != self.recovered_401.generation)):
+                return
+        if not self.closed and not self.client.is_deleted:
+            self._summary_status = status
+            self._summary_generation = generation
+            self._summary_revision = revision
             self.summary.set_text(message)
             self.summary.set_visibility(bool(message))
 
@@ -90,8 +118,19 @@ class SharedGetRecoveryView:
                                         and self.plan is not None and bool(self.acknowledge.value))
         self.cancel_button.set_enabled(not self.busy)
 
-    @staticmethod
-    def failure_message(error):
+    def _can_check_auth(self):
+        return self.can_check_auth() if callable(self.can_check_auth) else self.can_check_auth
+
+    def refresh_auth_guidance(self):
+        if self.closed or self.client.is_deleted or self._can_check_auth():
+            return
+        guidance = '設定の「選択したCookieの認証を確認」で解除できます。'
+        if self._summary_status == 401:
+            self.summary.set_text(self.summary.text.replace(guidance, ''))
+        self.notice.set_text(self.notice.text.replace(guidance, '').replace(
+            '設定で「選択したCookieの認証を確認」を押してください。', '認証確認が可能な画面から回復してください。'))
+
+    def failure_message(self, error):
         if isinstance(error, ManagedNetworkStopped):
             reason = {429: 'アクセス制限', 401: '認証エラー', 403: 'アクセス拒否'}.get(error.status_code, '通信エラー')
             message = f'過去のHTTP {error.status_code}（{reason}）によるSTOPが記録されています。この回復では解除できません。'
@@ -100,7 +139,7 @@ class SharedGetRecoveryView:
                             '停止履歴・所有情報を削除せず、確認を依頼してください。'
                             '保存元の正式移行が必要な場合は、起動時の「停止履歴の確認と移行手順を開く」で確認してください。'
                             '正式移行でもSTOPは維持されます。')
-            elif error.status_code == 401:
+            elif error.status_code == 401 and self._can_check_auth():
                 message += '設定の「選択したCookieの認証を確認」で解除できます。'
             return message
         if isinstance(error, ManagedNetworkGateBusy):
@@ -135,11 +174,15 @@ class SharedGetRecoveryView:
         self.sync()
         try:
             await asyncio.to_thread(self.scope.recover_uncertain_get, plan, confirmed=True)
-            message = ('送信中の記録を退避しました。認証エラーによる停止は続いています。'
-                       '設定で「選択したCookieの認証を確認」を押してください。'
-                       '起動設定の確認画面を開いている場合は、アプリを起動し直してください。'
-                       if getattr(plan, 'stop_status', None) == 401 else
-                       '送信中の記録を退避しました。元の画面で取得をやり直してください（自動再送はしていません）。')
+            if getattr(plan, 'stop_status', None) == 401:
+                message = '送信中の記録を退避しました。認証エラーによる停止は続いています。'
+                if self._can_check_auth():
+                    message += '設定で「選択したCookieの認証を確認」を押してください。'
+                else:
+                    message += '認証確認が可能な画面から回復してください。'
+                message += '起動設定の確認画面を開いている場合は、アプリを起動し直してください。'
+            else:
+                message = '送信中の記録を退避しました。元の画面で取得をやり直してください（自動再送はしていません）。'
         except Exception as error:
             message = self.failure_message(error)
         self.busy = False
@@ -162,10 +205,7 @@ class SharedGetRecoveryView:
         self.closed = True
         self.plan = None
         self._initial_check.cancel()
-        if self._refresh_timer is not None:
-            self._refresh_timer.cancel()
-            self._refresh_timer = None
-        if self._unsubscribe_auth is not None:
-            self._unsubscribe_auth()
-            self._unsubscribe_auth = None
+        if self._unsubscribe_recovery is not None:
+            self._unsubscribe_recovery()
+            self._unsubscribe_recovery = None
         self.dialog.close()

@@ -107,6 +107,48 @@ def status_from_result(result, user_id=None, days_left=None) -> AuthHeaderStatus
     return AuthHeaderStatus('stopped', f'▲ [通信停止中] {message}', YELLOW)
 
 
+class Recovery401Event:
+    """A local, thread-safe signal emitted only after a 401 recovery commits."""
+
+    def __init__(self):
+        from threading import Lock
+        self._lock = Lock()
+        self._generation = 0
+        self._revision = None
+        self._listeners = []
+
+    @property
+    def generation(self):
+        with self._lock:
+            return self._generation
+
+    @property
+    def revision(self):
+        with self._lock:
+            return self._revision
+
+    def subscribe(self, listener):
+        with self._lock:
+            self._listeners.append(listener)
+        def unsubscribe():
+            with self._lock:
+                if listener in self._listeners:
+                    self._listeners.remove(listener)
+        return unsubscribe
+
+    def publish(self, revision):
+        with self._lock:
+            self._generation += 1
+            generation = self._generation
+            self._revision = revision
+            listeners = tuple(self._listeners)
+        for listener in listeners:
+            try:
+                listener(generation, revision)
+            except Exception:
+                pass  # Notification failures cannot change recovery's outcome.
+
+
 class AuthStatusHolder:
     """Process-wide current header status; shells subscribe and render from it."""
 

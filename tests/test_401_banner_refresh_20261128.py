@@ -1,5 +1,6 @@
 """The shared STOP banner follows selected authentication without network reads."""
 import pytest
+import asyncio
 from contextlib import nullcontext
 from threading import Lock
 from types import SimpleNamespace
@@ -39,7 +40,7 @@ async def test_startup_recovery_page_keeps_shared_view(recovery, monkeypatch):
             pages['/']()
             view, = views
             await view.inspect_summary()
-            assert view.summary.visible and '選択したCookieの認証を確認' in view.summary.text
+            assert view.summary.visible and '選択したCookieの認証を確認' not in view.summary.text
         client.delete()
         assert view.closed and view._initial_check._is_canceled
     finally:
@@ -52,11 +53,12 @@ async def test_shell_connects_auth_holder_and_closes_view(recovery, monkeypatch)
     from pixivvault_nicegui.services import ApplicationServices
     from pixivvault_nicegui.ui.shell import DemoShell
 
-    binding, _, shared, _, chosen, _, _, _ = recovery
+    binding, local, shared, _, chosen, _, _, _ = recovery
     shared.gate.trip(401)
     services = ApplicationServices(1)
     services.native_profile = binding
-    services.managed_network_stop = shared
+    local.shared_owner = shared
+    services.managed_network_stop = local
     client = Client(ui.page('/_banner_401_shell'))
     try:
         with client:
@@ -65,14 +67,7 @@ async def test_shell_connects_auth_holder_and_closes_view(recovery, monkeypatch)
             await view.inspect_summary()
             assert view.summary.visible
             assert (await binding.check_selected_authentication(chosen)).ok
-            timer = view._refresh_timer
-            assert timer is not None
-            async def connected():
-                return True
-            monkeypatch.setattr(timer, '_can_start', connected)
-            monkeypatch.setattr(timer, '_should_stop', lambda: False)
-            timer.interval = 0
-            await timer._run_once()
+            await asyncio.sleep(0)
             assert not view.summary.visible
             shell.close()
             assert not binding.auth_status._listeners
@@ -95,7 +90,7 @@ async def test_auth_notification_refreshes_banner(recovery, monkeypatch, outcome
     client = Client(ui.page('/_banner_401_notification'))
     try:
         with client:
-            view = SharedGetRecoveryView(shared, binding.auth_status)
+            view = SharedGetRecoveryView(shared, binding.recovered_401, can_check_auth=True)
             await view.inspect_summary()
             assert view.summary.visible
             assert '選択したCookieの認証を確認' in view.summary.text
@@ -103,16 +98,12 @@ async def test_auth_notification_refreshes_banner(recovery, monkeypatch, outcome
             assert result.code == outcome or (outcome == 'failed' and not result.ok)
             before = list(sends)
             files_before = fingerprint(shared.root)
-            timer = view._refresh_timer
-            assert timer is not None
-            await timer.callback()
-            timer.cancel()
+            await asyncio.sleep(0)
             assert view.summary.visible is (outcome == 'failed')
             assert sends == before == [HOME, IDENTITY]
             assert fingerprint(shared.root) == files_before
             view.close()
-            assert not binding.auth_status._listeners
-            assert view._refresh_timer is None
+            assert not binding.recovered_401._listeners
     finally:
         client.delete()
 
@@ -124,27 +115,20 @@ async def test_busy_preserves_banner_and_retries_then_close(recovery, monkeypatc
     client = Client(ui.page('/_banner_401_busy'))
     try:
         with client:
-            view = SharedGetRecoveryView(shared, binding.auth_status)
+            view = SharedGetRecoveryView(shared, binding.recovered_401)
             await view.inspect_summary()
             previous = view.summary.text
-            assert (await binding.check_selected_authentication(chosen)).ok
             preview = shared.preview_uncertain_get_recovery
             monkeypatch.setattr(shared, 'preview_uncertain_get_recovery',
                                 lambda: (_ for _ in ()).throw(ManagedNetworkGateBusy()))
-            timer = view._refresh_timer
-            await timer.callback()
-            timer.cancel()
+            await view.inspect_summary()
             assert view.summary.visible and view.summary.text == previous
-            assert view._refresh_timer.active
             monkeypatch.setattr(shared, 'preview_uncertain_get_recovery', preview)
-            timer = view._refresh_timer
-            await timer.callback()
-            timer.cancel()
+            assert (await binding.check_selected_authentication(chosen)).ok
+            await asyncio.sleep(0)
             assert not view.summary.visible
-            binding.auth_status.publish(binding.auth_status.status)
-            pending = view._refresh_timer
             view.close()
-            assert pending._is_canceled and view._initial_check._is_canceled
-            assert view._refresh_timer is None and not binding.auth_status._listeners
+            assert view._initial_check._is_canceled
+            assert not binding.recovered_401._listeners
     finally:
         client.delete()

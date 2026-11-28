@@ -103,8 +103,9 @@ class NativeProfileBinding:
         self._stop_recheck_worker = None
         self._stop_recheck_result = (None, 'busy')
         # Header login status shared by every client of this process.
-        from .auth_status import AuthStatusHolder
+        from .auth_status import AuthStatusHolder, Recovery401Event
         self.auth_status = AuthStatusHolder()
+        self.recovered_401 = Recovery401Event()
         self.startup_auth_task = None
         self._loop = None
         self._refresh_running = False
@@ -639,7 +640,7 @@ class NativeProfileBinding:
 
         previous = self.store.snapshot()
         coordinator = self._cookie_expiry_coordinator
-        installed, days = False, None
+        installed, days, cleared_shared_revision = False, None, None
 
         def checkpoint():
             if (self._closing.is_set() or stopped.is_set()
@@ -649,7 +650,8 @@ class NativeProfileBinding:
 
         @contextmanager
         def save(uid, local_revision, shared_revision):
-            nonlocal installed, days
+            nonlocal installed, days, cleared_shared_revision
+            cleared_shared_revision = shared_revision
             days = cookie_days_left(cookie_file)
             if self.launch_snapshot is not None and previous.save_parent != self.launch_snapshot.save_parent:
                 from .native_profile import NativeProfileConflict
@@ -682,6 +684,10 @@ class NativeProfileBinding:
                 locks.callback(coordinator.lock.release)
             uid = recover_draft_auth_401(scope, shared_owner, cookie_file, save, checkpoint, committing)
         if uid is not None:
+            try:
+                self.recovered_401.publish(cleared_shared_revision)
+            except Exception:
+                pass
             return NativeAuthResult('recovered' if installed else 'recovered_restart'), (uid, days)
         return None
 
@@ -959,7 +965,9 @@ def register_profile_recovery(binding, *, cookie_rejected=False,
             if (binding.shared_network_stop_scope is not None
                     and (stop_get_uncertain or cookie_rejected and not stop_gate_busy)):
                 from .ui.shared_get_recovery_view import SharedGetRecoveryView
-                recovery = SharedGetRecoveryView(binding.shared_network_stop_scope)
+                recovery = SharedGetRecoveryView(binding.shared_network_stop_scope,
+                    getattr(binding, 'recovered_401', None),
+                    can_check_auth=cookie_rejected and not (stop_gate_busy or stop_migration_required or stop_get_uncertain or legacy_v5_uncertain))
                 ui.context.client.on_delete(recovery.close)
             view = binding.create_view(allow_auth=not (stop_migration_required or stop_gate_busy or stop_get_uncertain or legacy_v5_uncertain))
             if recheck_stop:

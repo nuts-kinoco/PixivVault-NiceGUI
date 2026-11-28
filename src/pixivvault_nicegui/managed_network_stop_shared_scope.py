@@ -348,8 +348,12 @@ class ManagedUserNetworkStopScope:
         self._check_owner()
         with self.gate._connection_locked() as conn:
             state = self.gate._read_locked(conn)
+            def stopped():
+                error = ManagedNetworkStopped(state.status_code)
+                error.gate_revision = state.revision
+                return error
             if state.status_code in (403, 429):
-                raise ManagedNetworkStopped(state.status_code)
+                raise stopped()
         path = self.gate.inflight_path
         _reject_links(path)
         with _gate_storage_io('shared GET intent unavailable'):
@@ -357,7 +361,7 @@ class ManagedUserNetworkStopScope:
                 path.lstat()
             except FileNotFoundError:
                 if state.blocked:
-                    raise ManagedNetworkStopped(state.status_code)
+                    raise stopped()
                 return None
         try:
             identity = _file_identity(path)
@@ -367,7 +371,7 @@ class ManagedUserNetworkStopScope:
                 if (info.st_dev, info.st_ino) != identity:
                     raise ManagedNetworkGateStorageError('shared GET intent changed')
                 if state.blocked and marker == _INFLIGHT_BYTES:
-                    raise ManagedNetworkStopped(state.status_code)
+                    raise stopped()
                 if marker not in (_INFLIGHT_BYTES, _UNANSWERED_GET_BYTES):
                     raise ManagedNetworkGateStorageError('shared GET outcome was not classified')
             if (_file_identity(path) != identity or path.stat().st_mtime_ns != info.st_mtime_ns):

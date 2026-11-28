@@ -40,6 +40,8 @@ def build_startup_stop_recheck(binding, notice, view):
         result = await binding.check_selected_authentication(cookie_file, _publish=False)
         if result.code == 'profile_changed':
             view.set_auth_verifier(None)
+            if recovery is not None:
+                recovery.refresh_auth_guidance()
             notice.set_text(result.message)
         elif result.code == 'uncertain':
             show_recovery(binding.shared_network_stop_scope)
@@ -60,7 +62,8 @@ def build_startup_stop_recheck(binding, notice, view):
             return
         from .shared_get_recovery_view import SharedGetRecoveryView
         with actions:
-            recovery = SharedGetRecoveryView(scope)
+            recovery = SharedGetRecoveryView(scope, getattr(binding, 'recovered_401', None),
+                                             can_check_auth=lambda: view.verify_auth is not None)
         client.on_delete(recovery.close)
 
     async def check():
