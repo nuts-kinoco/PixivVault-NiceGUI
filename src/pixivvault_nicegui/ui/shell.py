@@ -150,7 +150,9 @@ class DemoShell:
                                 with self.borrow_switch:ui.tooltip('借用プレミアム: 設定でCookieと保存先を保存し、再起動するとONにできます。')
                             shared = shared_get_scope(services)
                             if shared is not None:
-                                self.get_recovery_view = SharedGetRecoveryView(shared)
+                                profile = getattr(services, 'native_profile', None)
+                                self.get_recovery_view = SharedGetRecoveryView(
+                                    shared, getattr(profile, 'auth_status', None))
                         policy=getattr(self.services,'_request_retry',None)
                         if policy is not None:
                             self.request_status_view = RequestStatusView(policy, compact=True)

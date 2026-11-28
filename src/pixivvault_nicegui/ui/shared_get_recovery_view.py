@@ -21,10 +21,13 @@ def shared_get_scope(services):
 
 
 class SharedGetRecoveryView:
-    def __init__(self, scope):
+    def __init__(self, scope, auth_status=None):
         self.scope = scope
         self.closed = self.busy = False
         self.plan = None
+        self.client = ui.context.client
+        self._refresh_timer = None
+        self._unsubscribe_auth = None
         self.entry = secondary_button('取得停止の確認・回復', self.open, testid='shared-get-recovery-open')
         self.summary = ui.label('').classes('pv-alert-banner').props('role=alert data-testid=shared-get-recovery-summary')
         self.summary.set_visibility(False)
@@ -48,15 +51,31 @@ class SharedGetRecoveryView:
                     self.confirm_button = danger_button('確認して取得待ちの記録を退避する', self.recover,
                                                         testid='shared-get-recovery-confirm')
         self.sync()
+        if auth_status is not None:
+            self._unsubscribe_auth = auth_status.subscribe(self._auth_changed)
         self._initial_check = ui.timer(.1, self.inspect_summary, once=True)
 
-    async def inspect_summary(self):
+    def _auth_changed(self, _status, _notice):
+        self._schedule_refresh()
+
+    def _schedule_refresh(self):
+        if not self.closed and self._refresh_timer is None:
+            with self.client:
+                self._refresh_timer = ui.timer(2, self._refresh_after_auth, once=True)
+
+    async def _refresh_after_auth(self):
+        self._refresh_timer = None
+        await self.inspect_summary(retry_busy=True)
+
+    async def inspect_summary(self, retry_busy=False):
         if self.closed:
             return
         try:
             plan = await asyncio.to_thread(self.scope.preview_uncertain_get_recovery)
             message = UNCERTAIN_MESSAGE if plan is not None else ''
         except ManagedNetworkGateBusy:
+            if retry_busy and not self.closed:
+                self._schedule_refresh()
             return  # A running GET is not evidence of an abandoned intent.
         except Exception as error:
             message = self.failure_message(error)
@@ -81,6 +100,8 @@ class SharedGetRecoveryView:
                             '停止履歴・所有情報を削除せず、確認を依頼してください。'
                             '保存元の正式移行が必要な場合は、起動時の「停止履歴の確認と移行手順を開く」で確認してください。'
                             '正式移行でもSTOPは維持されます。')
+            elif error.status_code == 401:
+                message += '設定の「選択したCookieの認証を確認」で解除できます。'
             return message
         if isinstance(error, ManagedNetworkGateBusy):
             return '取得処理または別の画面が通信記録を使用中です。処理が終わってから再度確認してください。'
@@ -140,5 +161,11 @@ class SharedGetRecoveryView:
     def close(self):
         self.closed = True
         self.plan = None
-        self._initial_check.deactivate()
+        self._initial_check.cancel()
+        if self._refresh_timer is not None:
+            self._refresh_timer.cancel()
+            self._refresh_timer = None
+        if self._unsubscribe_auth is not None:
+            self._unsubscribe_auth()
+            self._unsubscribe_auth = None
         self.dialog.close()
