@@ -7,12 +7,29 @@ import json
 import os
 import sqlite3
 import time
+import threading
 from types import SimpleNamespace
 from unittest.mock import patch
 
 from PIL import Image, ImageDraw
 
 from tools import p5_design_evidence as p5, ui_tone_evidence as tone
+
+
+class LoadingGate:
+    def __init__(self):
+        self.released = threading.Event()
+        self.entered = threading.Event()
+
+    def hold(self):
+        self.released = threading.Event()
+        self.entered = threading.Event()
+
+    def release(self):
+        self.released.set()
+
+
+PERSONAL_GATE = LoadingGate()
 
 
 class AuditFixture(p5.P5Fixture):
@@ -43,6 +60,12 @@ class AuditFixture(p5.P5Fixture):
         return rows
 
     def personal_search(self, *args, **kwargs):
+        if os.environ['PV_UIUX_STATE'] == 'loading':
+            event = PERSONAL_GATE.released
+            PERSONAL_GATE.entered.set()
+            if not event.wait(60):
+                raise TimeoutError('synthetic loading gate timed out')
+            return super().personal_search(*args, **kwargs)
         result = self._response(super().personal_search, *args, **kwargs)
         rows = result['illusts']
         if rows and os.environ.get('PV_UI_IMAGE_AREA') == '1':
@@ -117,6 +140,31 @@ def seed_area_profile(product, original):
                            "ELSE 'synthetic pair' END")
                 db.execute('UPDATE discovery_view_history SET thumbnail_url=?', (p5.RANKING_FIXTURE_URL,))
 def serve_port(port, nonce):
+    import secrets
+    import sys
+    from fastapi import Header, HTTPException
+    from nicegui import app
+    from tools.uiux_audit import ROOT, loaded_module_manifest
+
+    @app.get('/_h3/loaded-modules', include_in_schema=False)
+    def loaded_modules(x_acceptance: str | None = Header(default=None)):
+        if not secrets.compare_digest(x_acceptance or '', nonce):
+            raise HTTPException(403)
+        return loaded_module_manifest(ROOT / 'src',
+                                      [getattr(module, '__file__', None) for module in tuple(sys.modules.values())])
+
+    @app.post('/_h3/personal-gate/{action}', include_in_schema=False)
+    def personal_gate(action: str, x_acceptance: str | None = Header(default=None)):
+        if not secrets.compare_digest(x_acceptance or '', nonce):
+            raise HTTPException(403)
+        if action == 'hold':
+            PERSONAL_GATE.hold()
+        elif action == 'release':
+            PERSONAL_GATE.release()
+        else:
+            raise HTTPException(404)
+        return {'entered': PERSONAL_GATE.entered.is_set()}
+
     from pixivvault_nicegui.auth_status import AuthHeaderStatus, GREEN
     from pixivvault_nicegui.native_startup import NativeProfileBinding
     from pixivvault_nicegui import services
@@ -256,6 +304,16 @@ def open_port(page, cell, specs):
 
     key, state = cell.screen, cell.state
     opener = None
+    if key == 'automation':
+        opener = click(page, 'automation-open')
+        ready(page, 'automation-dialog')
+        return True, opener
+    if key == 'stop-details':
+        tone.navigate_extra(page, 'request-limit', 'port')
+        toggle = page.locator('[data-testid$="-stop-details-toggle"]').filter(visible=True).first
+        toggle.click(timeout=5000)
+        page.locator('[data-testid$="-stop-details-text"]').filter(visible=True).first.wait_for(timeout=5000)
+        return True, toggle
     if key in tone.STARTUP_CASES or key in {'stop-history-guide', 'stop-migration-dialog'}:
         tone.navigate_extra(page, key, 'port')
         return True, None
@@ -369,18 +427,17 @@ def open_port(page, cell, specs):
                      personal=('personal-fetch', 'personal-notice'),
                      dedup=('duplicate-scan', 'duplicate-status'))
         trigger, target = focus[screen]
-        if screen != 'dedup' or state != 'empty':
-            click(page, trigger)
-            status = ready(page, target)
-            if state in {'error', 'loading'}:
-                wait_label(status, re.compile('失敗|できません|利用できません' if state == 'error' else
-                                              '取得中|スキャン中|確認中|スキャンしています'))
-                return True, None
-            if screen == 'dedup':
-                wait_label(status, re.compile('枚を確認'))
-                click(page, 'duplicate-mode-near')
-            else:
-                wait_label(status, re.compile(r'\d+\s*件|見つかりません|ありません|件表示'))
+        click(page, trigger)
+        status = ready(page, target)
+        if state in {'error', 'loading'}:
+            wait_label(status, re.compile('失敗|できません|利用できません' if state == 'error' else
+                                          '取得中|スキャン中|確認中|スキャンしています'))
+            return True, None
+        if screen == 'dedup':
+            wait_label(status, re.compile('枚を確認'))
+            click(page, 'duplicate-mode-near')
+        else:
+            wait_label(status, re.compile(r'\d+\s*件|見つかりません|ありません|件表示'))
     if key == 'viewer':
         image = page.locator('[data-testid=ranking-view] .pv-card img').filter(visible=True).first
         image.click(timeout=4500)
